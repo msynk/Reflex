@@ -1,8 +1,8 @@
 # Reflex
 
-Lightweight, source-generator-powered **reactive state management for Blazor** — with **Redux DevTools time-travel** built in.
+Lightweight, source-generator-powered **reactive state management for Blazor** - with **Redux DevTools time-travel** built in.
 
-Reflex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux library but is widely criticized for boilerplate (separate Action / Reducer / Effect / Feature classes per operation) and for having no first-class DevTools time-travel. Reflex keeps the good parts of the Flux model — a single observable state tree, named actions, middleware — while a Roslyn source generator removes the ceremony and a tiny JS bridge wires you straight into the Redux DevTools browser extension.
+Reflex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux library but is widely criticized for boilerplate (separate Action / Reducer / Effect / Feature classes per operation) and for having no first-class DevTools time-travel. Reflex keeps the good parts of the Flux model - a single observable state tree, named actions, middleware - while a Roslyn source generator removes the ceremony and a tiny JS bridge wires you straight into the Redux DevTools browser extension.
 
 ## Why Reflex
 
@@ -62,7 +62,7 @@ builder.Services.AddReflexStore<TodoStore>();
 ```
 
 ```razor
-@* App.razor — wrap your router once *@
+@* App.razor - wrap your router once *@
 <ReflexProvider>
     <Router ... />
 </ReflexProvider>
@@ -87,7 +87,7 @@ and unsubscribes automatically on dispose.
 ## Time-travel debugging
 
 1. Install the [Redux DevTools](https://github.com/reduxjs/redux-devtools) browser extension.
-2. Run the app and open DevTools — you'll see an instance named after `DevToolsName`.
+2. Run the app and open DevTools - you'll see an instance named after `DevToolsName`.
 3. Every action streams in with the resulting state tree.
 4. Use the slider / jump buttons to rewind and replay your application state live.
 
