@@ -1,0 +1,42 @@
+﻿@page "/"
+
+<PageTitle>Reflex</PageTitle>
+
+<h1>Reflex</h1>
+
+<p class="lead">
+    Lightweight, source-generator-powered reactive state for Blazor &mdash; with Redux DevTools
+    time-travel built in.
+</p>
+
+<p>This is the entire <code>CounterStore</code>. Everything else is generated:</p>
+
+<pre class="p-3 bg-light border rounded"><code>[Store(Name = "counter")]
+public partial class CounterStore
+{
+    [State] private int _count;
+    [State] private int _step = 1;
+
+    [Computed] private int ComputeDoubleCount() =&gt; Count * 2;
+    [Computed] private bool ComputeIsEven() =&gt; Count % 2 == 0;
+
+    [Action] private void OnIncrement() =&gt; Count += Step;
+    [Action] private void OnReset() { Count = 0; Step = 1; }
+}</code></pre>
+
+<h3>Try time-travel</h3>
+<ol>
+    <li>Install the <strong>Redux DevTools</strong> browser extension.</li>
+    <li>Open it (look for the <em>Reflex Sample</em> instance).</li>
+    <li>Click around the <a href="counter">Counter</a> and <a href="todos">Todos</a> pages.</li>
+    <li>Use the slider / "jump" buttons in DevTools to rewind your app state.</li>
+</ol>
+
+<h3>What you get</h3>
+<ul>
+    <li><strong>Reactive containers</strong> &mdash; annotate fields, get notifying properties.</li>
+    <li><strong>Computed state</strong> &mdash; memoized, auto-invalidated on change.</li>
+    <li><strong>Named actions</strong> &mdash; sync &amp; async, batched into single entries.</li>
+    <li><strong>Middleware</strong> &mdash; logging, persistence, analytics.</li>
+    <li><strong>Time-travel</strong> &mdash; full Redux DevTools integration.</li>
+</ul>

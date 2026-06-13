@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>Reflex</PackageId>
+    <Description>Lightweight, source-generator-powered reactive state management for Blazor with computed state, middleware, and Redux DevTools time-travel.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ship the source generator inside the core package so a single reference lights up codegen. -->
+    <ProjectReference Include="..\Reflex.Generators\Reflex.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Bundle the generator DLL into analyzers/dotnet/cs so consumers get codegen transitively. -->
+  <Target Name="PackReflexGenerator"
+          BeforeTargets="$(GenerateNuspecDependsOn)"
+          DependsOnTargets="ResolveProjectReferences">
+    <ItemGroup>
+      <None Include="@(Analyzer)"
+            Condition="'%(Filename)' == 'Reflex.Generators'"
+            Pack="true"
+            PackagePath="analyzers/dotnet/cs"
+            Visible="false" />
+    </ItemGroup>
+  </Target>
+
+</Project>

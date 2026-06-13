@@ -1,0 +1,30 @@
+namespace Reflex;
+
+/// <summary>Configuration for the Reflex manager, populated via <c>AddReflex</c>.</summary>
+public sealed class ReflexOptions
+{
+    internal List<Type> MiddlewareTypes { get; } = new();
+    internal List<IReflexMiddleware> MiddlewareInstances { get; } = new();
+
+    /// <summary>Display name shown in Redux DevTools. Defaults to <c>"Reflex"</c>.</summary>
+    public string DevToolsName { get; set; } = "Reflex";
+
+    /// <summary>Registers a middleware type resolved from DI.</summary>
+    public ReflexOptions UseMiddleware<TMiddleware>() where TMiddleware : class, IReflexMiddleware
+    {
+        MiddlewareTypes.Add(typeof(TMiddleware));
+        return this;
+    }
+
+    /// <summary>Registers a pre-built middleware instance.</summary>
+    public ReflexOptions UseMiddleware(IReflexMiddleware middleware)
+    {
+        ArgumentNullException.ThrowIfNull(middleware);
+        MiddlewareInstances.Add(middleware);
+        return this;
+    }
+
+    /// <summary>Registers a delegate-based middleware (handy for quick logging).</summary>
+    public ReflexOptions UseMiddleware(Action<ReflexActionContext> handler)
+        => UseMiddleware(new DelegateMiddleware(handler));
+}
