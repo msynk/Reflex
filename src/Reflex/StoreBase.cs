@@ -8,12 +8,20 @@ namespace Reflex;
 /// hooks the source generator wires up. You normally never derive from this directly --
 /// decorate a partial class with <see cref="StoreAttribute"/> and the generator does it for you.
 /// </summary>
+/// <remarks>
+/// Dispatch is assumed to be single-threaded, matching Blazor's rendering model. The depth
+/// counters that drive batching (<c>_recordDepth</c>/<c>_notifyDepth</c>) are not synchronized.
+/// In particular, while a <see cref="DispatchAsync(string, Func{Task})"/> action is awaiting,
+/// any state mutation made from elsewhere is folded into that in-flight action rather than
+/// recorded as its own action. Avoid mutating a store from outside while one of its async
+/// actions is in progress.
+/// </remarks>
 public abstract class StoreBase : IStore
 {
     private int _recordDepth;
     private int _notifyDepth;
     private bool _dirty;
-    private ReflexStore? _manager;
+    private ReflexManager? _manager;
 
     /// <inheritdoc />
     public abstract string Name { get; }
@@ -42,7 +50,7 @@ public abstract class StoreBase : IStore
         StateChanged?.Invoke();
     }
 
-    internal void Attach(ReflexStore manager) => _manager = manager;
+    internal void Attach(ReflexManager manager) => _manager = manager;
 
     /// <summary>
     /// Assigns a state backing field. Raises change notification immediately unless inside a
@@ -103,6 +111,11 @@ public abstract class StoreBase : IStore
     /// Async variant. State changes update the UI as they happen (e.g. a loading flag before an
     /// await), but the whole operation is recorded as one named action for time-travel.
     /// </summary>
+    /// <remarks>
+    /// Because the operation spans <c>await</c> points, any state mutation that occurs from
+    /// outside this store while the action is awaiting is attributed to this action. Treat a
+    /// store as owned by its in-flight async action until it completes.
+    /// </remarks>
     protected async Task DispatchAsync(string actionName, Func<Task> mutation)
     {
         ArgumentNullException.ThrowIfNull(mutation);

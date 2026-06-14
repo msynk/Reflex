@@ -44,6 +44,16 @@ public partial class CounterStore
         Count = 42;
         Label = "loaded";
     }
+
+    // Returns ValueTask<T>: the generator must await it (via AsTask) rather than fire-and-forget.
+    // The explicit name contains spaces, so it is a display label only; the wrapper is "LoadValue".
+    [Action(Name = "Load Value")]
+    private async ValueTask<int> OnLoadValue()
+    {
+        await Task.Delay(1);
+        Count = 7;
+        return Count;
+    }
 }
 
 [Store]

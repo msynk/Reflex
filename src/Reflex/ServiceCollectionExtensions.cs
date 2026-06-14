@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
             var opts = sp.GetRequiredService<ReflexOptions>();
             var resolved = sp.GetServices<IReflexMiddleware>().ToList();
             resolved.AddRange(opts.MiddlewareInstances);
-            return new ReflexStore(resolved);
+            return new ReflexManager(resolved);
         });
 
         return services;

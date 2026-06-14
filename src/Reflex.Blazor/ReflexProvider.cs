@@ -5,7 +5,7 @@ using Microsoft.JSInterop;
 namespace Reflex.Blazor;
 
 /// <summary>
-/// Root component that wires every registered <see cref="IStore"/> into the <see cref="ReflexStore"/>
+/// Root component that wires every registered <see cref="IStore"/> into the <see cref="ReflexManager"/>
 /// manager and (on first render) connects the Redux DevTools bridge. Place it once near the root of
 /// your app, wrapping your routes:
 /// <code>&lt;ReflexProvider&gt;&lt;Router ... /&gt;&lt;/ReflexProvider&gt;</code>
@@ -14,12 +14,20 @@ public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
 {
     private ReduxDevToolsConnector? _connector;
 
-    [Inject] private ReflexStore Manager { get; set; } = default!;
+    [Inject] private ReflexManager Manager { get; set; } = default!;
     [Inject] private IEnumerable<IStore> Stores { get; set; } = default!;
     [Inject] private IJSRuntime Js { get; set; } = default!;
     [Inject] private ReflexOptions Options { get; set; } = default!;
 
-    /// <summary>Disables the DevTools connection when set to <c>false</c>. Defaults to <c>true</c>.</summary>
+    /// <summary>
+    /// Enables the Redux DevTools connection. Defaults to <c>true</c>.
+    /// </summary>
+    /// <remarks>
+    /// When enabled, the entire application state tree is serialized and exposed to the Redux
+    /// DevTools browser extension on every action. This is intended for development only; set
+    /// this to <c>false</c> in production (for example, bind it to your host environment) to
+    /// avoid leaking application state to an installed extension.
+    /// </remarks>
     [Parameter] public bool EnableDevTools { get; set; } = true;
 
     /// <summary>The application content rendered inside the provider.</summary>

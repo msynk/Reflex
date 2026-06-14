@@ -10,7 +10,7 @@ public class ManagerTests
     [Fact]
     public void GlobalState_AggregatesAllStores()
     {
-        var manager = new ReflexStore();
+        var manager = new ReflexManager();
         var counter = new CounterStore();
         var todo = new TodoStore();
         manager.Register(counter);
@@ -29,7 +29,7 @@ public class ManagerTests
     public void Middleware_ReceivesActions_WithQualifiedName()
     {
         var seen = new List<string>();
-        var manager = new ReflexStore(new[] { new DelegateMiddleware(ctx => seen.Add(ctx.QualifiedName)) });
+        var manager = new ReflexManager(new[] { new DelegateMiddleware(ctx => seen.Add(ctx.QualifiedName)) });
         var counter = new CounterStore();
         manager.Register(counter);
 
@@ -42,7 +42,7 @@ public class ManagerTests
     [Fact]
     public void TimeTravel_RestoresPreviousState()
     {
-        var manager = new ReflexStore();
+        var manager = new ReflexManager();
         var counter = new CounterStore();
         manager.Register(counter);
 
@@ -72,7 +72,7 @@ public class ManagerTests
     public void TimeTravel_DoesNotRecordNewActions()
     {
         var seen = new List<string>();
-        var manager = new ReflexStore(new[] { new DelegateMiddleware(ctx => seen.Add(ctx.ActionName)) });
+        var manager = new ReflexManager(new[] { new DelegateMiddleware(ctx => seen.Add(ctx.ActionName)) });
         var counter = new CounterStore();
         manager.Register(counter);
 
@@ -97,7 +97,7 @@ public class ManagerTests
     public void DevToolsSink_ReceivesInitAndSend()
     {
         var sink = new FakeDevTools();
-        var manager = new ReflexStore();
+        var manager = new ReflexManager();
         var counter = new CounterStore();
         manager.Register(counter);
         manager.ConnectDevTools(sink);
@@ -107,6 +107,86 @@ public class ManagerTests
         counter.Increment();
         Assert.Single(sink.Sent);
         Assert.Equal("counter/Increment", sink.Sent[0]);
+    }
+
+    [Fact]
+    public void DevTools_Reset_RestoresInitialState()
+    {
+        var sink = new FakeDevTools();
+        var manager = new ReflexManager();
+        var counter = new CounterStore();
+        manager.Register(counter);
+        manager.ConnectDevTools(sink); // captures initial state (Count == 0)
+
+        counter.Count = 5;
+
+        var message = new JsonObject
+        {
+            ["type"] = "DISPATCH",
+            ["payload"] = new JsonObject { ["type"] = "RESET" },
+        };
+        manager.HandleDevToolsMessage(message.ToJsonString());
+
+        Assert.Equal(0, counter.Count);
+    }
+
+    [Fact]
+    public void DevTools_CommitThenRollback_RestoresCommittedState()
+    {
+        var sink = new FakeDevTools();
+        var manager = new ReflexManager();
+        var counter = new CounterStore();
+        manager.Register(counter);
+        manager.ConnectDevTools(sink);
+
+        counter.Count = 4;
+        var commit = new JsonObject
+        {
+            ["type"] = "DISPATCH",
+            ["payload"] = new JsonObject { ["type"] = "COMMIT" },
+        };
+        manager.HandleDevToolsMessage(commit.ToJsonString()); // committed at Count == 4
+
+        counter.Count = 9;
+        var rollback = new JsonObject
+        {
+            ["type"] = "DISPATCH",
+            ["payload"] = new JsonObject { ["type"] = "ROLLBACK" },
+        };
+        manager.HandleDevToolsMessage(rollback.ToJsonString());
+
+        Assert.Equal(4, counter.Count); // reverted to last committed snapshot
+    }
+
+    [Fact]
+    public void DevTools_ImportState_RestoresLastComputedState()
+    {
+        var manager = new ReflexManager();
+        var counter = new CounterStore();
+        manager.Register(counter);
+
+        counter.Count = 2;
+        var target = manager.CaptureGlobalState();
+        counter.Count = 8;
+
+        var message = new JsonObject
+        {
+            ["type"] = "DISPATCH",
+            ["payload"] = new JsonObject
+            {
+                ["type"] = "IMPORT_STATE",
+                ["nextLiftedState"] = new JsonObject
+                {
+                    ["computedStates"] = new JsonArray
+                    {
+                        new JsonObject { ["state"] = target.DeepClone() },
+                    },
+                },
+            },
+        };
+        manager.HandleDevToolsMessage(message.ToJsonString());
+
+        Assert.Equal(2, counter.Count);
     }
 
     private sealed class FakeDevTools : IReflexDevTools

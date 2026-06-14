@@ -17,6 +17,12 @@ public sealed class StoreAttribute : Attribute
 /// (PascalCased, with the leading underscore removed) whose setter flows through the dispatch
 /// pipeline so changes are tracked, notified and recorded for time-travel.
 /// </summary>
+/// <remarks>
+/// Change detection uses <see cref="EqualityComparer{T}.Default"/>. For reference types such as
+/// <c>List&lt;T&gt;</c> that do not override equality, this is reference equality, so mutating a
+/// collection in place will not raise a notification. Assign a new instance (or use an immutable
+/// collection) when updating collection or object state.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
 public sealed class StateAttribute : Attribute
 {
@@ -39,6 +45,11 @@ public sealed class ComputedAttribute : Attribute
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class ActionAttribute : Attribute
 {
-    /// <summary>Optional explicit action name. Defaults to the wrapper method name.</summary>
+    /// <summary>
+    /// Optional explicit action name. When it is a valid C# identifier it is used as the public
+    /// wrapper method name and the display label. When it contains characters that aren't valid in
+    /// an identifier (such as spaces) it is treated purely as the display label, and the wrapper
+    /// method name is derived from the implementation method by stripping its <c>On</c> prefix.
+    /// </summary>
     public string? Name { get; set; }
 }

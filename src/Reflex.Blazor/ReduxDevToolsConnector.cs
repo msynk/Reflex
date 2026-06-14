@@ -4,7 +4,7 @@ using Microsoft.JSInterop;
 namespace Reflex.Blazor;
 
 /// <summary>
-/// Bridges a <see cref="ReflexStore"/> to the Redux DevTools browser extension, enabling
+/// Bridges a <see cref="ReflexManager"/> to the Redux DevTools browser extension, enabling
 /// live action inspection and time-travel. Created and managed by <see cref="ReflexProvider"/>.
 /// </summary>
 public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
@@ -12,7 +12,7 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
     private readonly IJSRuntime _js;
     private IJSObjectReference? _module;
     private DotNetObjectReference<ReduxDevToolsConnector>? _selfRef;
-    private ReflexStore? _manager;
+    private ReflexManager? _manager;
     private bool _ready;
 
     /// <summary>Creates a connector over the supplied JS runtime.</summary>
@@ -22,7 +22,7 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
     /// Loads the JS bridge, connects to the extension and wires the manager. Safe to call when the
     /// extension is absent - it simply becomes a no-op.
     /// </summary>
-    public async Task ConnectAsync(ReflexStore manager, string name)
+    public async Task ConnectAsync(ReflexManager manager, string name)
     {
         _manager = manager;
         _module = await _js.InvokeAsync<IJSObjectReference>(
@@ -41,14 +41,41 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
     public void Init(JsonObject globalState)
     {
         if (_ready && _module is not null)
-            _ = _module.InvokeVoidAsync("init", globalState.ToJsonString());
+            FireAndForget(_module.InvokeVoidAsync("init", globalState.ToJsonString()));
     }
 
     /// <inheritdoc />
     public void Send(string actionName, JsonObject globalState)
     {
         if (_ready && _module is not null)
-            _ = _module.InvokeVoidAsync("send", actionName, globalState.ToJsonString());
+            FireAndForget(_module.InvokeVoidAsync("send", actionName, globalState.ToJsonString()));
+    }
+
+    // DevTools is a non-critical sink, so interop is dispatched without blocking the dispatch
+    // pipeline. We still observe the task so a transient interop failure can't surface as an
+    // unobserved task exception.
+    private static void FireAndForget(ValueTask task)
+    {
+        if (task.IsCompletedSuccessfully)
+            return;
+
+        _ = Awaited(task);
+
+        static async Task Awaited(ValueTask t)
+        {
+            try
+            {
+                await t;
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit gone; nothing to report.
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Reflex] DevTools interop failed: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>Invoked from JS for every message the extension sends back (drives time-travel).</summary>

@@ -11,6 +11,7 @@ internal sealed record ActionModel(
     string WrapperName,
     string ActionLabel,
     bool IsAsync,
+    bool IsValueTask,
     EquatableArray<ParamModel> Parameters) : System.IEquatable<ActionModel>;
 
 internal sealed record StoreModel(

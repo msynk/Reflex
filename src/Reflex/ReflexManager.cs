@@ -9,7 +9,13 @@ namespace Reflex;
 /// time-travel snapshots. Resolve it from DI if you need cross-store coordination; most apps
 /// only interact with individual stores.
 /// </summary>
-public sealed class ReflexStore
+/// <remarks>
+/// This type is designed for single-threaded dispatch, matching Blazor's rendering model. The
+/// internal <c>_gate</c> only protects the store registry and global-state capture; the dispatch
+/// pipeline itself (sequence counter, middleware, DevTools) assumes actions are not dispatched
+/// concurrently. Coordinate access externally if you dispatch from multiple threads.
+/// </remarks>
+public sealed class ReflexManager
 {
     private readonly List<IStore> _stores = new();
     private readonly List<IReflexMiddleware> _middleware;
@@ -21,7 +27,7 @@ public sealed class ReflexStore
     private bool _connected;
 
     /// <summary>Creates a manager with the supplied middleware (order preserved).</summary>
-    public ReflexStore(IEnumerable<IReflexMiddleware>? middleware = null)
+    public ReflexManager(IEnumerable<IReflexMiddleware>? middleware = null)
     {
         _middleware = middleware?.ToList() ?? new List<IReflexMiddleware>();
     }
@@ -51,10 +57,11 @@ public sealed class ReflexStore
     {
         ArgumentNullException.ThrowIfNull(devTools);
         _devTools = devTools;
-        _initialState ??= CaptureGlobalState();
-        _committedState = _initialState;
+        var state = CaptureGlobalState();
+        _initialState ??= state;
+        _committedState = state;
         _connected = true;
-        devTools.Init(CaptureGlobalState());
+        devTools.Init(state);
     }
 
     /// <summary>Builds the global state tree: <c>{ "&lt;StoreName&gt;": &lt;state&gt;, ... }</c>.</summary>
@@ -72,8 +79,13 @@ public sealed class ReflexStore
 
     internal void RecordAction(IStore source, string actionName)
     {
-        _initialState ??= CaptureGlobalState();
+        // Building and serializing the global state on every action is expensive, so skip the
+        // whole pipeline when nothing is listening (no middleware, no DevTools, no subscribers).
+        if (_middleware.Count == 0 && !_connected && ActionDispatched is null)
+            return;
+
         var global = CaptureGlobalState();
+        _initialState ??= global;
         var context = new ReflexActionContext(source, actionName, global, ++_sequence);
 
         foreach (var mw in _middleware)
@@ -122,8 +134,16 @@ public sealed class ReflexStore
         {
             case "JUMP_TO_STATE":
             case "JUMP_TO_ACTION":
-            case "ROLLBACK":
                 ApplyStateString(message["state"]?.GetValue<string>());
+                break;
+
+            case "ROLLBACK":
+                // Revert to the last committed snapshot if we have one; otherwise fall back to
+                // the state the extension supplied with the message.
+                if (_committedState is not null)
+                    RestoreGlobalState(_committedState);
+                else
+                    ApplyStateString(message["state"]?.GetValue<string>());
                 break;
 
             case "RESET":
@@ -166,7 +186,7 @@ public sealed class ReflexStore
                 if (global[store.Name] is JsonObject slice && store is StoreBase sb)
                 {
                     // Clone so the store owns its node (a JsonNode can't be parented twice).
-                    var clone = (JsonObject)JsonNode.Parse(slice.ToJsonString())!;
+                    var clone = (JsonObject)slice.DeepClone();
                     sb.ApplyRestoredState(clone);
                 }
             }

@@ -17,6 +17,12 @@ public sealed class ReflexOptions
     }
 
     /// <summary>Registers a pre-built middleware instance.</summary>
+    /// <remarks>
+    /// The instance is stored on the (singleton) options and therefore shared across every DI
+    /// scope. Under Blazor Server that means it is shared across all circuits, so avoid holding
+    /// per-user state in it. Use <see cref="UseMiddleware{TMiddleware}"/> for scoped, per-circuit
+    /// middleware.
+    /// </remarks>
     public ReflexOptions UseMiddleware(IReflexMiddleware middleware)
     {
         ArgumentNullException.ThrowIfNull(middleware);

@@ -44,6 +44,30 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor ComputedHasParameters = new(
+        "REFLEX004",
+        "Computed method must be parameterless",
+        "Computed method '{0}' must be parameterless so it can back a memoized property",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor DuplicateMember = new(
+        "REFLEX005",
+        "Generated member name collides",
+        "Reflex store '{0}' generates more than one member named '{1}'. Rename the conflicting state, computed or action.",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor UnsupportedClassShape = new(
+        "REFLEX006",
+        "Unsupported store class shape",
+        "Reflex store '{0}' must be a top-level, non-generic class. Nested and generic stores are not supported.",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var stores = context.SyntaxProvider.ForAttributeWithMetadataName(
@@ -80,6 +104,14 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             return result;
         }
 
+        // The emitter writes a flat, top-level partial declaration, so nested and generic
+        // stores would produce broken output. Fail with a clear diagnostic instead.
+        if (symbol.ContainingType is not null || symbol.IsGenericType)
+        {
+            result.Diagnostics.Add(Diagnostic.Create(UnsupportedClassShape, classDecl.Identifier.GetLocation(), symbol.Name));
+            return result;
+        }
+
         var ns = symbol.ContainingNamespace.IsGlobalNamespace
             ? null
             : symbol.ContainingNamespace.ToDisplayString();
@@ -110,6 +142,12 @@ public sealed class ReflexGenerator : IIncrementalGenerator
 
                 case IMethodSymbol cm when cm.MethodKind == MethodKind.Ordinary && HasAttribute(cm, ComputedAttribute):
                 {
+                    if (cm.Parameters.Length > 0)
+                    {
+                        result.Diagnostics.Add(Diagnostic.Create(ComputedHasParameters, cm.Locations.FirstOrDefault(), cm.Name));
+                        break;
+                    }
+
                     var propName = ToComputedName(cm.Name);
                     if (propName is null)
                     {
@@ -130,14 +168,19 @@ public sealed class ReflexGenerator : IIncrementalGenerator
                     var explicitName = attr.NamedArguments
                         .FirstOrDefault(a => a.Key == "Name").Value.Value as string;
 
-                    var wrapper = DeriveActionName(am.Name, explicitName);
+                    var wrapper = DeriveWrapperName(am.Name, explicitName);
                     if (wrapper is null)
                     {
                         result.Diagnostics.Add(Diagnostic.Create(BadActionName, am.Locations.FirstOrDefault(), am.Name));
                         break;
                     }
 
+                    // The label is for display (DevTools / time-travel) and may contain spaces;
+                    // the wrapper is a C# identifier and is kept separate.
+                    var label = string.IsNullOrWhiteSpace(explicitName) ? wrapper : explicitName!;
+
                     var isAsync = IsTaskReturning(am.ReturnType);
+                    var isValueTask = IsValueTaskReturning(am.ReturnType);
                     var prms = am.Parameters
                         .Select(p => new ParamModel(
                             p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
@@ -147,8 +190,9 @@ public sealed class ReflexGenerator : IIncrementalGenerator
                     actions.Add(new ActionModel(
                         am.Name,
                         wrapper,
-                        explicitName ?? wrapper,
+                        label,
                         isAsync,
+                        isValueTask,
                         new EquatableArray<ParamModel>(prms)));
                     break;
                 }
@@ -163,7 +207,32 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             new EquatableArray<ComputedModel>(computeds.ToArray()),
             new EquatableArray<ActionModel>(actions.ToArray()));
 
+        DetectDuplicates(storeName, states, computeds, actions, symbol, result);
+
         return result;
+    }
+
+    private static void DetectDuplicates(
+        string storeName,
+        List<StateModel> states,
+        List<ComputedModel> computeds,
+        List<ActionModel> actions,
+        INamedTypeSymbol symbol,
+        TransformResult result)
+    {
+        var seen = new HashSet<string>(System.StringComparer.Ordinal);
+        void Check(string name)
+        {
+            if (!seen.Add(name))
+                result.Diagnostics.Add(Diagnostic.Create(DuplicateMember, symbol.Locations.FirstOrDefault(), storeName, name));
+        }
+
+        foreach (var s in states)
+            Check(s.PropertyName);
+        foreach (var c in computeds)
+            Check(c.PropertyName);
+        foreach (var a in actions)
+            Check(a.WrapperName);
     }
 
     private static bool HasAttribute(ISymbol symbol, string fullName)
@@ -174,7 +243,15 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         var name = type.ToDisplayString();
         return name == "System.Threading.Tasks.Task"
             || name.StartsWith("System.Threading.Tasks.Task<", System.StringComparison.Ordinal)
-            || name == "System.Threading.Tasks.ValueTask";
+            || name == "System.Threading.Tasks.ValueTask"
+            || name.StartsWith("System.Threading.Tasks.ValueTask<", System.StringComparison.Ordinal);
+    }
+
+    private static bool IsValueTaskReturning(ITypeSymbol type)
+    {
+        var name = type.ToDisplayString();
+        return name == "System.Threading.Tasks.ValueTask"
+            || name.StartsWith("System.Threading.Tasks.ValueTask<", System.StringComparison.Ordinal);
     }
 
     private static string ToPropertyName(string fieldName)
@@ -182,6 +259,8 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         var trimmed = fieldName.TrimStart('_');
         if (trimmed.Length == 0)
             trimmed = fieldName;
+        if (trimmed.Length == 0 || !(char.IsLetter(trimmed[0]) || trimmed[0] == '_'))
+            return "_" + trimmed;
         return char.ToUpperInvariant(trimmed[0]) + trimmed.Substring(1);
     }
 
@@ -198,14 +277,32 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         return char.ToUpperInvariant(core[0]) + core.Substring(1);
     }
 
-    private static string? DeriveActionName(string methodName, string? explicitName)
+    private static string? DeriveWrapperName(string methodName, string? explicitName)
     {
-        if (!string.IsNullOrWhiteSpace(explicitName))
+        // An explicit name may be used as the wrapper identifier only when it is a valid
+        // C# identifier. Otherwise it is treated purely as a display label and the wrapper
+        // is derived from the conventional "On" prefix.
+        if (!string.IsNullOrWhiteSpace(explicitName) && IsValidIdentifier(explicitName!))
             return explicitName;
         if (methodName.StartsWith("On", System.StringComparison.Ordinal) && methodName.Length > 2
             && char.IsUpper(methodName[2]))
             return methodName.Substring(2);
         return null;
+    }
+
+    private static bool IsValidIdentifier(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return false;
+        if (!(char.IsLetter(value[0]) || value[0] == '_'))
+            return false;
+        for (var i = 1; i < value.Length; i++)
+        {
+            if (!(char.IsLetterOrDigit(value[i]) || value[i] == '_'))
+                return false;
+        }
+
+        return true;
     }
 
     private static string Emit(StoreModel m)
@@ -278,8 +375,10 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             sb.AppendLine($"{body}/// <summary>Dispatches the <c>{a.ActionLabel}</c> action.</summary>");
             if (a.IsAsync)
             {
+                // ValueTask / ValueTask<T> aren't assignable to Task, so normalize via AsTask().
+                var call = a.IsValueTask ? $"{a.ImplName}({argList}).AsTask()" : $"{a.ImplName}({argList})";
                 sb.AppendLine($"{body}public global::System.Threading.Tasks.Task {a.WrapperName}({paramList})");
-                sb.AppendLine($"{body}    => DispatchAsync(\"{a.ActionLabel}\", () => {a.ImplName}({argList}));");
+                sb.AppendLine($"{body}    => DispatchAsync(\"{a.ActionLabel}\", () => {call});");
             }
             else
             {

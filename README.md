@@ -99,7 +99,7 @@ sends each action via `send(action, state)`, and applies `JUMP_TO_STATE` / `JUMP
 
 | Project | Description |
 |---|---|
-| `src/Reflex` | Core runtime (no JS dependency): `StoreBase`, attributes, dispatch, middleware, `ReflexStore` manager. |
+| `src/Reflex` | Core runtime (no JS dependency): `StoreBase`, attributes, dispatch, middleware, `ReflexManager` manager. |
 | `src/Reflex.Generators` | Roslyn incremental source generator. |
 | `src/Reflex.Blazor` | Blazor integration: `ReflexComponentBase`, `<ReflexProvider>`, Redux DevTools bridge. |
 | `src/Reflex.Sample` | Blazor WebAssembly demo (Counter + Todos). |

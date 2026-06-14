@@ -109,13 +109,49 @@ public class StoreBehaviorTests
     public void StandaloneSetter_RecordsActionOnManager()
     {
         var seen = new List<string>();
-        var manager = new ReflexStore(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
         var store = new CounterStore();
         manager.Register(store);
 
         store.Count = 3; // direct property set, no Dispatch
 
         Assert.Equal(new[] { "Set Count" }, seen);
+    }
+
+    [Fact]
+    public async Task AsyncAction_RecordsExactlyOneAction()
+    {
+        var seen = new List<string>();
+        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var store = new CounterStore();
+        manager.Register(store);
+
+        await store.LoadData(); // sets Label then Count across an await
+
+        Assert.Equal(new[] { "LoadData" }, seen); // batched into a single recorded action
+    }
+
+    [Fact]
+    public async Task ValueTaskAction_IsAwaited_NotFireAndForget()
+    {
+        var store = new CounterStore();
+
+        await store.LoadValue(); // returns ValueTask<int>; wrapper exposes Task
+
+        Assert.Equal(7, store.Count); // mutation completed because the action was awaited
+    }
+
+    [Fact]
+    public async Task Action_ExplicitLabelWithSpaces_KeepsValidWrapperName_AndLabel()
+    {
+        var seen = new List<string>();
+        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var store = new CounterStore();
+        manager.Register(store);
+
+        await store.LoadValue(); // wrapper name derived from OnLoadValue -> LoadValue
+
+        Assert.Equal(new[] { "Load Value" }, seen); // label honors the spaced display name
     }
 
     [Fact]
