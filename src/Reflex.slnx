@@ -10,4 +10,7 @@
   <Folder Name="/tests/">
     <Project Path="Reflex.Tests/Reflex.Tests.csproj" />
   </Folder>
+  <Folder Name="/benchmarks/">
+    <Project Path="Reflex.Benchmarks/Reflex.Benchmarks.csproj" />
+  </Folder>
 </Solution>

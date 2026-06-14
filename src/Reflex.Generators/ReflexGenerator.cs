@@ -89,7 +89,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
     private sealed class TransformResult
     {
         public StoreModel? Model { get; set; }
-        public List<Diagnostic> Diagnostics { get; } = new();
+        public List<Diagnostic> Diagnostics { get; } = [];
     }
 
     private static TransformResult Transform(GeneratorAttributeSyntaxContext ctx)

@@ -3,8 +3,8 @@ namespace Reflex;
 /// <summary>Configuration for the Reflex manager, populated via <c>AddReflex</c>.</summary>
 public sealed class ReflexOptions
 {
-    internal List<Type> MiddlewareTypes { get; } = new();
-    internal List<IReflexMiddleware> MiddlewareInstances { get; } = new();
+    internal List<Type> MiddlewareTypes { get; } = [];
+    internal List<IReflexMiddleware> MiddlewareInstances { get; } = [];
 
     /// <summary>Display name shown in Redux DevTools. Defaults to <c>"Reflex"</c>.</summary>
     public string DevToolsName { get; set; } = "Reflex";

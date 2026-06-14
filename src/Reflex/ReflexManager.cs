@@ -17,9 +17,9 @@ namespace Reflex;
 /// </remarks>
 public sealed class ReflexManager
 {
-    private readonly List<IStore> _stores = new();
+    private readonly List<IStore> _stores = [];
     private readonly List<IReflexMiddleware> _middleware;
-    private readonly object _gate = new();
+    private readonly Lock _gate = new();
     private IReflexDevTools? _devTools;
     private JsonObject? _initialState;
     private JsonObject? _committedState;
@@ -29,7 +29,7 @@ public sealed class ReflexManager
     /// <summary>Creates a manager with the supplied middleware (order preserved).</summary>
     public ReflexManager(IEnumerable<IReflexMiddleware>? middleware = null)
     {
-        _middleware = middleware?.ToList() ?? new List<IReflexMiddleware>();
+        _middleware = middleware?.ToList() ?? [];
     }
 
     /// <summary>All registered stores.</summary>
