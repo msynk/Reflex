@@ -10,6 +10,12 @@ public interface IStore
     /// <summary>Display name of the store (used as the slice key in DevTools state).</summary>
     string Name { get; }
 
+    /// <summary>
+    /// Whether this store opts in to automatic persistence (set via <c>[Store(Persist = true)]</c>).
+    /// Consumed by the persistence coordinator; ignored when no persistence provider is configured.
+    /// </summary>
+    bool Persist { get; }
+
     /// <summary>Raised after the store's state changes so views can re-render.</summary>
     event Action? StateChanged;
 

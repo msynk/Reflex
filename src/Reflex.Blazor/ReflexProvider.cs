@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
 namespace Reflex.Blazor;
@@ -13,11 +14,13 @@ namespace Reflex.Blazor;
 public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
 {
     private ReduxDevToolsConnector? _connector;
+    private ComponentStatePersistence? _componentState;
 
     [Inject] private ReflexManager Manager { get; set; } = default!;
     [Inject] private IEnumerable<IStore> Stores { get; set; } = default!;
     [Inject] private IJSRuntime Js { get; set; } = default!;
     [Inject] private ReflexOptions Options { get; set; } = default!;
+    [Inject] private IServiceProvider Services { get; set; } = default!;
 
     /// <summary>
     /// Enables the Redux DevTools connection. Defaults to <c>true</c>.
@@ -30,14 +33,40 @@ public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
     /// </remarks>
     [Parameter] public bool EnableDevTools { get; set; } = true;
 
+    /// <summary>
+    /// Hands prerendered store state to the interactive render via Blazor's
+    /// <see cref="PersistentComponentState"/>, avoiding the prerender "double render" flicker.
+    /// Defaults to <c>true</c>; has no effect when the framework service is unavailable.
+    /// </summary>
+    [Parameter] public bool PersistComponentState { get; set; } = true;
+
     /// <summary>The application content rendered inside the provider.</summary>
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
     /// <inheritdoc />
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         foreach (var store in Stores)
             Manager.Register(store);
+
+        // Prerender -> interactive handoff (synchronous, before durable restore).
+        if (PersistComponentState)
+        {
+            var pcs = Services.GetService<PersistentComponentState>();
+            if (pcs is not null)
+            {
+                _componentState = new ComponentStatePersistence(pcs, Stores);
+                _componentState.TryRestore();
+            }
+        }
+
+        // Durable persistence (localStorage/sessionStorage), if configured.
+        var persistor = Services.GetService<StatePersistor>();
+        if (persistor is not null)
+            await persistor.StartAsync();
+
+        // In-app undo/redo, if configured.
+        Services.GetService<ReflexHistory>()?.Start();
     }
 
     /// <inheritdoc />
@@ -57,6 +86,8 @@ public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        _componentState?.Dispose();
+
         if (_connector is not null)
             await _connector.DisposeAsync();
     }

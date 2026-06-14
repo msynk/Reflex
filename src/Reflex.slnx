@@ -5,6 +5,7 @@
   <Folder Name="/src/">
     <Project Path="Reflex.Blazor/Reflex.Blazor.csproj" />
     <Project Path="Reflex.Generators/Reflex.Generators.csproj" />
+    <Project Path="Reflex.Testing/Reflex.Testing.csproj" />
     <Project Path="Reflex/Reflex.csproj" />
   </Folder>
   <Folder Name="/tests/">

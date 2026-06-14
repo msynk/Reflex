@@ -12,6 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="Reflex.Blazor" />
+    <InternalsVisibleTo Include="Reflex.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Ship the source generator inside the core package so a single reference lights up codegen. -->
     <ProjectReference Include="..\Reflex.Generators\Reflex.Generators.csproj"
                       OutputItemType="Analyzer"

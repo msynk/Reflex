@@ -14,10 +14,19 @@ internal sealed record ActionModel(
     bool IsValueTask,
     EquatableArray<ParamModel> Parameters) : System.IEquatable<ActionModel>;
 
+internal sealed record EffectModel(
+    string ImplName,
+    string WrapperName,
+    string ActionLabel,
+    bool IsValueTask,
+    EquatableArray<ParamModel> Parameters) : System.IEquatable<EffectModel>;
+
 internal sealed record StoreModel(
     string? Namespace,
     string ClassName,
     string StoreName,
+    bool Persist,
     EquatableArray<StateModel> States,
     EquatableArray<ComputedModel> Computeds,
-    EquatableArray<ActionModel> Actions) : System.IEquatable<StoreModel>;
+    EquatableArray<ActionModel> Actions,
+    EquatableArray<EffectModel> Effects) : System.IEquatable<StoreModel>;

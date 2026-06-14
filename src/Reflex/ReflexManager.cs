@@ -35,8 +35,115 @@ public sealed class ReflexManager
     /// <summary>All registered stores.</summary>
     public IReadOnlyList<IStore> Stores => _stores;
 
+    /// <summary>
+    /// Optional sanitizer applied to the state tree just before it is sent to the DevTools extension
+    /// (for display only). Use to redact secrets. Note: because DevTools time-travel echoes the
+    /// displayed state back, redacting values can corrupt restores - prefer redacting only fields you
+    /// never need to jump back to, or disable DevTools entirely in production.
+    /// </summary>
+    public Func<JsonObject, JsonObject>? DevToolsStateSanitizer { get; set; }
+
+    /// <summary>Optional sanitizer applied to the action label sent to the DevTools extension.</summary>
+    public Func<string, string>? DevToolsActionSanitizer { get; set; }
+
+    /// <summary>Returns the first registered store of type <typeparamref name="TStore"/>, or <c>null</c>.</summary>
+    public TStore? GetStore<TStore>() where TStore : class, IStore
+    {
+        lock (_gate)
+        {
+            foreach (var store in _stores)
+            {
+                if (store is TStore typed)
+                    return typed;
+            }
+        }
+
+        return null;
+    }
+
     /// <summary>Raised whenever any store changes (after the per-store event).</summary>
     public event Action<ReflexActionContext>? ActionDispatched;
+
+    /// <summary>
+    /// Subscribes to dispatched actions, optionally filtered. Returns a token; dispose it to stop
+    /// listening. Handler exceptions are isolated so one reactor can't break dispatch. This is the
+    /// building block for cross-store coordination (react to one store's action, mutate another).
+    /// </summary>
+    public IDisposable Subscribe(Action<ReflexActionContext> handler, Func<ReflexActionContext, bool>? filter = null)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        void Wrapped(ReflexActionContext ctx)
+        {
+            if (filter is not null && !filter(ctx))
+                return;
+            try
+            {
+                handler(ctx);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Reflex] action subscriber failed: {ex.Message}");
+            }
+        }
+
+        ActionDispatched += Wrapped;
+        return new Subscription(() => ActionDispatched -= Wrapped);
+    }
+
+    /// <summary>Subscribes to actions originating from a specific store type.</summary>
+    public IDisposable SubscribeTo<TStore>(Action<ReflexActionContext> handler) where TStore : IStore
+        => Subscribe(handler, ctx => ctx.Store is TStore);
+
+    /// <summary>
+    /// Subscribes to actions by name. Matches either the bare action name (e.g. <c>"Increment"</c>)
+    /// or the qualified name (e.g. <c>"counter/Increment"</c>).
+    /// </summary>
+    public IDisposable SubscribeToAction(string actionName, Action<ReflexActionContext> handler)
+    {
+        ArgumentNullException.ThrowIfNull(actionName);
+        return Subscribe(handler, ctx => ctx.ActionName == actionName || ctx.QualifiedName == actionName);
+    }
+
+    /// <summary>
+    /// Subscribes with an asynchronous reactor (e.g. to trigger an effect on another store). The
+    /// returned task is observed; failures are logged rather than surfaced as unobserved exceptions.
+    /// </summary>
+    public IDisposable SubscribeAsync(Func<ReflexActionContext, Task> handler, Func<ReflexActionContext, bool>? filter = null)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        return Subscribe(ctx => ObserveAsync(handler(ctx)), filter);
+    }
+
+    private static void ObserveAsync(Task task)
+    {
+        if (task.IsCompletedSuccessfully)
+            return;
+
+        _ = Awaited(task);
+
+        static async Task Awaited(Task t)
+        {
+            try
+            {
+                await t.ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[Reflex] async reactor failed: {ex.Message}");
+            }
+        }
+    }
+
+    private sealed class Subscription(Action dispose) : IDisposable
+    {
+        private Action? _dispose = dispose;
+
+        public void Dispose()
+        {
+            _dispose?.Invoke();
+            _dispose = null;
+        }
+    }
 
     /// <summary>Registers a store with the manager. Idempotent.</summary>
     public void Register(IStore store)
@@ -61,7 +168,7 @@ public sealed class ReflexManager
         _initialState ??= state;
         _committedState = state;
         _connected = true;
-        devTools.Init(state);
+        devTools.Init(SanitizeState(state));
     }
 
     /// <summary>Builds the global state tree: <c>{ "&lt;StoreName&gt;": &lt;state&gt;, ... }</c>.</summary>
@@ -75,6 +182,34 @@ public sealed class ReflexManager
         }
 
         return root;
+    }
+
+    /// <summary>
+    /// Runs the before-action pipeline. Returns <c>false</c> if any middleware vetoed the action,
+    /// in which case the caller must skip the mutation. Cheap no-op when no middleware is registered.
+    /// </summary>
+    internal bool BeforeAction(IStore source, string actionName)
+    {
+        if (_middleware.Count == 0)
+            return true;
+
+        var context = new ReflexPreActionContext(source, actionName);
+        foreach (var mw in _middleware)
+        {
+            try
+            {
+                mw.BeforeAction(context);
+            }
+            catch
+            {
+                // A misbehaving filter must not break dispatch.
+            }
+
+            if (context.IsCancelled)
+                return false;
+        }
+
+        return !context.IsCancelled;
     }
 
     internal void RecordAction(IStore source, string actionName)
@@ -103,7 +238,35 @@ public sealed class ReflexManager
         ActionDispatched?.Invoke(context);
 
         if (_connected)
-            _devTools?.Send(context.QualifiedName, global);
+            _devTools?.Send(SanitizeAction(context.QualifiedName), SanitizeState(global));
+    }
+
+    private JsonObject SanitizeState(JsonObject state)
+    {
+        if (DevToolsStateSanitizer is null)
+            return state;
+        try
+        {
+            return DevToolsStateSanitizer(state) ?? state;
+        }
+        catch
+        {
+            return state;
+        }
+    }
+
+    private string SanitizeAction(string label)
+    {
+        if (DevToolsActionSanitizer is null)
+            return label;
+        try
+        {
+            return DevToolsActionSanitizer(label) ?? label;
+        }
+        catch
+        {
+            return label;
+        }
     }
 
     /// <summary>
@@ -149,12 +312,12 @@ public sealed class ReflexManager
             case "RESET":
                 if (_initialState is not null)
                     RestoreGlobalState(_initialState);
-                _devTools?.Init(CaptureGlobalState());
+                _devTools?.Init(SanitizeState(CaptureGlobalState()));
                 break;
 
             case "COMMIT":
                 _committedState = CaptureGlobalState();
-                _devTools?.Init(_committedState);
+                _devTools?.Init(SanitizeState(_committedState));
                 break;
 
             case "IMPORT_STATE":

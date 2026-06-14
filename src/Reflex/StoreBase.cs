@@ -27,6 +27,9 @@ public abstract class StoreBase : IStore
     public abstract string Name { get; }
 
     /// <inheritdoc />
+    public virtual bool Persist => false;
+
+    /// <inheritdoc />
     public event Action? StateChanged;
 
     /// <inheritdoc />
@@ -62,6 +65,10 @@ public abstract class StoreBase : IStore
         if (EqualityComparer<T>.Default.Equals(field, value))
             return;
 
+        // A standalone set is its own action; give middleware a chance to veto it before applying.
+        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, $"Set {propertyName}"))
+            return;
+
         field = value;
         _dirty = true;
 
@@ -81,12 +88,29 @@ public abstract class StoreBase : IStore
     }
 
     /// <summary>
+    /// Assigns a transient effect-lifecycle field (loading/error). Raises change notification so the
+    /// UI can react, but never records a time-travel action. Used by generated effect wrappers.
+    /// </summary>
+    protected void SetEffectState<T>(ref T field, T value)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+            return;
+
+        field = value;
+        InvalidateComputed();
+        StateChanged?.Invoke();
+    }
+
+    /// <summary>
     /// Runs <paramref name="mutation"/> as a single named action: synchronous state changes inside
     /// it are batched into one notification and one time-travel entry.
     /// </summary>
     protected void Dispatch(string actionName, Action mutation)
     {
         ArgumentNullException.ThrowIfNull(mutation);
+        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName))
+            return;
+
         _recordDepth++;
         _notifyDepth++;
         try
@@ -119,6 +143,9 @@ public abstract class StoreBase : IStore
     protected async Task DispatchAsync(string actionName, Func<Task> mutation)
     {
         ArgumentNullException.ThrowIfNull(mutation);
+        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName))
+            return;
+
         _recordDepth++;
         try
         {

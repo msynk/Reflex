@@ -19,6 +19,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
     private const string StateAttribute = "Reflex.StateAttribute";
     private const string ComputedAttribute = "Reflex.ComputedAttribute";
     private const string ActionAttribute = "Reflex.ActionAttribute";
+    private const string EffectAttribute = "Reflex.EffectAttribute";
 
     private static readonly DiagnosticDescriptor NotPartial = new(
         "REFLEX001",
@@ -64,6 +65,14 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         "REFLEX006",
         "Unsupported store class shape",
         "Reflex store '{0}' must be a top-level, non-generic class. Nested and generic stores are not supported.",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor EffectMustBeAsync = new(
+        "REFLEX007",
+        "Effect method must return Task or ValueTask",
+        "Effect method '{0}' must return Task or ValueTask (non-generic). Use [Action] for value-returning or synchronous methods.",
         "Reflex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -117,17 +126,23 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             : symbol.ContainingNamespace.ToDisplayString();
 
         var storeName = symbol.Name;
+        var persist = false;
         var storeAttr = ctx.Attributes.FirstOrDefault();
         if (storeAttr is not null)
         {
             var named = storeAttr.NamedArguments.FirstOrDefault(a => a.Key == "Name").Value;
             if (named.Value is string s && !string.IsNullOrWhiteSpace(s))
                 storeName = s;
+
+            var persistArg = storeAttr.NamedArguments.FirstOrDefault(a => a.Key == "Persist").Value;
+            if (persistArg.Value is bool b)
+                persist = b;
         }
 
         var states = new List<StateModel>();
         var computeds = new List<ComputedModel>();
         var actions = new List<ActionModel>();
+        var effects = new List<EffectModel>();
 
         foreach (var member in symbol.GetMembers())
         {
@@ -196,6 +211,46 @@ public sealed class ReflexGenerator : IIncrementalGenerator
                         new EquatableArray<ParamModel>(prms)));
                     break;
                 }
+
+                case IMethodSymbol em when em.MethodKind == MethodKind.Ordinary && HasAttribute(em, EffectAttribute):
+                {
+                    var attr = em.GetAttributes().First(a => a.AttributeClass?.ToDisplayString() == EffectAttribute);
+                    var explicitName = attr.NamedArguments
+                        .FirstOrDefault(a => a.Key == "Name").Value.Value as string;
+
+                    var wrapper = DeriveWrapperName(em.Name, explicitName);
+                    if (wrapper is null)
+                    {
+                        result.Diagnostics.Add(Diagnostic.Create(BadActionName, em.Locations.FirstOrDefault(), em.Name));
+                        break;
+                    }
+
+                    // Effects must be task-returning with no result so the lifecycle wrapper can
+                    // own loading/error without losing a return value.
+                    var name = em.ReturnType.ToDisplayString();
+                    var isTask = name == "System.Threading.Tasks.Task" || name == "System.Threading.Tasks.ValueTask";
+                    if (!isTask)
+                    {
+                        result.Diagnostics.Add(Diagnostic.Create(EffectMustBeAsync, em.Locations.FirstOrDefault(), em.Name));
+                        break;
+                    }
+
+                    var label = string.IsNullOrWhiteSpace(explicitName) ? wrapper : explicitName!;
+                    var isValueTaskEffect = name == "System.Threading.Tasks.ValueTask";
+                    var prms = em.Parameters
+                        .Select(p => new ParamModel(
+                            p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                            p.Name))
+                        .ToArray();
+
+                    effects.Add(new EffectModel(
+                        em.Name,
+                        wrapper,
+                        label,
+                        isValueTaskEffect,
+                        new EquatableArray<ParamModel>(prms)));
+                    break;
+                }
             }
         }
 
@@ -203,11 +258,13 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             ns,
             symbol.Name,
             storeName,
+            persist,
             new EquatableArray<StateModel>(states.ToArray()),
             new EquatableArray<ComputedModel>(computeds.ToArray()),
-            new EquatableArray<ActionModel>(actions.ToArray()));
+            new EquatableArray<ActionModel>(actions.ToArray()),
+            new EquatableArray<EffectModel>(effects.ToArray()));
 
-        DetectDuplicates(storeName, states, computeds, actions, symbol, result);
+        DetectDuplicates(storeName, states, computeds, actions, effects, symbol, result);
 
         return result;
     }
@@ -217,6 +274,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         List<StateModel> states,
         List<ComputedModel> computeds,
         List<ActionModel> actions,
+        List<EffectModel> effects,
         INamedTypeSymbol symbol,
         TransformResult result)
     {
@@ -233,6 +291,8 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             Check(c.PropertyName);
         foreach (var a in actions)
             Check(a.WrapperName);
+        foreach (var e in effects)
+            Check(e.WrapperName);
     }
 
     private static bool HasAttribute(ISymbol symbol, string fullName)
@@ -332,6 +392,13 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         sb.AppendLine($"{body}public override string Name => \"{m.StoreName}\";");
         sb.AppendLine();
 
+        if (m.Persist)
+        {
+            sb.AppendLine($"{body}/// <inheritdoc />");
+            sb.AppendLine($"{body}public override bool Persist => true;");
+            sb.AppendLine();
+        }
+
         // State properties
         foreach (var s in m.States)
         {
@@ -389,7 +456,42 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        // InvalidateComputed
+        // Effect wrappers (auto-managed loading/error lifecycle)
+        foreach (var e in m.Effects)
+        {
+            var loadingField = $"__{e.WrapperName}Loading";
+            var errorField = $"__{e.WrapperName}Error";
+            var paramList = string.Join(", ", e.Parameters.Select(p => $"{p.TypeFqn} {p.Name}"));
+            var argList = string.Join(", ", e.Parameters.Select(p => p.Name));
+            var call = e.IsValueTask ? $"{e.ImplName}({argList}).AsTask()" : $"{e.ImplName}({argList})";
+
+            sb.AppendLine($"{body}private bool {loadingField};");
+            sb.AppendLine($"{body}/// <summary>True while the <c>{e.ActionLabel}</c> effect is running.</summary>");
+            sb.AppendLine($"{body}public bool {e.WrapperName}IsLoading => {loadingField};");
+            sb.AppendLine($"{body}private global::System.Exception? {errorField};");
+            sb.AppendLine($"{body}/// <summary>The exception thrown by the last <c>{e.ActionLabel}</c> run, or <c>null</c>.</summary>");
+            sb.AppendLine($"{body}public global::System.Exception? {e.WrapperName}Error => {errorField};");
+            sb.AppendLine($"{body}/// <summary>Runs the <c>{e.ActionLabel}</c> effect, managing its loading/error state.</summary>");
+            sb.AppendLine($"{body}public async global::System.Threading.Tasks.Task {e.WrapperName}({paramList})");
+            sb.AppendLine($"{body}{{");
+            sb.AppendLine($"{body}    SetEffectState(ref {loadingField}, true);");
+            sb.AppendLine($"{body}    SetEffectState(ref {errorField}, null);");
+            sb.AppendLine($"{body}    try");
+            sb.AppendLine($"{body}    {{");
+            sb.AppendLine($"{body}        await DispatchAsync(\"{e.ActionLabel}\", () => {call}).ConfigureAwait(true);");
+            sb.AppendLine($"{body}    }}");
+            sb.AppendLine($"{body}    catch (global::System.Exception __ex)");
+            sb.AppendLine($"{body}    {{");
+            sb.AppendLine($"{body}        SetEffectState(ref {errorField}, __ex);");
+            sb.AppendLine($"{body}    }}");
+            sb.AppendLine($"{body}    finally");
+            sb.AppendLine($"{body}    {{");
+            sb.AppendLine($"{body}        SetEffectState(ref {loadingField}, false);");
+            sb.AppendLine($"{body}    }}");
+            sb.AppendLine($"{body}}}");
+            sb.AppendLine();
+        }
+
         if (m.Computeds.Count > 0)
         {
             sb.AppendLine($"{body}/// <inheritdoc />");

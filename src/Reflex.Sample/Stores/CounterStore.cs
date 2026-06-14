@@ -8,7 +8,7 @@ namespace Reflex.Sample.Stores;
 /// the memoized <c>IsEven</c>/<c>DoubleCount</c> values and the <c>Increment</c>/<c>Decrement</c>/
 /// <c>SetStep</c>/<c>Reset</c> action wrappers.
 /// </summary>
-[Store(Name = "counter")]
+[Store(Name = "counter", Persist = true)]
 public partial class CounterStore
 {
     [State] private int _count;

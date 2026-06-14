@@ -36,6 +36,34 @@ public sealed class ReflexActionContext
 }
 
 /// <summary>
+/// Context passed to middleware <em>before</em> an action mutates a store. Call <see cref="Cancel"/>
+/// to veto the action: the mutation will not run and nothing is recorded.
+/// </summary>
+public sealed class ReflexPreActionContext
+{
+    internal ReflexPreActionContext(IStore store, string actionName)
+    {
+        Store = store;
+        ActionName = actionName;
+    }
+
+    /// <summary>The store about to produce the action.</summary>
+    public IStore Store { get; }
+
+    /// <summary>The action name (e.g. <c>"Increment"</c> or <c>"Set Count"</c>).</summary>
+    public string ActionName { get; }
+
+    /// <summary>Fully-qualified action label including the originating store.</summary>
+    public string QualifiedName => $"{Store.Name}/{ActionName}";
+
+    /// <summary>Whether a middleware has vetoed this action.</summary>
+    public bool IsCancelled { get; private set; }
+
+    /// <summary>Vetoes the action so its mutation does not run.</summary>
+    public void Cancel() => IsCancelled = true;
+}
+
+/// <summary>
 /// A pipeline hook invoked for every dispatched action. Use for logging, analytics, persistence, etc.
 /// Middleware runs synchronously and must not throw; exceptions are swallowed and reported to other middleware.
 /// </summary>
@@ -43,9 +71,17 @@ public interface IReflexMiddleware
 {
     /// <summary>Invoked after an action has been applied to its store.</summary>
     void OnAction(ReflexActionContext context);
+
+    /// <summary>
+    /// Invoked before an action runs. Override to inspect or <see cref="ReflexPreActionContext.Cancel">veto</see>
+    /// the action. The default implementation does nothing (the action proceeds).
+    /// </summary>
+    void BeforeAction(ReflexPreActionContext context)
+    {
+    }
 }
 
-/// <summary>A simple middleware that forwards each action to a delegate.</summary>
+/// <summary>A simple middleware that forwards each applied action to a delegate.</summary>
 public sealed class DelegateMiddleware : IReflexMiddleware
 {
     private readonly Action<ReflexActionContext> _handler;
@@ -55,4 +91,27 @@ public sealed class DelegateMiddleware : IReflexMiddleware
 
     /// <inheritdoc />
     public void OnAction(ReflexActionContext context) => _handler(context);
+}
+
+/// <summary>
+/// A middleware that can veto actions before they run. The delegate returns <c>false</c> to cancel.
+/// </summary>
+public sealed class FilterMiddleware : IReflexMiddleware
+{
+    private readonly Func<ReflexPreActionContext, bool> _filter;
+
+    /// <summary>Creates a filter; return <c>false</c> from <paramref name="filter"/> to veto the action.</summary>
+    public FilterMiddleware(Func<ReflexPreActionContext, bool> filter) => _filter = filter;
+
+    /// <inheritdoc />
+    public void OnAction(ReflexActionContext context)
+    {
+    }
+
+    /// <inheritdoc />
+    public void BeforeAction(ReflexPreActionContext context)
+    {
+        if (!_filter(context))
+            context.Cancel();
+    }
 }

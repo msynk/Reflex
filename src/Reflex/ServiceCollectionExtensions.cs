@@ -22,7 +22,11 @@ public static class ServiceCollectionExtensions
             var opts = sp.GetRequiredService<ReflexOptions>();
             var resolved = sp.GetServices<IReflexMiddleware>().ToList();
             resolved.AddRange(opts.MiddlewareInstances);
-            return new ReflexManager(resolved);
+            return new ReflexManager(resolved)
+            {
+                DevToolsStateSanitizer = opts.DevToolsStateSanitizer,
+                DevToolsActionSanitizer = opts.DevToolsActionSanitizer,
+            };
         });
 
         return services;
@@ -36,6 +40,35 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<TStore>();
         services.AddScoped<IStore>(sp => sp.GetRequiredService<TStore>());
+        return services;
+    }
+
+    /// <summary>
+    /// Enables automatic persistence for stores marked <c>[Store(Persist = true)]</c>. Requires an
+    /// <see cref="IReflexStorage"/> to be registered (for Blazor use <c>AddReflexLocalStoragePersistence</c>
+    /// or <c>AddReflexSessionStoragePersistence</c> from <c>Reflex.Blazor</c>).
+    /// </summary>
+    public static IServiceCollection AddReflexPersistence(
+        this IServiceCollection services,
+        Action<ReflexPersistenceOptions>? configure = null)
+    {
+        var options = new ReflexPersistenceOptions();
+        configure?.Invoke(options);
+        services.AddSingleton(options);
+        services.AddScoped(sp => new StatePersistor(
+            sp.GetRequiredService<ReflexManager>(),
+            sp.GetRequiredService<IReflexStorage>(),
+            sp.GetRequiredService<ReflexPersistenceOptions>()));
+        return services;
+    }
+
+    /// <summary>
+    /// Registers in-app undo/redo (<see cref="ReflexHistory"/>). Resolve <see cref="ReflexHistory"/>
+    /// to call <c>Undo()</c>/<c>Redo()</c>; <c>&lt;ReflexProvider&gt;</c> starts recording automatically.
+    /// </summary>
+    public static IServiceCollection AddReflexHistory(this IServiceCollection services, int maxEntries = 100)
+    {
+        services.AddScoped(sp => new ReflexHistory(sp.GetRequiredService<ReflexManager>(), maxEntries));
         return services;
     }
 }
