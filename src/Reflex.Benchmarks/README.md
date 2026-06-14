@@ -43,10 +43,10 @@ dotnet run -c Release --project Reflex.Benchmarks -- --filter *Serialization* --
 
 ## Reading the results
 
-- **Mean** — average time per single operation (e.g. one `Increment()`).
-- **Allocated** — managed bytes allocated per operation; watch this for GC pressure under load.
-- **Ratio / Alloc Ratio** — relative to the suite's `[Baseline]` benchmark.
-- **Gen0/1/2** — GC collections per 1000 operations.
+- **Mean** - average time per single operation (e.g. one `Increment()`).
+- **Allocated** - managed bytes allocated per operation; watch this for GC pressure under load.
+- **Ratio / Alloc Ratio** - relative to the suite's `[Baseline]` benchmark.
+- **Gen0/1/2** - GC collections per 1000 operations.
 
-These are measurement tools, not pass/fail gates — numbers vary by machine. Compare runs on the
+These are measurement tools, not pass/fail gates - numbers vary by machine. Compare runs on the
 same hardware to spot regressions.
