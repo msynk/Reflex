@@ -9,7 +9,7 @@
 
     <h2>Setup</h2>
     <p>
-        Register it once. <code>&lt;BlexProvider&gt;</code> calls <code>Start()</code> for you —
+        Register it once. <code>&lt;BlexProvider&gt;</code> calls <code>Start()</code> for you -
         deliberately <em>after</em> rehydration, so the baseline that undo ultimately returns to is
         the state the user actually loaded, not the pre-hydration defaults.
     </p>
@@ -18,7 +18,7 @@
     <CodeBlock Code="@Usage" Language="razor" />
 
     <DemoCard Title="Undo across every store at once"
-              Description="History snapshots the whole state tree, so a single Undo steps back through whichever store changed last — counter or contacts."
+              Description="History snapshots the whole state tree, so a single Undo steps back through whichever store changed last - counter or contacts."
               Source="@DemoSource" SourceLanguage="razor">
         <div class="row">
             <button class="btn btn-primary" @onclick="HistoryStack.Undo" disabled="@(!HistoryStack.CanUndo)">
@@ -63,7 +63,7 @@
         </div>
 
         <p class="small muted" style="margin-top:0.8rem;margin-bottom:0">
-            Interleave the two: increment, add a contact, increment again — then undo three times and
+            Interleave the two: increment, add a contact, increment again - then undo three times and
             watch each store roll back in turn.
         </p>
     </DemoCard>
@@ -80,7 +80,7 @@
     </ol>
 
     <p>
-        Snapshots are whole state trees. <code>MaxEntries</code> caps how many are retained — older
+        Snapshots are whole state trees. <code>MaxEntries</code> caps how many are retained - older
         ones are discarded from the bottom of the stack. The default is 100.
     </p>
 
@@ -93,8 +93,8 @@
 
     <Callout Kind="Callout.CalloutKind.Note" Title="External restores are absorbed">
         <p style="margin-bottom:0">
-            If something else changes the state without an action — a DevTools time-travel jump, or a
-            manual <code>RestoreGlobalState</code> — history refreshes its present snapshot so the
+            If something else changes the state without an action - a DevTools time-travel jump, or a
+            manual <code>RestoreGlobalState</code> - history refreshes its present snapshot so the
             next undo diffs from what the user can actually see, rather than from a stale pre-jump
             state.
         </p>
@@ -103,7 +103,7 @@
     <Callout Kind="Callout.CalloutKind.Tip" Title="Undo/redo and persistence cooperate">
         <p style="margin-bottom:0">
             A restore raises <code>StateRestored</code>, and the persistor writes every persisted
-            slice back in response. So undoing and then reloading the page keeps the undone state —
+            slice back in response. So undoing and then reloading the page keeps the undone state -
             the reload cannot resurrect what you just stepped away from.
         </p>
     </Callout>
@@ -120,7 +120,7 @@
     <Callout Kind="Callout.CalloutKind.Warning" Title="Snapshots cost memory">
         <p style="margin-bottom:0">
             Every entry is a full serialized copy of every registered store. With large collections
-            in state, lower <code>maxEntries</code> — or scope history to the store that needs it.
+            in state, lower <code>maxEntries</code> - or scope history to the store that needs it.
         </p>
     </Callout>
 
@@ -152,7 +152,7 @@
         new("string? NextUndoLabel", "Qualified name of the action <code>Undo()</code> would revert, or <code>null</code>."),
         new("string? NextRedoLabel", "Qualified name of the action <code>Redo()</code> would re-apply, or <code>null</code>."),
         new("int MaxEntries", "Retention cap, set at construction. Default 100."),
-        new("event Action? Changed", "Raised whenever availability changes — bind button state to it."),
+        new("event Action? Changed", "Raised whenever availability changes - bind button state to it."),
         new("void Dispose()", "Detaches from the manager and stops recording."),
     ];
 

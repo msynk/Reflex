@@ -4,8 +4,8 @@
          Lead="The generator validates every store and fails the build with a precise message rather than emitting code that does not compile.">
 
     <p>
-        All sixteen diagnostics live in the <code>Blex</code> category. Fourteen are errors — they
-        describe shapes the generator genuinely cannot emit — and two are warnings about code that
+        All sixteen diagnostics live in the <code>Blex</code> category. Fourteen are errors - they
+        describe shapes the generator genuinely cannot emit - and two are warnings about code that
         compiles but almost certainly does not do what you meant.
     </p>
 
@@ -39,7 +39,7 @@
     @foreach (var d in All)
     {
         <h2 id="@d.Code.ToLowerInvariant()">
-            <code>@d.Code</code> — @d.Title
+            <code>@d.Code</code> - @d.Title
         </h2>
         <p>@((MarkupString)d.Cause)</p>
         @if (!string.IsNullOrEmpty(d.Bad))
@@ -65,7 +65,7 @@
         <p style="margin-bottom:0">
             When a store fails validation, the generator reports the diagnostic and emits
             <em>no</em> partial for it. Expect a cascade of "does not contain a definition for
-            <code>Count</code>" errors alongside the Blex diagnostic — fix the Blex one first and
+            <code>Count</code>" errors alongside the Blex diagnostic - fix the Blex one first and
             the rest disappear.
         </p>
     </Callout>
@@ -228,7 +228,7 @@
             """),
 
         new("BLEX009", "Latest effect cannot cancel without a CancellationToken", false,
-            "<code>Latest</code> marks the superseded run stale so it cannot overwrite newer state — but without a token the superseded body keeps running to completion, because nothing can observe the cancellation.",
+            "<code>Latest</code> marks the superseded run stale so it cannot overwrite newer state - but without a token the superseded body keeps running to completion, because nothing can observe the cancellation.",
             """
             [Effect(Concurrency = EffectConcurrency.Latest)]
             private async Task OnSearch(string query)          // BLEX009 (warning)

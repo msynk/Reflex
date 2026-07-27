@@ -21,7 +21,7 @@
         <p style="margin-bottom:0">
             <code>Name</code> is what identifies the store in the global state tree, in DevTools, in
             action labels (<code>counter/Increment</code>) and in persistence keys. Changing it
-            changes the persistence key, which strands previously saved data — bump
+            changes the persistence key, which strands previously saved data - bump
             <code>options.Version</code> and migrate if you rename a persisted store.
         </p>
     </Callout>
@@ -29,10 +29,10 @@
     <h2>Shape requirements</h2>
     <p>The generator writes a flat, top-level partial declaration, so the class must be one it can extend:</p>
     <ul>
-        <li>declared <code>partial</code> — otherwise <code>BLEX001</code>;</li>
-        <li>a plain class, not a <code>record</code> — <code>BLEX015</code>. Records get value equality and a synthesized clone that fight a mutable reactive container;</li>
-        <li>top-level and non-generic — <code>BLEX006</code>;</li>
-        <li>with no other base class, since the generated partial adds <code>: Blex.StoreBase</code> — <code>BLEX016</code>.</li>
+        <li>declared <code>partial</code> - otherwise <code>BLEX001</code>;</li>
+        <li>a plain class, not a <code>record</code> - <code>BLEX015</code>. Records get value equality and a synthesized clone that fight a mutable reactive container;</li>
+        <li>top-level and non-generic - <code>BLEX006</code>;</li>
+        <li>with no other base class, since the generated partial adds <code>: Blex.StoreBase</code> - <code>BLEX016</code>.</li>
     </ul>
     <p>
         Constructors, interfaces, ordinary members and dependency injection all work normally. A
@@ -59,7 +59,7 @@
                 <tr><td><code>_count</code></td><td><code>Count</code></td></tr>
                 <tr><td><code>count</code></td><td><code>Count</code></td></tr>
                 <tr><td><code>_isLoggedIn</code></td><td><code>IsLoggedIn</code></td></tr>
-                <tr><td><code>Count</code></td><td class="check-no">error <code>BLEX012</code> — the field and property would collide</td></tr>
+                <tr><td><code>Count</code></td><td class="check-no">error <code>BLEX012</code> - the field and property would collide</td></tr>
             </tbody>
         </table>
     </div>
@@ -73,11 +73,11 @@
         Setters compare with <code>EqualityComparer&lt;T&gt;.Default</code>. For value types and
         records that is structural equality, which is what you want. For a <code>List&lt;T&gt;</code>,
         an array or any class that does not override equality, it is <strong>reference</strong>
-        equality — so mutating a collection in place changes nothing as far as Blex is concerned.
+        equality - so mutating a collection in place changes nothing as far as Blex is concerned.
     </p>
 
     <DemoCard Title="In-place mutation vs. assignment"
-              Description="Both buttons add an item. Only one of them notifies anybody — watch the rendered count and the Inspector's action feed."
+              Description="Both buttons add an item. Only one of them notifies anybody - watch the rendered count and the Inspector's action feed."
               Source="@EqualitySource">
         <div class="readout">
             <div class="readout__item">
@@ -94,8 +94,8 @@
             </div>
         </div>
         <div class="row" style="margin-top:0.9rem">
-            <button class="btn btn-danger" @onclick="Equality.MutateInPlace">Items.Add(…) — in place</button>
-            <button class="btn btn-primary" @onclick="Equality.AssignNew">Items = [.. Items, …] — new instance</button>
+            <button class="btn btn-danger" @onclick="Equality.MutateInPlace">Items.Add(…) - in place</button>
+            <button class="btn btn-primary" @onclick="Equality.AssignNew">Items = [.. Items, …] - new instance</button>
             <button class="btn btn-ghost" @onclick="Equality.Reset">Reset</button>
         </div>
         <p class="small muted" style="margin-top:0.7rem;margin-bottom:0">
@@ -153,7 +153,7 @@
     <h2>The IStore interface</h2>
     <p>
         Everything the manager needs from a store. Implement it directly only if you want a store
-        outside the generator's conventions — you then also give up batching and action recording
+        outside the generator's conventions - you then also give up batching and action recording
         unless you call the <code>StoreBase</code> helpers yourself.
     </p>
     <CodeBlock Code="@IStoreSample" />
@@ -163,7 +163,7 @@
         <code>AddBlexStore&lt;T&gt;</code> registers the store as <strong>scoped</strong>. In Blazor
         WebAssembly there is one scope for the whole app, so a store is effectively a singleton. In
         Blazor Server each circuit gets its own scope, so every user has an independent copy of the
-        state — which is what you want. The same applies to <code>BlexManager</code>,
+        state - which is what you want. The same applies to <code>BlexManager</code>,
         <code>StatePersistor</code> and <code>BlexHistory</code>.
     </p>
 
@@ -179,7 +179,7 @@
     private static readonly IReadOnlyList<ApiTable.Row> StoreAttrRows =
     [
         new("Name", "Display name and slice key. Defaults to the class name. Used in the state tree, DevTools, qualified action names and persistence keys."),
-        new("Persist", "When <code>true</code>, the store is rehydrated on startup and saved after every action — provided a persistence provider is registered. See <a href=\"persistence\">Persistence</a>."),
+        new("Persist", "When <code>true</code>, the store is rehydrated on startup and saved after every action - provided a persistence provider is registered. See <a href=\"persistence\">Persistence</a>."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> PublicRows =
@@ -190,7 +190,7 @@
         new("JsonObject SerializeState()", "Captures the current state as JSON. Generated."),
         new("void DeserializeState(JsonObject)", "Raw field writes from a snapshot, without notification. Generated. Prefer <code>RestoreState</code>."),
         new("void RestoreState(JsonObject)", "The safe public way to hydrate a store by hand: applies the snapshot, invalidates computed values and raises <code>StateChanged</code> exactly once, without recording an action."),
-        new("void Batch(string, Action)", "Groups ad-hoc mutations into one named action — one notification, one history entry, one middleware pass. The equivalent of Pinia's <code>$patch</code>."),
+        new("void Batch(string, Action)", "Groups ad-hoc mutations into one named action - one notification, one history entry, one middleware pass. The equivalent of Pinia's <code>$patch</code>."),
         new("void ResetState()", "Restores the state the store had when it was first registered, recorded as a normal, vetoable <code>ResetState</code> action. No-op if the store was never registered."),
     ];
 
@@ -204,7 +204,7 @@
         new("void Dispatch(string, Action, ActionArg[]?)", "Runs a mutation as one named, batched, recorded action."),
         new("Task DispatchAsync(string, Func&lt;Task&gt;, ActionArg[]?)", "The async variant: state changes render as they happen, but the whole operation records as one action."),
         new("void InvalidateComputed()", "Generated override that marks every memoized computed value stale."),
-        new("void NotifyRestored()", "Invalidates computed values and raises <code>StateChanged</code> — for hand-written stores that restore state out of band."),
+        new("void NotifyRestored()", "Invalidates computed values and raises <code>StateChanged</code> - for hand-written stores that restore state out of band."),
     ];
 
     private const string StoreDecl = """

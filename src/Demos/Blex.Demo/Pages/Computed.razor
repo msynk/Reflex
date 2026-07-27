@@ -26,7 +26,7 @@
     </p>
 
     <DemoCard Title="Count the evaluations"
-              Description="Read the values repeatedly — the counters stay put. Change the state and they tick over exactly once."
+              Description="Read the values repeatedly - the counters stay put. Change the state and they tick over exactly once."
               Source="@DemoSource">
         <div class="readout">
             <div class="readout__item">
@@ -97,7 +97,7 @@
 
     <h2>Rules</h2>
     <ul>
-        <li>The method must be <strong>parameterless</strong> — a computed value backs a property, so there is nowhere to pass arguments (<code>BLEX004</code>).</li>
+        <li>The method must be <strong>parameterless</strong> - a computed value backs a property, so there is nowhere to pass arguments (<code>BLEX004</code>).</li>
         <li>The name must start with <code>Compute</code> or <code>Get</code> and have something after it (<code>BLEX003</code>).</li>
         <li>It must be an instance method, not <code>static</code> (<code>BLEX008</code>).</li>
         <li>The generated property name must not collide with anything else on the store (<code>BLEX005</code>).</li>
@@ -107,7 +107,7 @@
     <h2>Computed values are not serialized</h2>
     <p>
         Only <code>[State]</code> fields go into <code>SerializeState()</code>. Computed values are
-        derived, so they are recalculated after a restore rather than stored — which means a
+        derived, so they are recalculated after a restore rather than stored - which means a
         time-travel jump or a rehydrate can never leave a derived value out of sync with the state it
         came from.
     </p>
@@ -134,7 +134,7 @@
         for (var i = 0; i < 10; i++)
             sink += Cart.Subtotal + Cart.Total;
 
-        _lastRead = $"Read Subtotal and Total 10 times each (sum {sink:C}) — evaluation counters did not move.";
+        _lastRead = $"Read Subtotal and Total 10 times each (sum {sink:C}) - evaluation counters did not move.";
     }
 
     private void ResetCounters()

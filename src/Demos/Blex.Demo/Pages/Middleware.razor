@@ -35,7 +35,7 @@
     <h2>Observing</h2>
     <p>
         This is how you get logging, analytics or an audit trail. The Inspector at the bottom of this
-        page is exactly this — an <code>ActionFeedMiddleware</code> registered in the site's
+        page is exactly this - an <code>ActionFeedMiddleware</code> registered in the site's
         <code>Program.cs</code>, writing into a service the UI renders.
     </p>
 
@@ -57,13 +57,13 @@
             <div class="readout__item">
                 <span class="readout__label">Most recent</span>
                 <span class="readout__value" style="font-size:0.9rem">
-                    @(Feed.Entries.Count > 0 ? $"{Feed.Entries[0].Store}/{Feed.Entries[0].Action}" : "—")
+                    @(Feed.Entries.Count > 0 ? $"{Feed.Entries[0].Store}/{Feed.Entries[0].Action}" : "-")
                 </span>
             </div>
             <div class="readout__item">
                 <span class="readout__label">Payload</span>
                 <span class="readout__value" style="font-size:0.9rem">
-                    @(Feed.Entries.Count > 0 && Feed.Entries[0].Args.Length > 0 ? Feed.Entries[0].Args : "—")
+                    @(Feed.Entries.Count > 0 && Feed.Entries[0].Args.Length > 0 ? Feed.Entries[0].Args : "-")
                 </span>
             </div>
         </div>
@@ -79,7 +79,7 @@
     <CodeBlock Code="@Veto" />
 
     <DemoCard Title="A read-only guard"
-              Description="Turn the guard on and every action is cancelled before it can mutate anything. The counter stops responding — and the action feed stays silent, because a vetoed action is never recorded."
+              Description="Turn the guard on and every action is cancelled before it can mutate anything. The counter stops responding - and the action feed stays silent, because a vetoed action is never recorded."
               Source="@GuardSource">
         <div class="row">
             <label class="check">
@@ -107,7 +107,7 @@
             </div>
             <div class="readout__item">
                 <span class="readout__label">Last blocked</span>
-                <span class="readout__value" style="font-size:0.9rem">@(Guard.LastBlocked ?? "—")</span>
+                <span class="readout__value" style="font-size:0.9rem">@(Guard.LastBlocked ?? "-")</span>
             </div>
         </div>
 
@@ -117,7 +117,7 @@
             <button class="btn btn-ghost" @onclick="Guard.Reset">Reset counters</button>
         </div>
         <p class="small muted" style="margin-top:0.7rem;margin-bottom:0">
-            Direct assignment is vetoable too — a <code>Set Count</code> goes through the same
+            Direct assignment is vetoable too - a <code>Set Count</code> goes through the same
             pipeline as any named action.
         </p>
     </DemoCard>
@@ -137,7 +137,7 @@
         <code>BeforeAction</code> or <code>OnAction</code> is caught, reported to
         <a href="errors"><code>OnError</code></a> with the source <code>"middleware"</code>, and the
         pipeline carries on to the next middleware. A throwing filter therefore does <em>not</em>
-        veto the action — if you mean to cancel, call <code>Cancel()</code>.
+        veto the action - if you mean to cancel, call <code>Cancel()</code>.
     </p>
 
     <h2>Cost when nothing is listening</h2>
@@ -183,7 +183,7 @@
 
     private static readonly IReadOnlyList<ApiTable.Row> RegisterRows =
     [
-        new("options.UseMiddleware&lt;T&gt;()", "Registers the type as scoped and resolves it from DI — use this whenever the middleware has dependencies or per-scope state."),
+        new("options.UseMiddleware&lt;T&gt;()", "Registers the type as scoped and resolves it from DI - use this whenever the middleware has dependencies or per-scope state."),
         new("options.UseMiddleware(instance)", "Registers a pre-built instance. Shared across every scope."),
         new("options.UseMiddleware(Action&lt;BlexActionContext&gt;)", "Wraps a delegate in <code>DelegateMiddleware</code>. Handy for one-line logging."),
         new("options.UseFilter(Func&lt;BlexPreActionContext, bool&gt;)", "Wraps a predicate in <code>FilterMiddleware</code>. Return <code>false</code> to veto."),
@@ -194,7 +194,7 @@
         new("IStore Store", "The store about to produce the action."),
         new("string ActionName", "The bare action name."),
         new("string QualifiedName", "<code>\"storeName/ActionName\"</code>."),
-        new("IReadOnlyList&lt;ActionArg&gt; Args", "The arguments the action was called with — available <em>before</em> anything mutates."),
+        new("IReadOnlyList&lt;ActionArg&gt; Args", "The arguments the action was called with - available <em>before</em> anything mutates."),
         new("bool IsCancelled", "Whether a middleware has already vetoed this action."),
         new("void Cancel()", "Veto: the mutation does not run and nothing is recorded."),
     ];

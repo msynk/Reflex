@@ -3,13 +3,13 @@
 @inject CounterStore Counter
 
 <DocPage Href="subscriptions" Title="Components & selectors"
-         Lead="Re-render on the state you actually use — from a whole store down to a single projected value.">
+         Lead="Re-render on the state you actually use - from a whole store down to a single projected value.">
 
     <h2>BlexComponentBase</h2>
     <p>
         Inherit from <code>BlexComponentBase</code> and call <code>Subscribe(...)</code> in
         <code>OnInitialized</code>. The component re-renders whenever a subscribed store changes and
-        detaches every handler on dispose — there is no <code>StateHasChanged</code> to call and
+        detaches every handler on dispose - there is no <code>StateHasChanged</code> to call and
         nothing to clean up.
     </p>
 
@@ -23,7 +23,7 @@
     <h2>Selector subscriptions</h2>
     <p>
         <code>Subscribe(store)</code> fires on <em>any</em> change to that store. On a store with
-        many independent fields — or one big collection — that re-renders components that do not care.
+        many independent fields - or one big collection - that re-renders components that do not care.
         Subscribe to a projection instead, and the component only wakes up when the projected value
         actually changes.
     </p>
@@ -59,7 +59,7 @@
     <h2>Outside components</h2>
     <p>
         The same primitive is a plain extension method on <code>IStore</code>, usable anywhere. It
-        returns a token — dispose it to stop observing.
+        returns a token - dispose it to stop observing.
     </p>
 
     <CodeBlock Code="@Standalone" />
@@ -69,7 +69,7 @@
     <h3>Previous and current</h3>
     <p>
         The two-argument overload delivers <code>(previous, current)</code>, which is what you want
-        for transition logic — analytics, animations, "changed from X to Y" logging. This is MobX's
+        for transition logic - analytics, animations, "changed from X to Y" logging. This is MobX's
         <code>reaction</code> shape.
     </p>
     <CodeBlock Code="@PrevCurrent" />
@@ -77,7 +77,7 @@
     <h3>Custom equality</h3>
     <p>
         Both overloads take an optional <code>IEqualityComparer&lt;T&gt;</code>. Supply one when the
-        projection returns something whose default equality is not what you mean — a collection, for
+        projection returns something whose default equality is not what you mean - a collection, for
         instance, where you want to compare contents rather than references.
     </p>
     <CodeBlock Code="@Comparer" />
@@ -92,14 +92,14 @@
     <h2>Owning other subscriptions</h2>
     <p>
         <code>OwnsSubscription(IDisposable)</code> hands any token to the component so it is disposed
-        along with it — a manager subscription, a selector token you made yourself, anything.
+        along with it - a manager subscription, a selector token you made yourself, anything.
     </p>
     <CodeBlock Code="@Owns" Language="razor" />
 
     <h2>The raw event</h2>
     <p>
         Under everything is <code>IStore.StateChanged</code>, a plain <code>Action</code> raised once
-        per action after the state has settled. Use it directly when you want no machinery at all —
+        per action after the state has settled. Use it directly when you want no machinery at all -
         just remember to unsubscribe.
     </p>
     <CodeBlock Code="@Raw" />
@@ -115,7 +115,7 @@
     <Callout Kind="Callout.CalloutKind.Gotcha" Title="Selectors compare, they do not deep-compare">
         <p style="margin-bottom:0">
             A selector returning <code>Store.Items</code> (a list) fires whenever the
-            <em>reference</em> changes — which, if you follow the immutable-assignment rule, is every
+            <em>reference</em> changes - which, if you follow the immutable-assignment rule, is every
             time the collection is replaced, even when the contents are equal. Project to something
             small and comparable (<code>Items.Count</code>, an id, a formatted string) or pass a
             comparer.
@@ -132,7 +132,7 @@
         new("void Subscribe(params ReadOnlySpan&lt;IStore&gt;)", "Re-render on any change to the given stores. Duplicate subscriptions are ignored."),
         new("void Subscribe&lt;T&gt;(IStore, Func&lt;T&gt;, IEqualityComparer&lt;T&gt;?)", "Re-render only when the projected value changes."),
         new("void OwnsSubscription(IDisposable)", "Dispose the given token when the component is disposed."),
-        new("void Dispose(bool disposing)", "<code>protected virtual</code> hook for your own cleanup. Store subscriptions are already detached when it runs — override this instead of implementing <code>IDisposable</code> yourself."),
+        new("void Dispose(bool disposing)", "<code>protected virtual</code> hook for your own cleanup. Store subscriptions are already detached when it runs - override this instead of implementing <code>IDisposable</code> yourself."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> ExtensionRows =

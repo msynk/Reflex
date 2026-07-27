@@ -7,7 +7,7 @@
     <p>
         Reference <code>Blex</code> for the runtime and <code>Blex.Blazor</code> for the Blazor
         integration. The source generator is packed <em>inside</em> the core package (under
-        <code>analyzers/dotnet/cs</code>), so a single package reference lights up code generation —
+        <code>analyzers/dotnet/cs</code>), so a single package reference lights up code generation -
         you never reference <code>Blex.Generators</code> yourself. Every package targets
         <code>net8.0</code>, <code>net9.0</code> and <code>net10.0</code>.
     </p>
@@ -31,7 +31,7 @@
         <code>AddBlex</code> registers the manager and the middleware pipeline;
         <code>AddBlexStore&lt;T&gt;</code> registers each store as a scoped service exposed both as
         its concrete type and as <code>IStore</code>. A store is attached to the manager on first
-        resolution, so its actions are observed even in hosts without a provider component — console
+        resolution, so its actions are observed even in hosts without a provider component - console
         apps, workers and tests included.
     </p>
 
@@ -86,7 +86,7 @@
         new("AddBlexStore&lt;TStore&gt;()", "Registers a store as scoped, resolvable both as <code>TStore</code> and as <code>IStore</code>. Constructor dependencies are injected, so a store can take an <code>HttpClient</code> like any other service."),
         new("AddBlexPersistence(Action&lt;BlexPersistenceOptions&gt;?)", "Enables durable persistence for stores marked <code>Persist = true</code>. Requires an <code>IBlexStorage</code> registration."),
         new("AddBlexLocalStoragePersistence(…)", "Blazor: registers <code>BrowserStorage</code> over <code>window.localStorage</code> and calls <code>AddBlexPersistence</code>."),
-        new("AddBlexSessionStoragePersistence(…)", "Blazor: the same, over <code>window.sessionStorage</code> — cleared when the tab closes."),
+        new("AddBlexSessionStoragePersistence(…)", "Blazor: the same, over <code>window.sessionStorage</code> - cleared when the tab closes."),
         new("AddBlexHistory(int maxEntries = 100)", "Registers <code>BlexHistory</code> for in-app undo/redo. <code>&lt;BlexProvider&gt;</code> starts recording once rehydration completes."),
     ];
 

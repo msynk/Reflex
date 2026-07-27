@@ -3,12 +3,12 @@
 @inject ContactsStore Contacts
 
 <DocPage Href="entities" Title="Entity adapter"
-         Lead="Normalized, immutable collections with generated CRUD — the same idea as Redux Toolkit's createEntityAdapter.">
+         Lead="Normalized, immutable collections with generated CRUD - the same idea as Redux Toolkit's createEntityAdapter.">
 
     <h2>Why normalize</h2>
     <p>
         Keeping a collection as a flat <code>List&lt;T&gt;</code> means every update is a scan, every
-        lookup by id is a scan, and every mutation risks being done in place — which
+        lookup by id is a scan, and every mutation risks being done in place - which
         <a href="stores#change-detection">silently defeats change detection</a>.
         <code>EntityState&lt;TEntity, TKey&gt;</code> stores an ordered id list plus an id-keyed map,
         and every operation returns a <em>new</em> instance, so notifications, time-travel and
@@ -19,7 +19,7 @@
 
     <h2>Declaring one</h2>
     <p>
-        The adapter holds the id selector, so it is not serializable — keep it as a
+        The adapter holds the id selector, so it is not serializable - keep it as a
         <code>static readonly</code> field. The <code>[State]</code> field holds the state itself.
     </p>
 
@@ -95,10 +95,10 @@
         }
 
         <div class="row" style="margin-top:0.6rem">
-            <button class="btn btn-sm" @onclick="Contacts.StarAll">Map — star everyone</button>
-            <button class="btn btn-sm" @onclick="Contacts.RemoveUnstarred">RemoveMany — drop unstarred</button>
+            <button class="btn btn-sm" @onclick="Contacts.StarAll">Map - star everyone</button>
+            <button class="btn btn-sm" @onclick="Contacts.RemoveUnstarred">RemoveMany - drop unstarred</button>
             <button class="btn btn-sm btn-danger" @onclick="Contacts.RemoveAll">RemoveAll</button>
-            <button class="btn btn-sm btn-ghost" @onclick="Contacts.Reseed">SetAll — reseed</button>
+            <button class="btn btn-sm btn-ghost" @onclick="Contacts.Reseed">SetAll - reseed</button>
         </div>
     </DemoCard>
 
@@ -108,7 +108,7 @@
     <h2>EntityAdapter operations</h2>
     <p>
         Every operation takes the current state and returns the next one. Assign the result back to
-        the <code>[State]</code> property — that assignment is what makes the change visible.
+        the <code>[State]</code> property - that assignment is what makes the change visible.
     </p>
     <ApiTable Rows="@AdapterRows" />
 
@@ -135,7 +135,7 @@
     <p>
         <code>EntityState</code> round-trips through JSON as <code>{ "ids": [...], "entities":
         { ... } }</code>, so a normalized collection persists and time-travels like any other state.
-        <code>Count</code> and <code>All</code> are marked <code>[JsonIgnore]</code> — they are
+        <code>Count</code> and <code>All</code> are marked <code>[JsonIgnore]</code> - they are
         derived from <code>Ids</code>.
     </p>
 
@@ -175,7 +175,7 @@
 
     private static readonly IReadOnlyList<ApiTable.Row> StateRows =
     [
-        new("IReadOnlyList&lt;TKey&gt; Ids", "The ids in display order — insertion order, or the sort comparer's order."),
+        new("IReadOnlyList&lt;TKey&gt; Ids", "The ids in display order - insertion order, or the sort comparer's order."),
         new("IReadOnlyDictionary&lt;TKey, TEntity&gt; Entities", "The id-to-entity map. O(1) lookup."),
         new("IEnumerable&lt;TEntity&gt; All", "The entities in id order. <code>[JsonIgnore]</code>."),
         new("int Count", "Number of stored entities. <code>[JsonIgnore]</code>."),

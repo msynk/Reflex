@@ -182,8 +182,8 @@ private async Task OnSearch(string query, CancellationToken ct)
 | `Queue` | runs strictly in arrival order (`concatMap`) | ordered writes |
 
 Cancellation through the effect's own token (via `CancelXxx()` or `Latest` supersession) is a
-normal outcome and never populates `Error`. A *foreign* `OperationCanceledException` — an
-`HttpClient` timeout, or any cancellation when the effect has no token parameter — is a real
+normal outcome and never populates `Error`. A *foreign* `OperationCanceledException` - an
+`HttpClient` timeout, or any cancellation when the effect has no token parameter - is a real
 failure and is recorded in `Error`.
 
 ## Normalized collections (entity adapter)
@@ -240,11 +240,11 @@ first render instead of crashing startup. For non-Blazor hosts, implement `IBlex
 
 Persistence is production-hardened:
 
-- **Corrupt data never breaks startup** — an unreadable payload is reported through `OnError`,
+- **Corrupt data never breaks startup** - an unreadable payload is reported through `OnError`,
   discarded, and removed from storage.
-- **Debounce** — `options.DebounceInterval = TimeSpan.FromMilliseconds(300)` coalesces bursts of
+- **Debounce** - `options.DebounceInterval = TimeSpan.FromMilliseconds(300)` coalesces bursts of
   actions into one write (flushed on dispose, or on demand via `persistor.FlushAsync()`).
-- **Versioning & migrations** — bump `options.Version` when a persisted store's shape changes and
+- **Versioning & migrations** - bump `options.Version` when a persisted store's shape changes and
   supply `options.Migrate` to upgrade (or discard) old payloads, zustand-persist style:
 
 ```csharp
@@ -260,9 +260,9 @@ builder.Services.AddBlexLocalStoragePersistence(options =>
 });
 ```
 
-- **Restore write-back** — undo/redo and DevTools time-travel write the restored state back to
+- **Restore write-back** - undo/redo and DevTools time-travel write the restored state back to
   storage, so a reload never resurrects the pre-restore state.
-- **Ordered writes** — saves are serialized in dispatch order; a stale payload can't overwrite a
+- **Ordered writes** - saves are serialized in dispatch order; a stale payload can't overwrite a
   newer one.
 
 ## Cross-store coordination
@@ -278,7 +278,7 @@ manager.SubscribeAsync(async ctx => await otherStore.Reload());
 ## Middleware: observe and veto
 
 Middleware sees every action after it applies (including its argument payload via `ctx.Args`), and
-can veto an action before it runs — also based on the payload:
+can veto an action before it runs - also based on the payload:
 
 ```csharp
 builder.Services.AddBlex(options =>
@@ -290,7 +290,7 @@ builder.Services.AddBlex(options =>
 ```
 
 `OnError` receives every non-fatal failure Blex isolates from the dispatch pipeline (throwing
-subscribers, middleware, persistence writes, restores) — without it they go to `Console.Error`.
+subscribers, middleware, persistence writes, restores) - without it they go to `Console.Error`.
 
 ## Undo / redo
 

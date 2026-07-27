@@ -5,33 +5,33 @@
 
     <Callout Kind="Callout.CalloutKind.Note">
         <p style="margin-bottom:0">
-            Members are documented in depth on the topic pages — this page is the index. Everything
+            Members are documented in depth on the topic pages - this page is the index. Everything
             here is also XML-documented, so IntelliSense carries the same text.
         </p>
     </Callout>
 
-    <h2>Blex — attributes</h2>
+    <h2>Blex - attributes</h2>
     <p>Namespace <code>Blex</code>. These are the entire authoring surface of a store.</p>
     <ApiTable Rows="@Attributes" MemberHeader="Type" />
 
     <CodeBlock Code="@AttributeSummary" Title="At a glance" />
 
-    <h2>Blex — core</h2>
+    <h2>Blex - core</h2>
     <ApiTable Rows="@Core" MemberHeader="Type" />
 
-    <h2>Blex — middleware</h2>
+    <h2>Blex - middleware</h2>
     <ApiTable Rows="@MiddlewareTypes" MemberHeader="Type" />
 
-    <h2>Blex — collections</h2>
+    <h2>Blex - collections</h2>
     <ApiTable Rows="@Collections" MemberHeader="Type" />
 
-    <h2>Blex — persistence</h2>
+    <h2>Blex - persistence</h2>
     <ApiTable Rows="@PersistenceTypes" MemberHeader="Type" />
 
-    <h2>Blex — history</h2>
+    <h2>Blex - history</h2>
     <ApiTable Rows="@HistoryTypes" MemberHeader="Type" />
 
-    <h2>Blex — extension methods</h2>
+    <h2>Blex - extension methods</h2>
     <ApiTable Rows="@Extensions" MemberHeader="Type" />
 
     <h2>Blex.Blazor</h2>
@@ -63,7 +63,7 @@
                 </tr>
                 <tr>
                     <td><code>[State] private T _foo;</code></td>
-                    <td><code>public T Foo { get; set; }</code> — the setter routes through <code>SetState</code>; the field is included in both snapshot methods</td>
+                    <td><code>public T Foo { get; set; }</code> - the setter routes through <code>SetState</code>; the field is included in both snapshot methods</td>
                 </tr>
                 <tr>
                     <td><code>[Computed] T ComputeFoo()</code></td>
@@ -87,7 +87,7 @@
                 </tr>
                 <tr>
                     <td><code>[Effect] Task OnFoo(A a, CancellationToken ct)</code></td>
-                    <td>the above, plus <code>public void CancelFoo()</code> — and note the token is <em>not</em> on the public signature</td>
+                    <td>the above, plus <code>public void CancelFoo()</code> - and note the token is <em>not</em> on the public signature</td>
                 </tr>
             </tbody>
         </table>
@@ -95,7 +95,7 @@
 
     <h2>Reserved names</h2>
     <p>
-        A generated member may not take one of these — they are inherited from <code>StoreBase</code>
+        A generated member may not take one of these - they are inherited from <code>StoreBase</code>
         or emitted by the generator itself. Collisions are reported as <code>BLEX005</code>.
     </p>
     <CodeBlock Code="@Reserved" Language="text" Title="Reserved" Compact="true" />
@@ -129,9 +129,9 @@
         new("BlexManager", "The central manager: store registry, middleware pipeline, action subscriptions, global state capture and restore, DevTools connection, error sink. See <a href=\"cross-store\">Cross-store coordination</a>."),
         new("BlexActionContext", "What observers receive after an action: <code>Store</code>, <code>ActionName</code>, <code>QualifiedName</code>, <code>Args</code>, <code>Sequence</code>, <code>Timestamp</code>, <code>GlobalState</code>."),
         new("BlexPreActionContext", "What middleware receives before an action, plus <code>IsCancelled</code> and <code>Cancel()</code>."),
-        new("ActionArg", "<code>readonly record struct (string Name, object? Value)</code> — one captured action argument."),
+        new("ActionArg", "<code>readonly record struct (string Name, object? Value)</code> - one captured action argument."),
         new("BlexOptions", "Configuration passed to <code>AddBlex</code>: <code>DevToolsName</code>, sanitizers, <code>RedactDevToolsKeys</code>, <code>UseMiddleware</code>, <code>UseFilter</code>, <code>OnError</code>."),
-        new("BlexError", "<code>readonly record struct (string Source, Exception Exception, string? Detail)</code> — an isolated pipeline failure. See <a href=\"errors\">Error isolation</a>."),
+        new("BlexError", "<code>readonly record struct (string Source, Exception Exception, string? Detail)</code> - an isolated pipeline failure. See <a href=\"errors\">Error isolation</a>."),
         new("BlexJson", "The shared <code>JsonSerializerOptions</code> used by generated serialization."),
         new("IBlexDevTools", "The DevTools sink abstraction: <code>Init</code> and <code>Send</code>. See <a href=\"devtools\">DevTools</a>."),
     ];

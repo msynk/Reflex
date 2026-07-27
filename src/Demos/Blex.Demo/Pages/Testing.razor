@@ -1,7 +1,7 @@
 @page "/testing"
 
 <DocPage Href="testing" Title="Testing"
-         Lead="Stores are plain objects, so they test like plain objects — and Blex.Testing adds a harness for asserting on the dispatch pipeline itself.">
+         Lead="Stores are plain objects, so they test like plain objects - and Blex.Testing adds a harness for asserting on the dispatch pipeline itself.">
 
     <h2>The simplest test</h2>
     <p>
@@ -39,7 +39,7 @@
     <h2>Testing effects</h2>
     <p>
         Awaiting the effect wrapper is usually enough. When you need to observe an intermediate state
-        — a loading flag, say — <code>WaitForAsync</code> beats sprinkling <code>Task.Delay</code>
+        - a loading flag, say - <code>WaitForAsync</code> beats sprinkling <code>Task.Delay</code>
         through the test: it re-evaluates the condition on every store change and throws
         <code>TimeoutException</code> if it never becomes true.
     </p>
@@ -51,7 +51,7 @@
     <h2>Asserting on batching</h2>
     <p>
         <code>CountNotifications</code> counts how many times a store raised
-        <code>StateChanged</code> while an action ran — the direct way to prove that a multi-field
+        <code>StateChanged</code> while an action ran - the direct way to prove that a multi-field
         action really does render once.
     </p>
     <CodeBlock Code="@Notifications" />
@@ -86,8 +86,8 @@
 
     <Callout Kind="Callout.CalloutKind.Gotcha" Title="Dispose the harness">
         <p style="margin-bottom:0">
-            The harness holds a live subscription on its manager. Use <code>using var</code> — or
-            <code>Dispose()</code> — so a long test class does not accumulate recorders. The
+            The harness holds a live subscription on its manager. Use <code>using var</code> - or
+            <code>Dispose()</code> - so a long test class does not accumulate recorders. The
             harness's manager is its own, so tests never interfere with each other.
         </p>
     </Callout>
@@ -105,7 +105,7 @@
     private static readonly IReadOnlyList<ApiTable.Row> HarnessRows =
     [
         new("BlexTestHarness.For&lt;TStore&gt;()", "Creates a harness for a store with a parameterless constructor."),
-        new("BlexTestHarness.For(store)", "Creates a harness around an already-constructed store — use this when the store has dependencies."),
+        new("BlexTestHarness.For(store)", "Creates a harness around an already-constructed store - use this when the store has dependencies."),
         new("TStore Store", "The store under test."),
         new("BlexManager Manager", "The manager backing the harness. Use it to add middleware assertions or extra subscriptions."),
         new("ActionLog Log", "Records every dispatch."),
@@ -123,7 +123,7 @@
         new("IReadOnlyList&lt;string&gt; QualifiedNames", "The qualified names in order."),
         new("bool Contains(string)", "Whether an action with that bare or qualified name was recorded."),
         new("int CountOf(string)", "How many times it was recorded."),
-        new("void Clear()", "Empties the log — handy between arrange and act."),
+        new("void Clear()", "Empties the log - handy between arrange and act."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> RecordedRows =

@@ -5,7 +5,7 @@
 @inject IJSRuntime Js
 
 <DocPage Href="persistence" Title="Persistence"
-         Lead="Opt a store in, register a storage provider, and its state survives a reload — with debouncing, versioning and migrations included.">
+         Lead="Opt a store in, register a storage provider, and its state survives a reload - with debouncing, versioning and migrations included.">
 
     <h2>Opting in</h2>
     <p>
@@ -19,7 +19,7 @@
     <ApiTable Title="Providers" Rows="@ProviderRows" MemberHeader="Call" />
 
     <DemoCard Title="This page's settings are persisted"
-              Description="Change something, then reload the browser. The values come back — and so does the raw payload below, read straight out of localStorage."
+              Description="Change something, then reload the browser. The values come back - and so does the raw payload below, read straight out of localStorage."
               Source="@StoreSource">
         <div class="row">
             <span class="small muted">Accent:</span>
@@ -105,7 +105,7 @@
     <Callout Kind="Callout.CalloutKind.Tip" Title="fromVersion 0 means &quot;pre-envelope&quot;">
         <p style="margin-bottom:0">
             A payload written before you enabled versioning has no envelope, so it arrives as
-            version <code>0</code>. Handle that case explicitly — usually by accepting it as-is or
+            version <code>0</code>. Handle that case explicitly - usually by accepting it as-is or
             discarding it, depending on whether the shape actually changed.
         </p>
     </Callout>
@@ -118,14 +118,14 @@
         <p style="margin-bottom:0">
             <code>StartAsync</code> walks the manager's registry. <code>&lt;BlexProvider&gt;</code>
             registers everything before calling it, so in Blazor this is automatic. In a host without
-            the provider, resolve every store from DI first — resolution is what registers them.
+            the provider, resolve every store from DI first - resolution is what registers them.
         </p>
     </Callout>
 
     <h2>Custom storage</h2>
     <p>
         The core package ships only the abstraction; <code>Blex.Blazor</code> supplies the browser
-        implementation. Anything else — a file, IndexedDB, a server round-trip — is one small class.
+        implementation. Anything else - a file, IndexedDB, a server round-trip - is one small class.
     </p>
     <CodeBlock Code="@CustomStorage" />
 
@@ -156,7 +156,7 @@
     <Callout Kind="Callout.CalloutKind.Warning" Title="Renaming a store strands its data">
         <p style="margin-bottom:0">
             The storage key is <code>KeyPrefix + store.Name</code>. Change <code>Name</code> and the
-            old payload is orphaned — the store silently starts from defaults. Treat a persisted
+            old payload is orphaned - the store silently starts from defaults. Treat a persisted
             store's name as part of its contract, and use <code>Version</code> plus
             <code>Migrate</code> when the shape has to change.
         </p>
@@ -174,7 +174,7 @@
     private async Task ReadRaw()
     {
         var value = await Js.InvokeAsync<string?>("blexDocs.readStorage", "blex-docs:settings");
-        _raw = value ?? "(nothing stored yet — change a setting, then read again)";
+        _raw = value ?? "(nothing stored yet - change a setting, then read again)";
     }
 
     private async Task FlushAsync()
@@ -199,15 +199,15 @@
     private static readonly IReadOnlyList<ApiTable.Row> OptionRows =
     [
         new("string KeyPrefix", "Prepended to every store's key. Default <code>\"blex:\"</code>, giving <code>blex:settings</code>."),
-        new("TimeSpan? DebounceInterval", "Coalesce a burst of actions into one write after this quiet period. Default <code>null</code> — write after every action."),
+        new("TimeSpan? DebounceInterval", "Coalesce a burst of actions into one write after this quiet period. Default <code>null</code> - write after every action."),
         new("TimeSpan? DebounceMaxDelay", "Upper bound on how long a debounced write may be postponed under a steady stream of actions. Only meaningful with <code>DebounceInterval</code>."),
-        new("int Version", "Schema version. Above zero, payloads are wrapped in a version envelope and checked on load. Default <code>0</code> — no envelope, no checking."),
+        new("int Version", "Schema version. Above zero, payloads are wrapped in a version envelope and checked on load. Default <code>0</code> - no envelope, no checking."),
         new("Func&lt;string, int, JsonObject, JsonObject?&gt;? Migrate", "Called when a stored version differs from <code>Version</code>. Receives the store name, the stored version and the state; return the migrated state, or <code>null</code> to discard."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> PersistorRows =
     [
-        new("Task StartAsync(CancellationToken)", "Rehydrates every persistent store, then starts listening. Safe to call again — storage errors (such as interop being unavailable during prerender) propagate so the host can retry."),
+        new("Task StartAsync(CancellationToken)", "Rehydrates every persistent store, then starts listening. Safe to call again - storage errors (such as interop being unavailable during prerender) propagate so the host can retry."),
         new("Task FlushAsync()", "Forces any debounced write now and awaits every queued write. Useful before navigating away, and in tests."),
         new("Task ClearAsync(CancellationToken)", "Removes every persistent store's saved slice from storage."),
         new("ValueTask DisposeAsync()", "Stops listening and flushes what is pending."),

@@ -3,7 +3,7 @@
 The Blex documentation website: a Blazor WebAssembly app that documents every feature of the
 library and demonstrates each one with a live, runnable example on the same page.
 
-It is deliberately self-hosting — the site is itself a Blex app, so the **Inspector** dock at the
+It is deliberately self-hosting - the site is itself a Blex app, so the **Inspector** dock at the
 bottom of every page shows the real action feed, the real serialized state tree, the real undo stack
 and the real `OnError` sink. Nothing on the site is mocked.
 
@@ -47,7 +47,7 @@ CSS framework, no CDN and no JavaScript library:
   scanner for C#, Razor, XML, JSON and shell.
 - **Styling** is one hand-written stylesheet, [`wwwroot/css/site.css`](wwwroot/css/site.css), with
   light and dark themes driven by CSS custom properties.
-- **JavaScript** is [`wwwroot/js/site.js`](wwwroot/js/site.js) — clipboard, theme persistence and a
+- **JavaScript** is [`wwwroot/js/site.js`](wwwroot/js/site.js) - clipboard, theme persistence and a
   `localStorage` read for the persistence demo. That is all of it.
 
 This keeps the published output small and lets the site work offline and under a strict CSP.
@@ -94,9 +94,9 @@ dotnet publish src/Demos/Blex.Demo -c Release -o publish
 [`.github/workflows/docs.yml`](../../../.github/workflows/docs.yml) publishes to GitHub Pages on
 every push to `main`. It handles the two things a project page needs:
 
-1. **Base href** — rewrites `<base href="/" />` to `<base href="/<repo>/" />`, since the site is
+1. **Base href** - rewrites `<base href="/" />` to `<base href="/<repo>/" />`, since the site is
    served from a subpath.
-2. **SPA fallback** — copies `index.html` to `404.html`, because GitHub Pages has no rewrite rule
+2. **SPA fallback** - copies `index.html` to `404.html`, because GitHub Pages has no rewrite rule
    and would otherwise 404 on a deep link such as `/Blex/effects`.
 
 `wwwroot/.nojekyll` is committed so Pages does not strip the `_framework` directory.

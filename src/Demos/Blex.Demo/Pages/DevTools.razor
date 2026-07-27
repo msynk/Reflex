@@ -5,7 +5,7 @@
 @inject BlexManager Manager
 
 <DocPage Href="devtools" Title="DevTools & time travel"
-         Lead="Every action streams into the Redux DevTools extension with its payload and the resulting state tree — and the slider rewinds your app.">
+         Lead="Every action streams into the Redux DevTools extension with its payload and the resulting state tree - and the slider rewinds your app.">
 
     <h2>Getting connected</h2>
     <ol>
@@ -21,7 +21,7 @@
     <Callout Kind="Callout.CalloutKind.Tip" Title="This very page is connected">
         <p style="margin-bottom:0">
             If you have the extension installed, open it now and look for the instance named
-            <strong>Blex Docs</strong>. Then press the buttons below and jump around the timeline —
+            <strong>Blex Docs</strong>. Then press the buttons below and jump around the timeline -
             the demos on this site will rewind with it.
         </p>
     </Callout>
@@ -49,7 +49,7 @@
             </div>
         </div>
         <p class="small muted" style="margin-top:0.7rem;margin-bottom:0">
-            In the extension, that token reads <code>&lt;redacted&gt;</code> — this site registers
+            In the extension, that token reads <code>&lt;redacted&gt;</code> - this site registers
             <code>options.RedactDevToolsKeys("Token")</code>.
         </p>
     </DemoCard>
@@ -61,8 +61,8 @@
     </p>
     <CodeBlock Code="@Wire" Language="json" Title="What the extension receives" />
     <p>
-        The state tree is keyed by store name — <code>counter</code>, <code>settings</code> and so on
-        — which is exactly what <code>BlexManager.CaptureGlobalState()</code> produces.
+        The state tree is keyed by store name - <code>counter</code>, <code>settings</code> and so on
+        - which is exactly what <code>BlexManager.CaptureGlobalState()</code> produces.
     </p>
 
     <h2>Messages Blex handles</h2>
@@ -74,7 +74,7 @@
         <table>
             <thead><tr><th>Message</th><th>Effect</th></tr></thead>
             <tbody>
-                <tr><td><code>JUMP_TO_STATE</code> / <code>JUMP_TO_ACTION</code></td><td>Applies the state the extension supplies — the slider and the jump buttons.</td></tr>
+                <tr><td><code>JUMP_TO_STATE</code> / <code>JUMP_TO_ACTION</code></td><td>Applies the state the extension supplies - the slider and the jump buttons.</td></tr>
                 <tr><td><code>ROLLBACK</code></td><td>Reverts to the last committed snapshot, or to the state supplied with the message when nothing has been committed.</td></tr>
                 <tr><td><code>COMMIT</code></td><td>Takes the current state as the new baseline and re-initializes the monitor.</td></tr>
                 <tr><td><code>RESET</code></td><td>Restores the state captured when DevTools first connected, then re-initializes the monitor.</td></tr>
@@ -84,7 +84,7 @@
     </div>
     <p>
         Applying a snapshot goes through <code>RestoreGlobalState</code>, so it never records new
-        actions — the timeline you are scrubbing does not grow while you scrub it. A store whose
+        actions - the timeline you are scrubbing does not grow while you scrub it. A store whose
         slice fails to deserialize is reported to <a href="errors"><code>OnError</code></a> and
         skipped; the rest still restore.
     </p>
@@ -100,7 +100,7 @@
     <ApiTable Rows="@SanitizerRows" />
 
     <p>
-        <code>RedactDevToolsKeys</code> walks the whole tree — objects <em>and</em> arrays — replacing
+        <code>RedactDevToolsKeys</code> walks the whole tree - objects <em>and</em> arrays - replacing
         matching keys with <code>&lt;redacted&gt;</code>, and it is applied to action payloads as well
         as state, so an argument named <code>password</code> is redacted too.
     </p>
@@ -109,7 +109,7 @@
         <p style="margin-bottom:0">
             DevTools echoes the state it was <em>shown</em> back to the app when you jump. A redacted
             value therefore comes back as the literal string <code>&lt;redacted&gt;</code> and
-            overwrites the real one. Redact only fields you never need to jump back through — or turn
+            overwrites the real one. Redact only fields you never need to jump back through - or turn
             DevTools off entirely in the environments where the data is real.
         </p>
     </Callout>
@@ -117,7 +117,7 @@
     <Callout Kind="Callout.CalloutKind.Warning" Title="Sanitizers fail closed">
         <p style="margin-bottom:0">
             If your state sanitizer throws, Blex sends an <em>empty</em> tree rather than the
-            unsanitized one — a bug in redaction cannot leak what it was meant to hide. A throwing
+            unsanitized one - a bug in redaction cannot leak what it was meant to hide. A throwing
             action sanitizer yields <code>&lt;sanitizer-error&gt;</code>. Both are reported through
             <code>OnError</code> with source <code>devtools</code>.
         </p>
@@ -131,7 +131,7 @@
 
     <h2>Under the hood</h2>
     <p>
-        The core package has no JS dependency — it only knows the <code>IBlexDevTools</code>
+        The core package has no JS dependency - it only knows the <code>IBlexDevTools</code>
         interface. <code>Blex.Blazor</code> supplies <code>ReduxDevToolsConnector</code>, which
         loads a small ES module and talks to
         <code>window.__REDUX_DEVTOOLS_EXTENSION__</code>.
@@ -140,7 +140,7 @@
     <CodeBlock Code="@Interface" />
 
     <ul>
-        <li>If the extension is not installed, <code>connect</code> returns <code>false</code> and everything becomes a no-op — no errors, no cost.</li>
+        <li>If the extension is not installed, <code>connect</code> returns <code>false</code> and everything becomes a no-op - no errors, no cost.</li>
         <li>Interop calls are dispatched without blocking the dispatch pipeline, but their tasks are still observed so a transient failure cannot surface as an unobserved exception.</li>
         <li>Disconnecting detaches only Blex's own subscription, rather than killing every DevTools instance on the page.</li>
         <li>The bridge advertises exactly what it implements: <code>jump</code> and <code>export</code> yes; <code>dispatch</code>, <code>skip</code> and <code>reorder</code> no.</li>
@@ -148,7 +148,7 @@
 
     <h2>Connecting a different sink</h2>
     <p>
-        <code>IBlexDevTools</code> is public, so the manager can feed anything — a server-side
+        <code>IBlexDevTools</code> is public, so the manager can feed anything - a server-side
         session recorder, a test double, a custom monitor.
     </p>
     <CodeBlock Code="@CustomSink" />
@@ -174,7 +174,7 @@
         new("options.DevToolsName", "The instance name shown in the extension's dropdown. Default <code>\"Blex\"</code>."),
         new("options.RedactDevToolsKeys(params string[])", "Shorthand: replaces the named keys, anywhere in the tree, with <code>\"&lt;redacted&gt;\"</code>. Applies to action payloads too."),
         new("options.DevToolsStateSanitizer", "<code>Func&lt;JsonObject, JsonObject&gt;</code>. Full control over the tree before it is sent. Display only."),
-        new("options.DevToolsActionSanitizer", "<code>Func&lt;string, string&gt;</code>. Rewrites the action label — useful for stripping ids out of names."),
+        new("options.DevToolsActionSanitizer", "<code>Func&lt;string, string&gt;</code>. Rewrites the action label - useful for stripping ids out of names."),
     ];
 
     private const string Naming = """

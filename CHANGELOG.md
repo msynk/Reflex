@@ -77,7 +77,7 @@ First release published to NuGet.
   lists, array-typed action args) are redacted as documented.
 - `BlexHistory`'s pipeline handlers are exception-isolated: a throwing `Changed` (UI) handler
   can no longer break dispatch for observers registered after history (e.g. lose a persistence
-  save) — failures route to `OnError`.
+  save) - failures route to `OnError`.
 - `EntityAdapter.UpdateOne` re-keying an entity onto an id that already exists merges cleanly
   instead of silently duplicating the id in `Ids`.
 - Rehydration no longer deletes valid stored data when a `StateChanged` subscriber throws while

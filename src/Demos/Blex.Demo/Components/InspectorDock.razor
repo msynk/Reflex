@@ -126,7 +126,7 @@
             @if (Guard.IsReadOnly)
             {
                 <div class="dock__banner">
-                    Read-only guard is ON — middleware is vetoing every action
+                    Read-only guard is ON - middleware is vetoing every action
                     (@Guard.BlockedCount blocked).
                     <button type="button" class="btn btn-sm" @onclick="() => Guard.IsReadOnly = false">Turn off</button>
                 </div>

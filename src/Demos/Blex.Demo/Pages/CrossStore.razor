@@ -11,7 +11,7 @@
     <p>
         The manager aggregates every registered store into one global state tree, runs the middleware
         pipeline, feeds the DevTools bridge and applies time-travel snapshots. Most application code
-        never touches it — you inject stores. You reach for the manager when you need coordination,
+        never touches it - you inject stores. You reach for the manager when you need coordination,
         a global snapshot, or dynamic registration.
     </p>
 
@@ -30,7 +30,7 @@
     <CodeBlock Code="@SubscribeSample" />
 
     <DemoCard Title="Orders notify, without knowing about notifications"
-              Description="Placing an order dispatches only orders/Place. A manager subscription — registered by this page — turns it into a notification."
+              Description="Placing an order dispatches only orders/Place. A manager subscription - registered by this page - turns it into a notification."
               Source="@WiringSource">
         <div class="row">
             <input type="text" placeholder="Item" value="@_item" @oninput="OnItemInput" style="min-width:150px" />
@@ -88,14 +88,14 @@
         <p style="margin-bottom:0">
             <code>GlobalState</code> is captured lazily on first access, because serializing every
             store is expensive and most observers never need it. Read it <em>inside</em> your handler:
-            reading it later — after further actions have run — would capture their state instead.
+            reading it later - after further actions have run - would capture their state instead.
             Treat the returned tree as read-only; every observer of that action shares the instance.
         </p>
     </Callout>
 
     <h2>Async reactors</h2>
     <p>
-        <code>SubscribeAsync</code> lets a reactor start async work — typically an effect on another
+        <code>SubscribeAsync</code> lets a reactor start async work - typically an effect on another
         store. The returned task is observed, so a failure is reported through <code>OnError</code>
         rather than surfacing as an unobserved exception.
     </p>
@@ -106,7 +106,7 @@
             A reactor that dispatches an action which its own filter matches will recurse until the
             stack gives out. Keep reactors one-directional, or guard them with a flag. Blex freezes
             the in-flight snapshots of actions still being observed before a reactor's follow-up
-            action mutates state, so attribution stays correct — but it will not stop a genuine loop.
+            action mutates state, so attribution stays correct - but it will not stop a genuine loop.
         </p>
     </Callout>
 
@@ -114,17 +114,17 @@
     <p>Three practical options, in rough order of preference:</p>
     <ul>
         <li>
-            <strong>A component that owns the lifetime</strong> — <code>OwnsSubscription(...)</code>
+            <strong>A component that owns the lifetime</strong> - <code>OwnsSubscription(...)</code>
             in <code>OnInitialized</code>. Good when the coordination only matters while some part of
             the UI is alive. This page does exactly that.
         </li>
         <li>
-            <strong>Middleware</strong> — register an <code>IBlexMiddleware</code> that reacts in
+            <strong>Middleware</strong> - register an <code>IBlexMiddleware</code> that reacts in
             <code>OnAction</code>. Good for app-wide, always-on rules. See
             <a href="middleware">Middleware</a>.
         </li>
         <li>
-            <strong>A coordinator service</strong> — a scoped service that subscribes in its
+            <strong>A coordinator service</strong> - a scoped service that subscribes in its
             constructor and disposes its tokens. Resolve it once at startup so it exists.
         </li>
     </ul>
@@ -134,7 +134,7 @@
         Stores register themselves when first resolved from DI, and
         <code>&lt;BlexProvider&gt;</code> registers everything up front. For a lazily-loaded
         feature you can register and unregister by hand. An unregistered store keeps working
-        standalone — its actions simply stop being observed.
+        standalone - its actions simply stop being observed.
     </p>
     <CodeBlock Code="@RegisterSample" />
 
@@ -142,7 +142,7 @@
         <p style="margin-bottom:0">
             The manager is built for single-threaded dispatch, matching Blazor's rendering model. Its
             internal lock protects the store registry and global-state capture only; the pipeline
-            itself — the sequence counter, middleware, DevTools — assumes actions are not dispatched
+            itself - the sequence counter, middleware, DevTools - assumes actions are not dispatched
             concurrently. If you dispatch from several threads, coordinate externally.
         </p>
     </Callout>

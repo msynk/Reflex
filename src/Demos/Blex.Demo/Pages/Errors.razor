@@ -11,7 +11,7 @@
     <p>
         A dispatch fans out to middleware, the DevTools bridge, persistence, history and every
         subscriber. If any one of them throws and the exception escapes, the observers registered
-        after it never run — persistence silently stops saving because an unrelated analytics handler
+        after it never run - persistence silently stops saving because an unrelated analytics handler
         had a bad day. Blex isolates each of those call sites and routes the failure to a single
         sink.
     </p>
@@ -19,7 +19,7 @@
     <CodeBlock Code="@Setup" FileName="Program.cs" />
 
     <p>
-        Without a handler, isolated errors are written to <code>Console.Error</code> — visible in the
+        Without a handler, isolated errors are written to <code>Console.Error</code> - visible in the
         browser console, but easy to miss. Setting <code>OnError</code> is the first thing to do in
         any real app.
     </p>
@@ -45,7 +45,7 @@
     </div>
 
     <DemoCard Title="Break a subscriber on purpose"
-              Description="This registers a subscriber that throws on the next counter/Increment. The action still applies, the other observers still run, and the failure lands in the log below — and in the Inspector's Errors tab."
+              Description="This registers a subscriber that throws on the next counter/Increment. The action still applies, the other observers still run, and the failure lands in the log below - and in the Inspector's Errors tab."
               Source="@DemoSource">
         <div class="row">
             <button class="btn btn-danger" @onclick="BreakSubscriber">Arm a throwing subscriber, then increment</button>
@@ -79,7 +79,7 @@
         }
         <p class="small muted" style="margin-top:0.7rem;margin-bottom:0">
             Note that <code>Count</code> still went up. The mutation had already been applied when the
-            subscriber ran — isolation protects the pipeline, it does not roll anything back.
+            subscriber ran - isolation protects the pipeline, it does not roll anything back.
         </p>
     </DemoCard>
 
@@ -88,7 +88,7 @@
         <li>
             <strong>The mutation is recorded even if a subscriber throws.</strong> A standalone
             <code>Set X</code> whose <code>StateChanged</code> handler throws is still recorded,
-            because the state genuinely changed — skipping the record would leave persistence,
+            because the state genuinely changed - skipping the record would leave persistence,
             history and DevTools out of sync with reality.
         </li>
         <li>
@@ -103,7 +103,7 @@
         </li>
         <li>
             <strong>The handler itself is guarded.</strong> If your <code>OnError</code> throws, that
-            exception is swallowed — it is the last line of defence, and there is nowhere left to
+            exception is swallowed - it is the last line of defence, and there is nowhere left to
             report to.
         </li>
     </ul>
@@ -115,7 +115,7 @@
         <p style="margin-bottom:0">
             <code>BlexOptions</code> is registered as a singleton, and the delegate you assign is
             copied onto each scoped <code>BlexManager</code> as it is created. Do not close over a
-            scoped service in it — under Blazor Server that would capture one circuit's dependency
+            scoped service in it - under Blazor Server that would capture one circuit's dependency
             and share it with all of them. Close over something process-wide (an
             <code>ILoggerFactory</code>, a metrics client), or assign
             <code>manager.OnError</code> per scope instead.
@@ -133,7 +133,7 @@
     <Callout Kind="Callout.CalloutKind.Warning" Title="Errors inside an action body are not isolated">
         <p style="margin-bottom:0">
             This is about the <em>observers</em> of an action. An exception thrown by your own
-            <code>[Action]</code> method body propagates to the caller as usual — only
+            <code>[Action]</code> method body propagates to the caller as usual - only
             <code>[Effect]</code> bodies capture their exception, into the generated
             <code>XxxError</code> property.
         </p>
@@ -170,7 +170,7 @@
     [
         new("string Source", "Which part of the pipeline failed: <code>subscriber</code>, <code>async reactor</code>, <code>middleware</code>, <code>persistence</code>, <code>restore</code>, <code>devtools</code> or <code>history</code>."),
         new("Exception Exception", "The captured exception."),
-        new("string? Detail", "Context — usually the store name, storage key or qualified action name."),
+        new("string? Detail", "Context - usually the store name, storage key or qualified action name."),
     ];
 
     private const string Setup = """
