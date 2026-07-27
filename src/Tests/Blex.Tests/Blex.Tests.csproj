@@ -19,8 +19,7 @@
     <ProjectReference Include="..\..\Blex\Blex.csproj" />
     <ProjectReference Include="..\..\Blex.Testing\Blex.Testing.csproj" />
     <ProjectReference Include="..\..\Blex.Generators\Blex.Generators.csproj"
-                      OutputItemType="Analyzer" ReferenceOutputAssembly="false"
-                      SetTargetFramework="TargetFramework=netstandard2.0" />
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

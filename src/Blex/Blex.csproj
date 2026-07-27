@@ -26,11 +26,17 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Ship the source generator inside the core package so a single reference lights up codegen. -->
+    <!--
+      Ship the source generator inside the core package so a single reference lights up codegen.
+      Deliberately no SetTargetFramework: the generator is single-targeted, so the SDK's own
+      negotiation resolves netstandard2.0 without adding a TargetFramework global property.
+      Pinning one here would give this reference a different global-property set from the
+      solution's own build of the same project, and MSBuild would then build Blex.Generators
+      twice in parallel into one output path - a file-in-use race that breaks cold builds.
+    -->
     <ProjectReference Include="..\Blex.Generators\Blex.Generators.csproj"
                       OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false"
-                      SetTargetFramework="TargetFramework=netstandard2.0" />
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!--

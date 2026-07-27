@@ -401,7 +401,7 @@ To publish:
 
 1. Bump `<Version>` there and move the `[Unreleased]` section of
    [CHANGELOG.md](https://github.com/msynk/Blex/blob/main/CHANGELOG.md) under the new version heading.
-2. Commit, then tag and push: `git tag v0.3.0 && git push origin v0.3.0`.
+2. Commit, then tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
 3. The [Release workflow](https://github.com/msynk/Blex/blob/main/.github/workflows/release.yml)
    verifies that the tag matches
    `<Version>`, builds, tests, packs, and pushes every package plus its symbol package to

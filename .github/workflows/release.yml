@@ -13,7 +13,7 @@ name: Release
 #      owner; reserving the prefix is what stops that pattern spreading.)
 #
 # To ship: bump <Version> in src/Directory.Build.props, update CHANGELOG.md, commit, then
-#   git tag v0.3.0 && git push origin v0.3.0
+#   git tag v0.1.0 && git push origin v0.1.0
 # The tag must match the version in Directory.Build.props or the job fails before publishing.
 
 on:
@@ -33,14 +33,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Source Link embeds the commit; a shallow clone is enough but the full history
           # keeps `git describe`-style diagnostics usable if a release ever needs debugging.
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -68,7 +68,7 @@ jobs:
         run: dotnet pack src/Blex.slnx --no-build --configuration Release
 
       - name: Upload packages as a build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nuget-packages
           path: artifacts/packages/*

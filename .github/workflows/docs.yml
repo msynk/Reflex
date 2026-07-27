@@ -26,10 +26,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -52,10 +52,14 @@ jobs:
       - name: Verify .nojekyll survived the publish
         run: test -f publish/wwwroot/.nojekyll
 
+      # include-hidden-files is required from v4 on: the action otherwise tars with
+      # --exclude=.[^/]* and silently drops .nojekyll, which is what keeps Pages from
+      # hiding the _framework directory the Blazor app is served from.
       - name: Upload the Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: publish/wwwroot
+          include-hidden-files: true
 
   deploy:
     needs: build
@@ -66,4 +70,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
