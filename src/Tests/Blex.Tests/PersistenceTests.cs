@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Reflex;
+using Blex;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class PersistenceTests
 {
-    private sealed class InMemoryStorage : IReflexStorage
+    private sealed class InMemoryStorage : IBlexStorage
     {
         public Dictionary<string, string> Data { get; } = new();
 
@@ -39,7 +39,7 @@ public class PersistenceTests
     public async Task Persistor_SavesPersistentStore_AfterAction()
     {
         var storage = new InMemoryStorage();
-        var manager = new ReflexManager();
+        var manager = new BlexManager();
         var settings = new SettingsStore();
         manager.Register(settings);
         var persistor = new StatePersistor(manager, storage);
@@ -47,15 +47,15 @@ public class PersistenceTests
 
         settings.SetTheme("dark");
 
-        Assert.True(storage.Data.ContainsKey("reflex:settings"));
-        Assert.Contains("dark", storage.Data["reflex:settings"]);
+        Assert.True(storage.Data.ContainsKey("blex:settings"));
+        Assert.Contains("dark", storage.Data["blex:settings"]);
     }
 
     [Fact]
     public async Task Persistor_DoesNotSave_NonPersistentStore()
     {
         var storage = new InMemoryStorage();
-        var manager = new ReflexManager();
+        var manager = new BlexManager();
         var counter = new CounterStore();
         manager.Register(counter);
         var persistor = new StatePersistor(manager, storage);
@@ -63,16 +63,16 @@ public class PersistenceTests
 
         counter.Increment();
 
-        Assert.False(storage.Data.ContainsKey("reflex:counter"));
+        Assert.False(storage.Data.ContainsKey("blex:counter"));
     }
 
     [Fact]
     public async Task Persistor_RehydratesOnStart()
     {
         var storage = new InMemoryStorage();
-        storage.Data["reflex:settings"] = "{\"Theme\":\"dark\",\"FontSize\":20}";
+        storage.Data["blex:settings"] = "{\"Theme\":\"dark\",\"FontSize\":20}";
 
-        var manager = new ReflexManager();
+        var manager = new BlexManager();
         var settings = new SettingsStore();
         manager.Register(settings);
         var persistor = new StatePersistor(manager, storage);
@@ -87,10 +87,10 @@ public class PersistenceTests
     public async Task Persistor_Restore_DoesNotRecordActions()
     {
         var storage = new InMemoryStorage();
-        storage.Data["reflex:settings"] = "{\"Theme\":\"dark\"}";
+        storage.Data["blex:settings"] = "{\"Theme\":\"dark\"}";
 
         var seen = new List<string>();
-        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var manager = new BlexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
         var settings = new SettingsStore();
         manager.Register(settings);
         var persistor = new StatePersistor(manager, storage);
@@ -105,27 +105,27 @@ public class PersistenceTests
     public async Task Persistor_Clear_RemovesPersistedSlice()
     {
         var storage = new InMemoryStorage();
-        var manager = new ReflexManager();
+        var manager = new BlexManager();
         var settings = new SettingsStore();
         manager.Register(settings);
         var persistor = new StatePersistor(manager, storage);
         await persistor.StartAsync();
 
         settings.SetTheme("dark");
-        Assert.True(storage.Data.ContainsKey("reflex:settings"));
+        Assert.True(storage.Data.ContainsKey("blex:settings"));
 
         await persistor.ClearAsync();
-        Assert.False(storage.Data.ContainsKey("reflex:settings"));
+        Assert.False(storage.Data.ContainsKey("blex:settings"));
     }
 
     [Fact]
     public async Task Persistor_CustomKeyPrefix_IsUsed()
     {
         var storage = new InMemoryStorage();
-        var manager = new ReflexManager();
+        var manager = new BlexManager();
         var settings = new SettingsStore();
         manager.Register(settings);
-        var persistor = new StatePersistor(manager, storage, new ReflexPersistenceOptions { KeyPrefix = "app." });
+        var persistor = new StatePersistor(manager, storage, new BlexPersistenceOptions { KeyPrefix = "app." });
         await persistor.StartAsync();
 
         settings.SetTheme("dark");

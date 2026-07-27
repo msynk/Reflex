@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using BenchmarkDotNet.Attributes;
 
-namespace Reflex.Benchmarks;
+namespace Blex.Benchmarks;
 
 /// <summary>
 /// Per-store JSON snapshot cost: the generated <c>SerializeState</c>/<c>DeserializeState</c> that

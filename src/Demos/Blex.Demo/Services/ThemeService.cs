@@ -1,15 +1,15 @@
 using Microsoft.JSInterop;
 
-namespace Reflex.Demo.Services;
+namespace Blex.Demo.Services;
 
 /// <summary>
 /// Light/dark preference for the documentation site's own chrome. Deliberately <em>not</em> a
-/// Reflex store: the site keeps its presentation concerns out of the demos so that everything a
+/// Blex store: the site keeps its presentation concerns out of the demos so that everything a
 /// visitor sees in the action feed is theirs, not the site's.
 /// </summary>
 public sealed class ThemeService(IJSRuntime js)
 {
-    private const string StorageKey = "reflex-docs-theme";
+    private const string StorageKey = "blex-docs-theme";
 
     /// <summary>Raised when the theme changes.</summary>
     public event Action? Changed;
@@ -22,7 +22,7 @@ public sealed class ThemeService(IJSRuntime js)
     {
         try
         {
-            var stored = await js.InvokeAsync<string?>("reflexDocs.getTheme", StorageKey);
+            var stored = await js.InvokeAsync<string?>("blexDocs.getTheme", StorageKey);
             if (!string.IsNullOrEmpty(stored))
                 Theme = stored;
             await ApplyAsync();
@@ -45,7 +45,7 @@ public sealed class ThemeService(IJSRuntime js)
     {
         try
         {
-            await js.InvokeVoidAsync("reflexDocs.setTheme", StorageKey, Theme);
+            await js.InvokeVoidAsync("blexDocs.setTheme", StorageKey, Theme);
         }
         catch (JSException)
         {

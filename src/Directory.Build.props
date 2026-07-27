@@ -9,7 +9,7 @@
 
   <!-- The frameworks every shipping library targets. Tests, benchmarks and demos pin their own. -->
   <PropertyGroup>
-    <ReflexTargetFrameworks>net8.0;net9.0;net10.0</ReflexTargetFrameworks>
+    <BlexTargetFrameworks>net8.0;net9.0;net10.0</BlexTargetFrameworks>
   </PropertyGroup>
 
   <!-- Package identity. Only the four library projects opt in with <IsPackable>true</IsPackable>. -->
@@ -17,20 +17,20 @@
     <IsPackable>false</IsPackable>
     <Version>0.3.0</Version>
     <Authors>Saleh Yusefnejad</Authors>
-    <Product>Reflex</Product>
+    <Product>Blex</Product>
     <Copyright>Copyright (c) 2026 Saleh Yusefnejad</Copyright>
-    <PackageProjectUrl>https://github.com/msynk/Reflex</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/msynk/Reflex</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/msynk/Blex</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/msynk/Blex</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <PackageTags>blazor;state-management;state;store;redux;flux;devtools;source-generator;reactive;fluxor</PackageTags>
-    <PackageReleaseNotes>https://github.com/msynk/Reflex/blob/main/CHANGELOG.md</PackageReleaseNotes>
+    <PackageReleaseNotes>https://github.com/msynk/Blex/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <PackageOutputPath>$(MSBuildThisFileDirectory)..\artifacts\packages</PackageOutputPath>
   </PropertyGroup>
 
-  <!-- Symbols + Source Link, so stepping into Reflex from a consumer's debugger works. -->
+  <!-- Symbols + Source Link, so stepping into Blex from a consumer's debugger works. -->
   <PropertyGroup>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>

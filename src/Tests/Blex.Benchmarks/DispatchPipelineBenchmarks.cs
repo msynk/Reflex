@@ -1,10 +1,10 @@
 using BenchmarkDotNet.Attributes;
-using Reflex;
+using Blex;
 
-namespace Reflex.Benchmarks;
+namespace Blex.Benchmarks;
 
 /// <summary>
-/// Contrasts the two dispatch regimes documented in <c>ReflexManager.RecordAction</c>:
+/// Contrasts the two dispatch regimes documented in <c>BlexManager.RecordAction</c>:
 /// the idle fast-path (no listeners -> the global-state capture is skipped entirely) versus the
 /// full pipeline (a middleware is attached, so every action serializes the whole state tree).
 /// The <see cref="StoreCount"/> parameter scales the global-state size to show how the full
@@ -17,30 +17,30 @@ public class DispatchPipelineBenchmarks
     [Params(1, 10, 50)]
     public int StoreCount;
 
-    private ReflexManager _idle = null!;
+    private BlexManager _idle = null!;
     private BenchCounterStore _idleStore = null!;
 
-    private ReflexManager _withMiddleware = null!;
+    private BlexManager _withMiddleware = null!;
     private BenchCounterStore _pipelineStore = null!;
 
     [GlobalSetup]
     public void Setup()
     {
         // Idle manager: no middleware, no DevTools, no subscribers -> RecordAction short-circuits.
-        _idle = new ReflexManager();
+        _idle = new BlexManager();
         _idleStore = new BenchCounterStore();
         _idle.Register(_idleStore);
         FillStores(_idle, StoreCount - 1);
 
         // Full pipeline: a middleware forces CaptureGlobalState() on every action.
         long sink = 0;
-        _withMiddleware = new ReflexManager(new[] { new DelegateMiddleware(_ => sink++) });
+        _withMiddleware = new BlexManager(new[] { new DelegateMiddleware(_ => sink++) });
         _pipelineStore = new BenchCounterStore();
         _withMiddleware.Register(_pipelineStore);
         FillStores(_withMiddleware, StoreCount - 1);
     }
 
-    private static void FillStores(ReflexManager manager, int extra)
+    private static void FillStores(BlexManager manager, int extra)
     {
         for (var i = 0; i < extra; i++)
         {

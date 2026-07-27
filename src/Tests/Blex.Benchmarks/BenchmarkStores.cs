@@ -1,6 +1,6 @@
-using Reflex;
+using Blex;
 
-namespace Reflex.Benchmarks;
+namespace Blex.Benchmarks;
 
 // Stores used by the benchmarks. Decorated like any real store so the source generator emits the
 // actual reactive API the benchmarks exercise.

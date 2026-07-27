@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex.Testing;
+namespace Blex.Testing;
 
 /// <summary>A single recorded action and the state snapshot taken immediately after it.</summary>
 /// <param name="Store">The store that produced the action.</param>
@@ -18,15 +18,15 @@ public sealed record RecordedAction(
     IReadOnlyList<ActionArg> Args);
 
 /// <summary>
-/// Records every action dispatched through a <see cref="ReflexManager"/> for assertions in tests.
-/// Dispose (or use a <c>using</c>) to detach. Obtain one via <see cref="ReflexTestExtensions.RecordActions"/>.
+/// Records every action dispatched through a <see cref="BlexManager"/> for assertions in tests.
+/// Dispose (or use a <c>using</c>) to detach. Obtain one via <see cref="BlexTestExtensions.RecordActions"/>.
 /// </summary>
 public sealed class ActionLog : IDisposable
 {
     private readonly IDisposable _subscription;
     private readonly List<RecordedAction> _actions = [];
 
-    internal ActionLog(ReflexManager manager)
+    internal ActionLog(BlexManager manager)
     {
         _subscription = manager.Subscribe(ctx => _actions.Add(new RecordedAction(
             ctx.Store, ctx.ActionName, ctx.QualifiedName, ctx.Sequence, ctx.GlobalState, ctx.Args)));

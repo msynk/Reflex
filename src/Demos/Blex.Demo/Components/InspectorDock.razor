@@ -1,13 +1,13 @@
 @using System.Text.Json
 @implements IDisposable
-@inject ReflexManager Manager
+@inject BlexManager Manager
 @inject ActionFeed Feed
-@inject ReflexHistory History
+@inject BlexHistory History
 @inject ErrorLog Errors
 @inject DemoGuard Guard
 
 @*
-    The docs site is itself a Reflex app, so this dock shows the real pipeline: every action you
+    The docs site is itself a Blex app, so this dock shows the real pipeline: every action you
     dispatch anywhere on the site, the live global state tree, the undo stack and any isolated
     pipeline error. Nothing here is mocked.
 *@
@@ -104,7 +104,7 @@
                         </div>
                         @if (Errors.Errors.Count == 0)
                         {
-                            <p class="dock__empty">No isolated errors. Reflex would have written these to Console.Error without a handler.</p>
+                            <p class="dock__empty">No isolated errors. Blex would have written these to Console.Error without a handler.</p>
                         }
                         else
                         {

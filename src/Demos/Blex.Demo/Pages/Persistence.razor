@@ -1,5 +1,5 @@
 @page "/persistence"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject SettingsStore Settings
 @inject StatePersistor Persistor
 @inject IJSRuntime Js
@@ -49,7 +49,7 @@
             </div>
             <div class="readout__item">
                 <span class="readout__label">Storage key</span>
-                <span class="readout__value" style="font-size:0.85rem">reflex-docs:settings</span>
+                <span class="readout__value" style="font-size:0.85rem">blex-docs:settings</span>
             </div>
         </div>
 
@@ -71,13 +71,13 @@
     <Callout Kind="Callout.CalloutKind.Note" Title="Note the envelope">
         <p style="margin-bottom:0">
             Because this site sets <code>options.Version = 1</code>, the payload is wrapped as
-            <code>{ "__reflexVersion": 1, "state": { … } }</code>. With <code>Version</code> left at
+            <code>{ "__blexVersion": 1, "state": { … } }</code>. With <code>Version</code> left at
             <code>0</code> the state is stored bare, with no envelope and no version checking.
         </p>
     </Callout>
 
     <h2>Options</h2>
-    <ApiTable Title="ReflexPersistenceOptions" Rows="@OptionRows" />
+    <ApiTable Title="BlexPersistenceOptions" Rows="@OptionRows" />
 
     <h3>Debouncing</h3>
     <p>
@@ -116,7 +116,7 @@
 
     <Callout Kind="Callout.CalloutKind.Note" Title="Only registered stores rehydrate">
         <p style="margin-bottom:0">
-            <code>StartAsync</code> walks the manager's registry. <code>&lt;ReflexProvider&gt;</code>
+            <code>StartAsync</code> walks the manager's registry. <code>&lt;BlexProvider&gt;</code>
             registers everything before calling it, so in Blazor this is automatic. In a host without
             the provider, resolve every store from DI first — resolution is what registers them.
         </p>
@@ -124,14 +124,14 @@
 
     <h2>Custom storage</h2>
     <p>
-        The core package ships only the abstraction; <code>Reflex.Blazor</code> supplies the browser
+        The core package ships only the abstraction; <code>Blex.Blazor</code> supplies the browser
         implementation. Anything else — a file, IndexedDB, a server round-trip — is one small class.
     </p>
     <CodeBlock Code="@CustomStorage" />
 
     <h2>Prerendering</h2>
     <p>
-        <code>&lt;ReflexProvider&gt;</code> also bridges to Blazor's
+        <code>&lt;BlexProvider&gt;</code> also bridges to Blazor's
         <code>PersistentComponentState</code>. State produced during prerendering is handed to the
         interactive render instead of being recomputed, which removes the "double render" flicker.
         That is separate from durable persistence: it applies to <em>every</em> store, not just
@@ -173,7 +173,7 @@
 
     private async Task ReadRaw()
     {
-        var value = await Js.InvokeAsync<string?>("reflexDocs.readStorage", "reflex-docs:settings");
+        var value = await Js.InvokeAsync<string?>("blexDocs.readStorage", "blex-docs:settings");
         _raw = value ?? "(nothing stored yet — change a setting, then read again)";
     }
 
@@ -191,14 +191,14 @@
 
     private static readonly IReadOnlyList<ApiTable.Row> ProviderRows =
     [
-        new("AddReflexLocalStoragePersistence(…)", "Blazor: <code>window.localStorage</code>. Survives browser restarts."),
-        new("AddReflexSessionStoragePersistence(…)", "Blazor: <code>window.sessionStorage</code>. Cleared when the tab closes."),
-        new("AddReflexPersistence(…)", "Core: wires the persistor to whatever <code>IReflexStorage</code> you have registered."),
+        new("AddBlexLocalStoragePersistence(…)", "Blazor: <code>window.localStorage</code>. Survives browser restarts."),
+        new("AddBlexSessionStoragePersistence(…)", "Blazor: <code>window.sessionStorage</code>. Cleared when the tab closes."),
+        new("AddBlexPersistence(…)", "Core: wires the persistor to whatever <code>IBlexStorage</code> you have registered."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> OptionRows =
     [
-        new("string KeyPrefix", "Prepended to every store's key. Default <code>\"reflex:\"</code>, giving <code>reflex:settings</code>."),
+        new("string KeyPrefix", "Prepended to every store's key. Default <code>\"blex:\"</code>, giving <code>blex:settings</code>."),
         new("TimeSpan? DebounceInterval", "Coalesce a burst of actions into one write after this quiet period. Default <code>null</code> — write after every action."),
         new("TimeSpan? DebounceMaxDelay", "Upper bound on how long a debounced write may be postponed under a steady stream of actions. Only meaningful with <code>DebounceInterval</code>."),
         new("int Version", "Schema version. Above zero, payloads are wrapped in a version envelope and checked on load. Default <code>0</code> — no envelope, no checking."),
@@ -224,10 +224,10 @@
 
     private const string Register = """
         // Blazor WebAssembly / Blazor Server
-        builder.Services.AddReflexLocalStoragePersistence();
+        builder.Services.AddBlexLocalStoragePersistence();
 
         // ... or with options
-        builder.Services.AddReflexLocalStoragePersistence(options =>
+        builder.Services.AddBlexLocalStoragePersistence(options =>
         {
             options.KeyPrefix = "myapp:";
             options.DebounceInterval = TimeSpan.FromMilliseconds(300);
@@ -256,7 +256,7 @@
         """;
 
     private const string Debounce = """
-        builder.Services.AddReflexLocalStoragePersistence(options =>
+        builder.Services.AddBlexLocalStoragePersistence(options =>
         {
             // One write per quiet 300 ms...
             options.DebounceInterval = TimeSpan.FromMilliseconds(300);
@@ -266,7 +266,7 @@
         """;
 
     private const string Migrate = """
-        builder.Services.AddReflexLocalStoragePersistence(options =>
+        builder.Services.AddBlexLocalStoragePersistence(options =>
         {
             options.Version = 2;
             options.Migrate = (storeName, fromVersion, state) =>
@@ -288,7 +288,7 @@
         """;
 
     private const string CustomStorage = """
-        public sealed class FileStorage(string directory) : IReflexStorage
+        public sealed class FileStorage(string directory) : IBlexStorage
         {
             private string Path(string key) => System.IO.Path.Combine(directory, key + ".json");
 
@@ -306,7 +306,7 @@
         }
 
         // Program.cs
-        services.AddSingleton<IReflexStorage>(new FileStorage("./state"));
-        services.AddReflexPersistence();
+        services.AddSingleton<IBlexStorage>(new FileStorage("./state"));
+        services.AddBlexPersistence();
         """;
 }

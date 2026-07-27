@@ -1,6 +1,6 @@
-using Reflex;
+using Blex;
 
-namespace Reflex.Sample.Stores;
+namespace Blex.Sample.Stores;
 
 /// <summary>
 /// A tiny counter store showing reactive state, a computed value and named actions.

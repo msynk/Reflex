@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 
-namespace Reflex.Benchmarks;
+namespace Blex.Benchmarks;
 
 /// <summary>
 /// Cost of the immutable <see cref="EntityAdapter{TEntity, TKey}"/> operations at different

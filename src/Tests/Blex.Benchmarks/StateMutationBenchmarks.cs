@@ -1,7 +1,7 @@
 using BenchmarkDotNet.Attributes;
-using Reflex;
+using Blex;
 
-namespace Reflex.Benchmarks;
+namespace Blex.Benchmarks;
 
 /// <summary>
 /// The single hottest path: assigning a reactive state property. Measures the per-assignment cost

@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Reflex;
+using Blex;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class EffectTests
 {
@@ -52,7 +52,7 @@ public class EffectTests
     public async Task Effect_RecordsExactlyOneAction()
     {
         var seen = new List<string>();
-        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var manager = new BlexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
         var store = new DataStore();
         manager.Register(store);
 

@@ -1,15 +1,15 @@
 @page "/"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Counter
 
-<PageTitle>Reflex · Reactive state management for Blazor</PageTitle>
+<PageTitle>Blex · Reactive state management for Blazor</PageTitle>
 
 <article class="doc">
     <header class="hero">
         <span class="hero__tag">Blazor state management</span>
         <h1>State management that gets out of the way</h1>
         <p class="hero__lead">
-            Reflex is a lightweight, source-generator-powered state library for Blazor. You write one
+            Blex is a lightweight, source-generator-powered state library for Blazor. You write one
             <code>[State]</code> field and one <code>[Action]</code> method; the generator writes the
             reactive properties, the dispatch plumbing, the JSON snapshots and the loading/error
             lifecycle. Redux DevTools time-travel is built in.
@@ -17,7 +17,7 @@
         <div class="hero__cta">
             <a class="btn btn-primary" href="quick-start">Get started</a>
             <a class="btn" href="stores">Read the concepts</a>
-            <a class="btn btn-ghost" href="https://github.com/msynk/Reflex" target="_blank" rel="noopener">GitHub ↗</a>
+            <a class="btn btn-ghost" href="https://github.com/msynk/Blex" target="_blank" rel="noopener">GitHub ↗</a>
         </div>
     </header>
 
@@ -76,7 +76,7 @@
     <p>
         Fluxor is the de-facto Redux implementation for Blazor, and it works — but a single counter
         costs you a state class, an action class, a reducer and often an effect class, and there is no
-        first-class DevTools time-travel. Reflex keeps what makes Flux good — one observable state
+        first-class DevTools time-travel. Blex keeps what makes Flux good — one observable state
         tree, named actions, a middleware pipeline — and deletes the ceremony with a Roslyn
         incremental generator.
     </p>
@@ -84,7 +84,7 @@
     <div class="table-scroll">
         <table>
             <thead>
-                <tr><th>Task</th><th>Fluxor</th><th>Reflex</th></tr>
+                <tr><th>Task</th><th>Fluxor</th><th>Blex</th></tr>
             </thead>
             <tbody>
                 <tr><td>Define a piece of state</td><td>Feature + State class</td><td>one <code>[State]</code> field</td></tr>
@@ -98,9 +98,9 @@
                 <tr><td>Granular re-render</td><td>manual selectors</td><td>selector <code>Subscribe(…)</code></td></tr>
                 <tr><td>Normalized collections</td><td>manual</td><td><code>EntityAdapter</code> / <code>EntityState</code></td></tr>
                 <tr><td>Persistence</td><td>3rd-party</td><td>built in, with debounce + migrations</td></tr>
-                <tr><td>Undo / redo</td><td class="check-no">✗</td><td><code>ReflexHistory</code></td></tr>
+                <tr><td>Undo / redo</td><td class="check-no">✗</td><td><code>BlexHistory</code></td></tr>
                 <tr><td>Redux DevTools time-travel</td><td class="check-no">✗</td><td class="check-yes">✓ built in</td></tr>
-                <tr><td>Test helpers</td><td class="check-no">✗</td><td><code>Reflex.Testing</code> harness</td></tr>
+                <tr><td>Test helpers</td><td class="check-no">✗</td><td><code>Blex.Testing</code> harness</td></tr>
                 <tr><td>Boilerplate</td><td>high</td><td>generated away</td></tr>
             </tbody>
         </table>
@@ -143,10 +143,10 @@
 
     private static readonly IReadOnlyList<ApiTable.Row> Packages =
     [
-        new("Reflex", "The core runtime: <code>StoreBase</code>, attributes, dispatch, middleware, persistence, entity adapter, undo/redo and <code>ReflexManager</code>. No JS dependency. Referencing it also brings the source generator."),
-        new("Reflex.Blazor", "Blazor integration: <code>&lt;ReflexProvider&gt;</code>, <code>ReflexComponentBase</code>, browser-storage persistence and the Redux DevTools bridge."),
-        new("Reflex.Generators", "The Roslyn incremental generator. Packed inside <code>Reflex</code>, so you rarely reference it directly."),
-        new("Reflex.Testing", "Test harness and assertions: <code>ReflexTestHarness</code>, <code>ActionLog</code>, <code>WaitForAsync</code>."),
+        new("Blex", "The core runtime: <code>StoreBase</code>, attributes, dispatch, middleware, persistence, entity adapter, undo/redo and <code>BlexManager</code>. No JS dependency. Referencing it also brings the source generator."),
+        new("Blex.Blazor", "Blazor integration: <code>&lt;BlexProvider&gt;</code>, <code>BlexComponentBase</code>, browser-storage persistence and the Redux DevTools bridge."),
+        new("Blex.Generators", "The Roslyn incremental generator. Packed inside <code>Blex</code>, so you rarely reference it directly."),
+        new("Blex.Testing", "Test harness and assertions: <code>BlexTestHarness</code>, <code>ActionLog</code>, <code>WaitForAsync</code>."),
     ];
 
     private const string StoreSample = """
@@ -166,7 +166,7 @@
         """;
 
     private const string CounterUsage = """
-        @inherits ReflexComponentBase
+        @inherits BlexComponentBase
         @inject CounterStore Counter
 
         <p>Count: @Counter.Count (double: @Counter.DoubleCount)</p>

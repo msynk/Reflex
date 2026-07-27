@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
 /// A reactive state container. Implemented by <see cref="StoreBase"/> and the generated stores.

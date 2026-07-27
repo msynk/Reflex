@@ -1,6 +1,6 @@
 @page "/history"
-@inherits ReflexComponentBase
-@inject ReflexHistory HistoryStack
+@inherits BlexComponentBase
+@inject BlexHistory HistoryStack
 @inject CounterStore Counter
 @inject ContactsStore Contacts
 
@@ -9,7 +9,7 @@
 
     <h2>Setup</h2>
     <p>
-        Register it once. <code>&lt;ReflexProvider&gt;</code> calls <code>Start()</code> for you —
+        Register it once. <code>&lt;BlexProvider&gt;</code> calls <code>Start()</code> for you —
         deliberately <em>after</em> rehydration, so the baseline that undo ultimately returns to is
         the state the user actually loaded, not the pre-hydration defaults.
     </p>
@@ -69,7 +69,7 @@
     </DemoCard>
 
     <h2>API</h2>
-    <ApiTable Title="ReflexHistory" Rows="@HistoryRows" />
+    <ApiTable Title="BlexHistory" Rows="@HistoryRows" />
 
     <h2>How it works</h2>
     <ol>
@@ -110,7 +110,7 @@
 
     <h2>Scoping history to one store</h2>
     <p>
-        <code>ReflexHistory</code> is deliberately global: it snapshots the whole tree, which is what
+        <code>BlexHistory</code> is deliberately global: it snapshots the whole tree, which is what
         makes cross-store undo coherent. For per-store history, keep your own stack of that store's
         snapshots and restore them with <code>RestoreState</code>, which applies a snapshot without
         recording an action.
@@ -143,7 +143,7 @@
 
     private static readonly IReadOnlyList<ApiTable.Row> HistoryRows =
     [
-        new("void Start()", "Captures the baseline and begins recording. Idempotent. Called by <code>&lt;ReflexProvider&gt;</code> after rehydration."),
+        new("void Start()", "Captures the baseline and begins recording. Idempotent. Called by <code>&lt;BlexProvider&gt;</code> after rehydration."),
         new("void Undo()", "Restores the previous state. No-op when <code>CanUndo</code> is false."),
         new("void Redo()", "Re-applies the most recently undone state. No-op when <code>CanRedo</code> is false."),
         new("void Clear()", "Drops both stacks and takes the current state as the new baseline."),
@@ -157,19 +157,19 @@
     ];
 
     private const string Setup = """
-        builder.Services.AddReflexHistory();              // default: 100 entries
-        builder.Services.AddReflexHistory(maxEntries: 50);
+        builder.Services.AddBlexHistory();              // default: 100 entries
+        builder.Services.AddBlexHistory(maxEntries: 50);
         """;
 
     private const string Usage = """
-        @inject ReflexHistory History
+        @inject BlexHistory History
 
         <button @onclick="History.Undo" disabled="@(!History.CanUndo)">Undo</button>
         <button @onclick="History.Redo" disabled="@(!History.CanRedo)">Redo</button>
         """;
 
     private const string DemoSource = """
-        @inject ReflexHistory History
+        @inject BlexHistory History
 
         <button @onclick="History.Undo" disabled="@(!History.CanUndo)">
             Undo @History.NextUndoLabel

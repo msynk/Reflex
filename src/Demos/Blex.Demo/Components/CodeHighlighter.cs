@@ -1,7 +1,7 @@
 using System.Text;
 using Microsoft.AspNetCore.Components;
 
-namespace Reflex.Demo.Components;
+namespace Blex.Demo.Components;
 
 /// <summary>
 /// A small, dependency-free syntax highlighter for the code samples on this site.

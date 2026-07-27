@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <!-- Runs against every framework the packages ship for, so no TFM leg goes untested. -->
-    <TargetFrameworks>$(ReflexTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(BlexTargetFrameworks)</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
-    <!-- REFLEX011 is intentionally triggered by a fixture that verifies value-returning actions. -->
-    <NoWarn>$(NoWarn);REFLEX011</NoWarn>
+    <!-- BLEX011 is intentionally triggered by a fixture that verifies value-returning actions. -->
+    <NoWarn>$(NoWarn);BLEX011</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,9 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Reflex\Reflex.csproj" />
-    <ProjectReference Include="..\..\Reflex.Testing\Reflex.Testing.csproj" />
-    <ProjectReference Include="..\..\Reflex.Generators\Reflex.Generators.csproj"
+    <ProjectReference Include="..\..\Blex\Blex.csproj" />
+    <ProjectReference Include="..\..\Blex.Testing\Blex.Testing.csproj" />
+    <ProjectReference Include="..\..\Blex.Generators\Blex.Generators.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false"
                       SetTargetFramework="TargetFramework=netstandard2.0" />
   </ItemGroup>

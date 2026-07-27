@@ -1,4 +1,4 @@
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
 /// Selector-based subscription helpers. Where <see cref="IStore.StateChanged"/> fires on every

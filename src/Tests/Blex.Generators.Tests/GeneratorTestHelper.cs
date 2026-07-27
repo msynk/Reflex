@@ -1,11 +1,11 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Reflex.Generators;
+using Blex.Generators;
 
-namespace Reflex.Generators.Tests;
+namespace Blex.Generators.Tests;
 
-/// <summary>Drives <see cref="ReflexGenerator"/> over an in-memory compilation.</summary>
+/// <summary>Drives <see cref="BlexGenerator"/> over an in-memory compilation.</summary>
 public static class GeneratorTestHelper
 {
     private static readonly ImmutableArray<MetadataReference> References = BuildReferences();
@@ -22,7 +22,7 @@ public static class GeneratorTestHelper
                 references.Add(MetadataReference.CreateFromFile(path));
         }
 
-        // The Reflex runtime (attributes, StoreBase, ...).
+        // The Blex runtime (attributes, StoreBase, ...).
         references.Add(MetadataReference.CreateFromFile(typeof(StoreAttribute).Assembly.Location));
         return references.ToImmutable();
     }
@@ -48,12 +48,12 @@ public static class GeneratorTestHelper
     public static RunResult Run(string source)
     {
         var compilation = CSharpCompilation.Create(
-            "ReflexGeneratorTests",
+            "BlexGeneratorTests",
             [CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest))],
             References,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(new ReflexGenerator());
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(new BlexGenerator());
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var updated, out _);
 
         var runResult = driver.GetRunResult();

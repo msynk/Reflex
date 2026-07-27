@@ -1,8 +1,8 @@
 @page "/devtools"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Counter
 @inject SettingsStore Settings
-@inject ReflexManager Manager
+@inject BlexManager Manager
 
 <DocPage Href="devtools" Title="DevTools & time travel"
          Lead="Every action streams into the Redux DevTools extension with its payload and the resulting state tree — and the slider rewinds your app.">
@@ -10,7 +10,7 @@
     <h2>Getting connected</h2>
     <ol>
         <li>Install the <a href="https://github.com/reduxjs/redux-devtools" target="_blank" rel="noopener">Redux DevTools</a> browser extension.</li>
-        <li>Run the app with <code>&lt;ReflexProvider&gt;</code> in place and <code>EnableDevTools</code> left at its default.</li>
+        <li>Run the app with <code>&lt;BlexProvider&gt;</code> in place and <code>EnableDevTools</code> left at its default.</li>
         <li>Open the browser devtools and switch to the <strong>Redux</strong> tab. The instance is named after <code>options.DevToolsName</code>.</li>
         <li>Interact with the app. Every action arrives with its argument payload and the state that followed it.</li>
         <li>Drag the slider, or use the jump buttons, to rewind the application live.</li>
@@ -21,7 +21,7 @@
     <Callout Kind="Callout.CalloutKind.Tip" Title="This very page is connected">
         <p style="margin-bottom:0">
             If you have the extension installed, open it now and look for the instance named
-            <strong>Reflex Docs</strong>. Then press the buttons below and jump around the timeline —
+            <strong>Blex Docs</strong>. Then press the buttons below and jump around the timeline —
             the demos on this site will rewind with it.
         </p>
     </Callout>
@@ -62,10 +62,10 @@
     <CodeBlock Code="@Wire" Language="json" Title="What the extension receives" />
     <p>
         The state tree is keyed by store name — <code>counter</code>, <code>settings</code> and so on
-        — which is exactly what <code>ReflexManager.CaptureGlobalState()</code> produces.
+        — which is exactly what <code>BlexManager.CaptureGlobalState()</code> produces.
     </p>
 
-    <h2>Messages Reflex handles</h2>
+    <h2>Messages Blex handles</h2>
     <p>
         Time-travel is driven by the extension sending messages back. <code>HandleDevToolsMessage</code>
         interprets these:
@@ -92,7 +92,7 @@
     <h2>Redacting sensitive state</h2>
     <p>
         The state tree is handed to a browser extension. Anything in it is visible to that extension.
-        Reflex gives you two hooks plus a shorthand.
+        Blex gives you two hooks plus a shorthand.
     </p>
 
     <CodeBlock Code="@Sanitize" FileName="Program.cs" />
@@ -116,7 +116,7 @@
 
     <Callout Kind="Callout.CalloutKind.Warning" Title="Sanitizers fail closed">
         <p style="margin-bottom:0">
-            If your state sanitizer throws, Reflex sends an <em>empty</em> tree rather than the
+            If your state sanitizer throws, Blex sends an <em>empty</em> tree rather than the
             unsanitized one — a bug in redaction cannot leak what it was meant to hide. A throwing
             action sanitizer yields <code>&lt;sanitizer-error&gt;</code>. Both are reported through
             <code>OnError</code> with source <code>devtools</code>.
@@ -131,8 +131,8 @@
 
     <h2>Under the hood</h2>
     <p>
-        The core package has no JS dependency — it only knows the <code>IReflexDevTools</code>
-        interface. <code>Reflex.Blazor</code> supplies <code>ReduxDevToolsConnector</code>, which
+        The core package has no JS dependency — it only knows the <code>IBlexDevTools</code>
+        interface. <code>Blex.Blazor</code> supplies <code>ReduxDevToolsConnector</code>, which
         loads a small ES module and talks to
         <code>window.__REDUX_DEVTOOLS_EXTENSION__</code>.
     </p>
@@ -142,13 +142,13 @@
     <ul>
         <li>If the extension is not installed, <code>connect</code> returns <code>false</code> and everything becomes a no-op — no errors, no cost.</li>
         <li>Interop calls are dispatched without blocking the dispatch pipeline, but their tasks are still observed so a transient failure cannot surface as an unobserved exception.</li>
-        <li>Disconnecting detaches only Reflex's own subscription, rather than killing every DevTools instance on the page.</li>
+        <li>Disconnecting detaches only Blex's own subscription, rather than killing every DevTools instance on the page.</li>
         <li>The bridge advertises exactly what it implements: <code>jump</code> and <code>export</code> yes; <code>dispatch</code>, <code>skip</code> and <code>reorder</code> no.</li>
     </ul>
 
     <h2>Connecting a different sink</h2>
     <p>
-        <code>IReflexDevTools</code> is public, so the manager can feed anything — a server-side
+        <code>IBlexDevTools</code> is public, so the manager can feed anything — a server-side
         session recorder, a test double, a custom monitor.
     </p>
     <CodeBlock Code="@CustomSink" />
@@ -171,14 +171,14 @@
 
     private static readonly IReadOnlyList<ApiTable.Row> SanitizerRows =
     [
-        new("options.DevToolsName", "The instance name shown in the extension's dropdown. Default <code>\"Reflex\"</code>."),
+        new("options.DevToolsName", "The instance name shown in the extension's dropdown. Default <code>\"Blex\"</code>."),
         new("options.RedactDevToolsKeys(params string[])", "Shorthand: replaces the named keys, anywhere in the tree, with <code>\"&lt;redacted&gt;\"</code>. Applies to action payloads too."),
         new("options.DevToolsStateSanitizer", "<code>Func&lt;JsonObject, JsonObject&gt;</code>. Full control over the tree before it is sent. Display only."),
         new("options.DevToolsActionSanitizer", "<code>Func&lt;string, string&gt;</code>. Rewrites the action label — useful for stripping ids out of names."),
     ];
 
     private const string Naming = """
-        builder.Services.AddReflex(options =>
+        builder.Services.AddBlex(options =>
         {
             options.DevToolsName = "My App";   // shown in the extension's instance dropdown
         });
@@ -194,7 +194,7 @@
         """;
 
     private const string Sanitize = """
-        builder.Services.AddReflex(options =>
+        builder.Services.AddBlex(options =>
         {
             // Shorthand: redact these keys anywhere in the tree (and in action payloads).
             options.RedactDevToolsKeys("token", "password", "ssn");
@@ -214,13 +214,13 @@
         """;
 
     private const string Disable = """
-        <ReflexProvider EnableDevTools="@Env.IsDevelopment()">
+        <BlexProvider EnableDevTools="@Env.IsDevelopment()">
             <Router ... />
-        </ReflexProvider>
+        </BlexProvider>
         """;
 
     private const string Interface = """
-        public interface IReflexDevTools
+        public interface IBlexDevTools
         {
             void Init(JsonObject globalState);
             void Send(string actionName, JsonObject globalState);
@@ -230,7 +230,7 @@
         """;
 
     private const string CustomSink = """
-        public sealed class RecordingDevTools : IReflexDevTools
+        public sealed class RecordingDevTools : IBlexDevTools
         {
             public List<(string Action, JsonObject State)> Frames { get; } = [];
 

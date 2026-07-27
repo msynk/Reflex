@@ -1,7 +1,7 @@
 @page "/api"
 
 <DocPage Href="api" Title="API reference"
-         Lead="Every public type Reflex ships, grouped by assembly and namespace, with a pointer to the page that explains it.">
+         Lead="Every public type Blex ships, grouped by assembly and namespace, with a pointer to the page that explains it.">
 
     <Callout Kind="Callout.CalloutKind.Note">
         <p style="margin-bottom:0">
@@ -10,36 +10,36 @@
         </p>
     </Callout>
 
-    <h2>Reflex — attributes</h2>
-    <p>Namespace <code>Reflex</code>. These are the entire authoring surface of a store.</p>
+    <h2>Blex — attributes</h2>
+    <p>Namespace <code>Blex</code>. These are the entire authoring surface of a store.</p>
     <ApiTable Rows="@Attributes" MemberHeader="Type" />
 
     <CodeBlock Code="@AttributeSummary" Title="At a glance" />
 
-    <h2>Reflex — core</h2>
+    <h2>Blex — core</h2>
     <ApiTable Rows="@Core" MemberHeader="Type" />
 
-    <h2>Reflex — middleware</h2>
+    <h2>Blex — middleware</h2>
     <ApiTable Rows="@MiddlewareTypes" MemberHeader="Type" />
 
-    <h2>Reflex — collections</h2>
+    <h2>Blex — collections</h2>
     <ApiTable Rows="@Collections" MemberHeader="Type" />
 
-    <h2>Reflex — persistence</h2>
+    <h2>Blex — persistence</h2>
     <ApiTable Rows="@PersistenceTypes" MemberHeader="Type" />
 
-    <h2>Reflex — history</h2>
+    <h2>Blex — history</h2>
     <ApiTable Rows="@HistoryTypes" MemberHeader="Type" />
 
-    <h2>Reflex — extension methods</h2>
+    <h2>Blex — extension methods</h2>
     <ApiTable Rows="@Extensions" MemberHeader="Type" />
 
-    <h2>Reflex.Blazor</h2>
-    <p>Namespace <code>Reflex.Blazor</code>. Everything that touches JavaScript or the Blazor render tree lives here, which is why the core package has no such dependency.</p>
+    <h2>Blex.Blazor</h2>
+    <p>Namespace <code>Blex.Blazor</code>. Everything that touches JavaScript or the Blazor render tree lives here, which is why the core package has no such dependency.</p>
     <ApiTable Rows="@BlazorTypes" MemberHeader="Type" />
 
-    <h2>Reflex.Testing</h2>
-    <p>Namespace <code>Reflex.Testing</code>.</p>
+    <h2>Blex.Testing</h2>
+    <p>Namespace <code>Blex.Testing</code>.</p>
     <ApiTable Rows="@TestingTypes" MemberHeader="Type" />
 
     <h2>Generated members, by declaration</h2>
@@ -96,13 +96,13 @@
     <h2>Reserved names</h2>
     <p>
         A generated member may not take one of these — they are inherited from <code>StoreBase</code>
-        or emitted by the generator itself. Collisions are reported as <code>REFLEX005</code>.
+        or emitted by the generator itself. Collisions are reported as <code>BLEX005</code>.
     </p>
     <CodeBlock Code="@Reserved" Language="text" Title="Reserved" Compact="true" />
 
     <h2>JSON conventions</h2>
     <p>
-        Snapshots use <code>ReflexJson.Options</code>: <code>JsonSerializerDefaults.Web</code>,
+        Snapshots use <code>BlexJson.Options</code>: <code>JsonSerializerDefaults.Web</code>,
         case-insensitive property matching and enums written as strings. Slices are keyed by the
         generated <em>property</em> name (<code>Count</code>, not <code>_count</code>), and the global
         tree is keyed by store name.
@@ -126,20 +126,20 @@
     [
         new("IStore", "The store contract: <code>Name</code>, <code>Persist</code>, <code>StateChanged</code>, <code>SerializeState()</code>, <code>DeserializeState()</code>."),
         new("StoreBase", "Base class for every store. Change notification, batched dispatch, <code>Batch</code>, <code>ResetState</code>, <code>RestoreState</code> and the protected hooks the generator uses."),
-        new("ReflexManager", "The central manager: store registry, middleware pipeline, action subscriptions, global state capture and restore, DevTools connection, error sink. See <a href=\"cross-store\">Cross-store coordination</a>."),
-        new("ReflexActionContext", "What observers receive after an action: <code>Store</code>, <code>ActionName</code>, <code>QualifiedName</code>, <code>Args</code>, <code>Sequence</code>, <code>Timestamp</code>, <code>GlobalState</code>."),
-        new("ReflexPreActionContext", "What middleware receives before an action, plus <code>IsCancelled</code> and <code>Cancel()</code>."),
+        new("BlexManager", "The central manager: store registry, middleware pipeline, action subscriptions, global state capture and restore, DevTools connection, error sink. See <a href=\"cross-store\">Cross-store coordination</a>."),
+        new("BlexActionContext", "What observers receive after an action: <code>Store</code>, <code>ActionName</code>, <code>QualifiedName</code>, <code>Args</code>, <code>Sequence</code>, <code>Timestamp</code>, <code>GlobalState</code>."),
+        new("BlexPreActionContext", "What middleware receives before an action, plus <code>IsCancelled</code> and <code>Cancel()</code>."),
         new("ActionArg", "<code>readonly record struct (string Name, object? Value)</code> — one captured action argument."),
-        new("ReflexOptions", "Configuration passed to <code>AddReflex</code>: <code>DevToolsName</code>, sanitizers, <code>RedactDevToolsKeys</code>, <code>UseMiddleware</code>, <code>UseFilter</code>, <code>OnError</code>."),
-        new("ReflexError", "<code>readonly record struct (string Source, Exception Exception, string? Detail)</code> — an isolated pipeline failure. See <a href=\"errors\">Error isolation</a>."),
-        new("ReflexJson", "The shared <code>JsonSerializerOptions</code> used by generated serialization."),
-        new("IReflexDevTools", "The DevTools sink abstraction: <code>Init</code> and <code>Send</code>. See <a href=\"devtools\">DevTools</a>."),
+        new("BlexOptions", "Configuration passed to <code>AddBlex</code>: <code>DevToolsName</code>, sanitizers, <code>RedactDevToolsKeys</code>, <code>UseMiddleware</code>, <code>UseFilter</code>, <code>OnError</code>."),
+        new("BlexError", "<code>readonly record struct (string Source, Exception Exception, string? Detail)</code> — an isolated pipeline failure. See <a href=\"errors\">Error isolation</a>."),
+        new("BlexJson", "The shared <code>JsonSerializerOptions</code> used by generated serialization."),
+        new("IBlexDevTools", "The DevTools sink abstraction: <code>Init</code> and <code>Send</code>. See <a href=\"devtools\">DevTools</a>."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> MiddlewareTypes =
     [
-        new("IReflexMiddleware", "<code>OnAction(ReflexActionContext)</code> and the defaulted <code>BeforeAction(ReflexPreActionContext)</code>. See <a href=\"middleware\">Middleware</a>."),
-        new("DelegateMiddleware", "Forwards each applied action to an <code>Action&lt;ReflexActionContext&gt;</code>."),
+        new("IBlexMiddleware", "<code>OnAction(BlexActionContext)</code> and the defaulted <code>BeforeAction(BlexPreActionContext)</code>. See <a href=\"middleware\">Middleware</a>."),
+        new("DelegateMiddleware", "Forwards each applied action to an <code>Action&lt;BlexActionContext&gt;</code>."),
         new("FilterMiddleware", "Vetoes an action when the supplied predicate returns <code>false</code>."),
     ];
 
@@ -151,40 +151,40 @@
 
     private static readonly IReadOnlyList<ApiTable.Row> PersistenceTypes =
     [
-        new("IReflexStorage", "Async key/value sink: <code>GetAsync</code>, <code>SetAsync</code>, <code>RemoveAsync</code>."),
-        new("ReflexPersistenceOptions", "<code>KeyPrefix</code>, <code>DebounceInterval</code>, <code>DebounceMaxDelay</code>, <code>Version</code>, <code>Migrate</code>."),
+        new("IBlexStorage", "Async key/value sink: <code>GetAsync</code>, <code>SetAsync</code>, <code>RemoveAsync</code>."),
+        new("BlexPersistenceOptions", "<code>KeyPrefix</code>, <code>DebounceInterval</code>, <code>DebounceMaxDelay</code>, <code>Version</code>, <code>Migrate</code>."),
         new("StatePersistor", "The coordinator: <code>StartAsync</code>, <code>FlushAsync</code>, <code>ClearAsync</code>, <code>DisposeAsync</code>. See <a href=\"persistence\">Persistence</a>."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> HistoryTypes =
     [
-        new("ReflexHistory", "In-app undo/redo over the global state tree. See <a href=\"history\">Undo &amp; redo</a>."),
+        new("BlexHistory", "In-app undo/redo over the global state tree. See <a href=\"history\">Undo &amp; redo</a>."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> Extensions =
     [
-        new("ServiceCollectionExtensions", "<code>AddReflex</code>, <code>AddReflexStore&lt;T&gt;</code>, <code>AddReflexPersistence</code>, <code>AddReflexHistory</code>."),
+        new("ServiceCollectionExtensions", "<code>AddBlex</code>, <code>AddBlexStore&lt;T&gt;</code>, <code>AddBlexPersistence</code>, <code>AddBlexHistory</code>."),
         new("StoreSubscriptionExtensions", "<code>store.Subscribe(selector, onChanged, comparer, fireImmediately)</code> in both single-value and previous/current forms. See <a href=\"subscriptions\">Components &amp; selectors</a>."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> BlazorTypes =
     [
-        new("ReflexProvider", "Root component: registers stores, restores prerendered and persisted state, starts history, connects DevTools. Parameters: <code>EnableDevTools</code>, <code>PersistComponentState</code>, <code>ChildContent</code>."),
-        new("ReflexComponentBase", "Optional component base with <code>Subscribe</code>, selector <code>Subscribe</code>, <code>OwnsSubscription</code> and a <code>Dispose(bool)</code> hook."),
-        new("BrowserStorage", "<code>IReflexStorage</code> over <code>localStorage</code>/<code>sessionStorage</code> through a small JS module."),
+        new("BlexProvider", "Root component: registers stores, restores prerendered and persisted state, starts history, connects DevTools. Parameters: <code>EnableDevTools</code>, <code>PersistComponentState</code>, <code>ChildContent</code>."),
+        new("BlexComponentBase", "Optional component base with <code>Subscribe</code>, selector <code>Subscribe</code>, <code>OwnsSubscription</code> and a <code>Dispose(bool)</code> hook."),
+        new("BrowserStorage", "<code>IBlexStorage</code> over <code>localStorage</code>/<code>sessionStorage</code> through a small JS module."),
         new("BrowserStorageKind", "Enum: <code>Local</code>, <code>Session</code>."),
-        new("PersistenceServiceCollectionExtensions", "<code>AddReflexLocalStoragePersistence</code>, <code>AddReflexSessionStoragePersistence</code>."),
+        new("PersistenceServiceCollectionExtensions", "<code>AddBlexLocalStoragePersistence</code>, <code>AddBlexSessionStoragePersistence</code>."),
         new("ComponentStatePersistence", "Bridges stores to Blazor's <code>PersistentComponentState</code> for the prerender-to-interactive handoff."),
-        new("ReduxDevToolsConnector", "The <code>IReflexDevTools</code> implementation that talks to the browser extension."),
+        new("ReduxDevToolsConnector", "The <code>IBlexDevTools</code> implementation that talks to the browser extension."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> TestingTypes =
     [
-        new("ReflexTestHarness&lt;TStore&gt;", "Store + manager + action log in one object."),
-        new("ReflexTestHarness", "Static factory: <code>For&lt;TStore&gt;()</code> and <code>For(store)</code>."),
+        new("BlexTestHarness&lt;TStore&gt;", "Store + manager + action log in one object."),
+        new("BlexTestHarness", "Static factory: <code>For&lt;TStore&gt;()</code> and <code>For(store)</code>."),
         new("ActionLog", "Records dispatches: <code>Actions</code>, <code>Last</code>, <code>Count</code>, <code>Names</code>, <code>QualifiedNames</code>, <code>Contains</code>, <code>CountOf</code>, <code>Clear</code>."),
         new("RecordedAction", "One recorded dispatch with its store, names, sequence, state snapshot and args."),
-        new("ReflexTestExtensions", "<code>RecordActions</code>, <code>Snapshot</code>, <code>WaitForAsync</code>, <code>CountNotifications</code>. See <a href=\"testing\">Testing</a>."),
+        new("BlexTestExtensions", "<code>RecordActions</code>, <code>Snapshot</code>, <code>WaitForAsync</code>, <code>CountNotifications</code>. See <a href=\"testing\">Testing</a>."),
     ];
 
     private const string AttributeSummary = """
@@ -214,7 +214,7 @@
         // A single store's SerializeState()
         { "Count": 3, "Step": 1 }
 
-        // ReflexManager.CaptureGlobalState()
+        // BlexManager.CaptureGlobalState()
         {
           "counter":  { "Count": 3, "Step": 1 },
           "contacts": { "Contacts": { "ids": [1, 2], "entities": { "1": { }, "2": { } } } },
@@ -222,6 +222,6 @@
         }
 
         // A persisted slice with options.Version > 0
-        { "__reflexVersion": 1, "state": { "Accent": "violet" } }
+        { "__blexVersion": 1, "state": { "Accent": "violet" } }
         """;
 }

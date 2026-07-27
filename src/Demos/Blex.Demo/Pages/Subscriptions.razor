@@ -1,13 +1,13 @@
 @page "/subscriptions"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Counter
 
 <DocPage Href="subscriptions" Title="Components & selectors"
          Lead="Re-render on the state you actually use — from a whole store down to a single projected value.">
 
-    <h2>ReflexComponentBase</h2>
+    <h2>BlexComponentBase</h2>
     <p>
-        Inherit from <code>ReflexComponentBase</code> and call <code>Subscribe(...)</code> in
+        Inherit from <code>BlexComponentBase</code> and call <code>Subscribe(...)</code> in
         <code>OnInitialized</code>. The component re-renders whenever a subscribed store changes and
         detaches every handler on dispose — there is no <code>StateHasChanged</code> to call and
         nothing to clean up.
@@ -18,7 +18,7 @@
     <p>You can subscribe to several stores at once; the call is idempotent per store.</p>
     <CodeBlock Code="@Multi" />
 
-    <ApiTable Title="ReflexComponentBase" Rows="@BaseRows" />
+    <ApiTable Title="BlexComponentBase" Rows="@BaseRows" />
 
     <h2>Selector subscriptions</h2>
     <p>
@@ -142,7 +142,7 @@
     ];
 
     private const string Basic = """
-        @inherits ReflexComponentBase
+        @inherits BlexComponentBase
         @inject CounterStore Counter
 
         <p>Count: @Counter.Count</p>
@@ -200,7 +200,7 @@
 
     private const string Owns = """
         @code {
-            [Inject] private ReflexManager Manager { get; set; } = default!;
+            [Inject] private BlexManager Manager { get; set; } = default!;
 
             protected override void OnInitialized()
             {

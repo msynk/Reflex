@@ -1,18 +1,18 @@
 using System.Text.Json.Nodes;
 using Microsoft.JSInterop;
 
-namespace Reflex.Blazor;
+namespace Blex.Blazor;
 
 /// <summary>
-/// Bridges a <see cref="ReflexManager"/> to the Redux DevTools browser extension, enabling
-/// live action inspection and time-travel. Created and managed by <see cref="ReflexProvider"/>.
+/// Bridges a <see cref="BlexManager"/> to the Redux DevTools browser extension, enabling
+/// live action inspection and time-travel. Created and managed by <see cref="BlexProvider"/>.
 /// </summary>
-public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
+public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
 {
     private readonly IJSRuntime _js;
     private IJSObjectReference? _module;
     private DotNetObjectReference<ReduxDevToolsConnector>? _selfRef;
-    private ReflexManager? _manager;
+    private BlexManager? _manager;
     private bool _ready;
     private bool _disposed;
 
@@ -23,13 +23,13 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
     /// Loads the JS bridge, connects to the extension and wires the manager. Safe to call when the
     /// extension is absent or the bridge fails to load - it simply becomes a no-op.
     /// </summary>
-    public async Task ConnectAsync(ReflexManager manager, string name)
+    public async Task ConnectAsync(BlexManager manager, string name)
     {
         _manager = manager;
         try
         {
             var module = await _js.InvokeAsync<IJSObjectReference>(
-                "import", "./_content/Reflex.Blazor/reflex-devtools.js");
+                "import", "./_content/Blex.Blazor/blex-devtools.js");
             if (_disposed)
             {
                 // Disposed while the import was in flight (fast navigation); don't connect.
@@ -54,7 +54,7 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
         catch (JSException ex)
         {
             // A missing static asset or an extension quirk must not break app startup.
-            Console.Error.WriteLine($"[Reflex] DevTools bridge unavailable: {ex.Message}");
+            Console.Error.WriteLine($"[Blex] DevTools bridge unavailable: {ex.Message}");
         }
     }
 
@@ -98,7 +98,7 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[Reflex] DevTools interop failed: {ex.Message}");
+                Console.Error.WriteLine($"[Blex] DevTools interop failed: {ex.Message}");
             }
         }
     }

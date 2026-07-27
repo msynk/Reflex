@@ -1,8 +1,8 @@
 @*
-    The whole app lives inside <ReflexProvider>: it registers every store with the manager,
+    The whole app lives inside <BlexProvider>: it registers every store with the manager,
     restores persisted state, starts undo/redo recording and connects the Redux DevTools bridge.
 *@
-<ReflexProvider>
+<BlexProvider>
     <Router AppAssembly="@typeof(App).Assembly">
         <Found Context="routeData">
             <RouteView RouteData="@routeData" DefaultLayout="@typeof(DocsLayout)" />
@@ -10,11 +10,11 @@
         </Found>
         <NotFound>
             <LayoutView Layout="@typeof(DocsLayout)">
-                <PageTitle>Not found · Reflex</PageTitle>
+                <PageTitle>Not found · Blex</PageTitle>
                 <h1>404</h1>
                 <p class="lead">That page does not exist. Try the navigation on the left.</p>
                 <a class="btn btn-primary" href="">Back to the introduction</a>
             </LayoutView>
         </NotFound>
     </Router>
-</ReflexProvider>
+</BlexProvider>

@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
 /// An immutable, normalized collection: an ordered list of ids plus an id-keyed entity map.

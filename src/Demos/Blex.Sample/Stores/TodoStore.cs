@@ -1,7 +1,7 @@
 using System.Linq;
-using Reflex;
+using Blex;
 
-namespace Reflex.Sample.Stores;
+namespace Blex.Sample.Stores;
 
 /// <summary>
 /// A todo store demonstrating normalized collection state via <see cref="EntityAdapter{TEntity, TKey}"/>
@@ -55,7 +55,7 @@ public partial class TodoStore
         await Task.Delay(400); // pretend to call an API
         Items = Adapter.SetAll(Items,
         [
-            new TodoItem(Guid.NewGuid(), "Try Reflex time-travel in DevTools", false),
+            new TodoItem(Guid.NewGuid(), "Try Blex time-travel in DevTools", false),
             new TodoItem(Guid.NewGuid(), "Star the repo", false),
             new TodoItem(Guid.NewGuid(), "Delete Fluxor boilerplate", true),
         ]);

@@ -1,4 +1,4 @@
-// Thin bridge over the browser's Web Storage areas used by Reflex persistence.
+// Thin bridge over the browser's Web Storage areas used by Blex persistence.
 // `area` is "local" or "session"; failures (private mode, quota) degrade to no-ops.
 
 function store(area) {
@@ -17,7 +17,7 @@ export function set(area, key, value) {
     try {
         store(area).setItem(key, value);
     } catch (e) {
-        console.warn("[Reflex] storage write failed:", e && e.message);
+        console.warn("[Blex] storage write failed:", e && e.message);
     }
 }
 

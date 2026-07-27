@@ -1,12 +1,12 @@
 using Microsoft.AspNetCore.Components;
 
-namespace Reflex.Blazor;
+namespace Blex.Blazor;
 
 /// <summary>
 /// Optional base component that re-renders automatically when subscribed stores change.
 /// Call <see cref="Subscribe(ReadOnlySpan{IStore})"/> in <c>OnInitialized</c>; unsubscription is automatic.
 /// </summary>
-public abstract class ReflexComponentBase : ComponentBase, IDisposable
+public abstract class BlexComponentBase : ComponentBase, IDisposable
 {
     private readonly List<IStore> _subscriptions = [];
     private readonly List<IDisposable> _selectorSubscriptions = [];

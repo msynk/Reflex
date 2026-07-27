@@ -1,22 +1,22 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex.Testing;
+namespace Blex.Testing;
 
 /// <summary>
-/// A self-contained test fixture around a single store: it creates a <see cref="ReflexManager"/>,
+/// A self-contained test fixture around a single store: it creates a <see cref="BlexManager"/>,
 /// registers the store, and records every action so tests can assert on dispatch behavior without
 /// any Blazor or DI setup.
 /// </summary>
 /// <typeparam name="TStore">The store under test.</typeparam>
-public sealed class ReflexTestHarness<TStore> : IDisposable
+public sealed class BlexTestHarness<TStore> : IDisposable
     where TStore : StoreBase
 {
     /// <summary>Creates a harness, registering <paramref name="store"/> with a fresh manager.</summary>
-    public ReflexTestHarness(TStore store)
+    public BlexTestHarness(TStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
         Store = store;
-        Manager = new ReflexManager();
+        Manager = new BlexManager();
         Manager.Register(store);
         Log = Manager.RecordActions();
     }
@@ -25,7 +25,7 @@ public sealed class ReflexTestHarness<TStore> : IDisposable
     public TStore Store { get; }
 
     /// <summary>The manager backing the harness.</summary>
-    public ReflexManager Manager { get; }
+    public BlexManager Manager { get; }
 
     /// <summary>The action log recording all dispatches.</summary>
     public ActionLog Log { get; }
@@ -40,14 +40,14 @@ public sealed class ReflexTestHarness<TStore> : IDisposable
     public void Dispose() => Log.Dispose();
 }
 
-/// <summary>Factory helpers for <see cref="ReflexTestHarness{TStore}"/>.</summary>
-public static class ReflexTestHarness
+/// <summary>Factory helpers for <see cref="BlexTestHarness{TStore}"/>.</summary>
+public static class BlexTestHarness
 {
     /// <summary>Creates a harness for an already-constructed store.</summary>
-    public static ReflexTestHarness<TStore> For<TStore>(TStore store) where TStore : StoreBase
+    public static BlexTestHarness<TStore> For<TStore>(TStore store) where TStore : StoreBase
         => new(store);
 
     /// <summary>Creates a harness for a store with a parameterless constructor.</summary>
-    public static ReflexTestHarness<TStore> For<TStore>() where TStore : StoreBase, new()
+    public static BlexTestHarness<TStore> For<TStore>() where TStore : StoreBase, new()
         => new(new TStore());
 }

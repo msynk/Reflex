@@ -1,17 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>$(ReflexTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(BlexTargetFrameworks)</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <PackageId>Reflex.Testing</PackageId>
-    <Title>Reflex.Testing</Title>
-    <Description>Testing helpers for Reflex: an action-recording harness and assertions for stores and the manager.</Description>
+    <PackageId>Blex.Testing</PackageId>
+    <Title>Blex.Testing</Title>
+    <Description>Testing helpers for Blex: an action-recording harness and assertions for stores and the manager.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- See Reflex.Blazor.csproj: keeps the bundled source generator flowing transitively. -->
-    <ProjectReference Include="..\Reflex\Reflex.csproj" PrivateAssets="none" />
+    <!-- See Blex.Blazor.csproj: keeps the bundled source generator flowing transitively. -->
+    <ProjectReference Include="..\Blex\Blex.csproj" PrivateAssets="none" />
   </ItemGroup>
 
 </Project>

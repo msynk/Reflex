@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class NullStateRestoreTests
 {
@@ -35,7 +35,7 @@ public class NullStateRestoreTests
     public void TimeTravel_RoundTripsNullValues_AcrossManager()
     {
         var store = new ProfileStore();
-        var manager = new ReflexManager();
+        var manager = new BlexManager();
         manager.Register(store);
 
         store.SignOut();

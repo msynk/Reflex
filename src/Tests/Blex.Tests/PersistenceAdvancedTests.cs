@@ -5,11 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class PersistenceAdvancedTests
 {
-    private sealed class InMemoryStorage : IReflexStorage
+    private sealed class InMemoryStorage : IBlexStorage
     {
         public Dictionary<string, string> Data { get; } = new();
 
@@ -29,10 +29,10 @@ public class PersistenceAdvancedTests
         }
     }
 
-    private static (SettingsStore Store, ReflexManager Manager, InMemoryStorage Storage) Setup()
+    private static (SettingsStore Store, BlexManager Manager, InMemoryStorage Storage) Setup()
     {
         var store = new SettingsStore();
-        var manager = new ReflexManager();
+        var manager = new BlexManager();
         manager.Register(store);
         return (store, manager, new InMemoryStorage());
     }
@@ -41,8 +41,8 @@ public class PersistenceAdvancedTests
     public async Task CorruptPayload_IsReportedDiscardedAndRemoved_StartupContinues()
     {
         var (store, manager, storage) = Setup();
-        storage.Data["reflex:settings"] = "{not valid json!!";
-        var errors = new List<ReflexError>();
+        storage.Data["blex:settings"] = "{not valid json!!";
+        var errors = new List<BlexError>();
         manager.OnError = errors.Add;
 
         await using var persistor = new StatePersistor(manager, storage);
@@ -51,15 +51,15 @@ public class PersistenceAdvancedTests
         Assert.Equal("light", store.Theme); // defaults kept
         Assert.Single(errors);
         Assert.Equal("persistence", errors[0].Source);
-        Assert.False(storage.Data.ContainsKey("reflex:settings")); // corrupt entry removed
+        Assert.False(storage.Data.ContainsKey("blex:settings")); // corrupt entry removed
     }
 
     [Fact]
     public async Task RehydrationSubscriberThrow_KeepsStoredData()
     {
         var (store, manager, storage) = Setup();
-        storage.Data["reflex:settings"] = """{"Theme":"dark","FontSize":16}""";
-        var errors = new List<ReflexError>();
+        storage.Data["blex:settings"] = """{"Theme":"dark","FontSize":16}""";
+        var errors = new List<BlexError>();
         manager.OnError = errors.Add;
 
         // The payload is valid; only a UI subscriber misbehaves during the restore notification.
@@ -69,7 +69,7 @@ public class PersistenceAdvancedTests
         await persistor.StartAsync(); // must not throw
 
         Assert.Equal("dark", store.Theme); // state applied
-        Assert.True(storage.Data.ContainsKey("reflex:settings")); // data NOT deleted
+        Assert.True(storage.Data.ContainsKey("blex:settings")); // data NOT deleted
         Assert.Contains(errors, e => e.Source == "persistence");
     }
 
@@ -77,7 +77,7 @@ public class PersistenceAdvancedTests
     public async Task VersionedPayload_RoundTrips_InEnvelope()
     {
         var (store, manager, storage) = Setup();
-        var options = new ReflexPersistenceOptions { Version = 2 };
+        var options = new BlexPersistenceOptions { Version = 2 };
 
         await using (var persistor = new StatePersistor(manager, storage, options))
         {
@@ -86,14 +86,14 @@ public class PersistenceAdvancedTests
             await persistor.FlushAsync();
         }
 
-        var stored = JsonNode.Parse(storage.Data["reflex:settings"])!.AsObject();
-        Assert.Equal(2, stored["__reflexVersion"]!.GetValue<int>());
+        var stored = JsonNode.Parse(storage.Data["blex:settings"])!.AsObject();
+        Assert.Equal(2, stored["__blexVersion"]!.GetValue<int>());
         Assert.Equal("dark", stored["state"]!["Theme"]!.GetValue<string>());
 
         // A fresh app instance rehydrates from the envelope.
-        var (store2, manager2, _) = (new SettingsStore(), new ReflexManager(), 0);
+        var (store2, manager2, _) = (new SettingsStore(), new BlexManager(), 0);
         manager2.Register(store2);
-        await using var persistor2 = new StatePersistor(manager2, storage, new ReflexPersistenceOptions { Version = 2 });
+        await using var persistor2 = new StatePersistor(manager2, storage, new BlexPersistenceOptions { Version = 2 });
         await persistor2.StartAsync();
         Assert.Equal("dark", store2.Theme);
     }
@@ -103,9 +103,9 @@ public class PersistenceAdvancedTests
     {
         var (store, manager, storage) = Setup();
         // Legacy (v0, unversioned) payload with an obsolete theme name.
-        storage.Data["reflex:settings"] = """{"Theme":"classic","FontSize":11}""";
+        storage.Data["blex:settings"] = """{"Theme":"classic","FontSize":11}""";
 
-        var options = new ReflexPersistenceOptions
+        var options = new BlexPersistenceOptions
         {
             Version = 1,
             Migrate = (storeName, fromVersion, state) =>
@@ -128,9 +128,9 @@ public class PersistenceAdvancedTests
     public async Task VersionMismatch_WithoutMigration_DiscardsPayload()
     {
         var (store, manager, storage) = Setup();
-        storage.Data["reflex:settings"] = """{"Theme":"ancient"}""";
+        storage.Data["blex:settings"] = """{"Theme":"ancient"}""";
 
-        await using var persistor = new StatePersistor(manager, storage, new ReflexPersistenceOptions { Version = 3 });
+        await using var persistor = new StatePersistor(manager, storage, new BlexPersistenceOptions { Version = 3 });
         await persistor.StartAsync();
 
         Assert.Equal("light", store.Theme); // discarded -> defaults
@@ -142,7 +142,7 @@ public class PersistenceAdvancedTests
         var (store, manager, storage) = Setup();
         var writes = 0;
         var counting = new CountingStorage(storage, () => writes++);
-        var options = new ReflexPersistenceOptions { DebounceInterval = TimeSpan.FromMilliseconds(50) };
+        var options = new BlexPersistenceOptions { DebounceInterval = TimeSpan.FromMilliseconds(50) };
 
         await using var persistor = new StatePersistor(manager, counting, options);
         await persistor.StartAsync();
@@ -154,29 +154,29 @@ public class PersistenceAdvancedTests
 
         await persistor.FlushAsync();
         Assert.Equal(1, writes); // one coalesced write
-        Assert.Contains("\"c\"", storage.Data["reflex:settings"]);
+        Assert.Contains("\"c\"", storage.Data["blex:settings"]);
     }
 
     [Fact]
     public async Task DisposeAsync_FlushesPendingDebouncedWrites()
     {
         var (store, manager, storage) = Setup();
-        var options = new ReflexPersistenceOptions { DebounceInterval = TimeSpan.FromMinutes(5) };
+        var options = new BlexPersistenceOptions { DebounceInterval = TimeSpan.FromMinutes(5) };
 
         var persistor = new StatePersistor(manager, storage, options);
         await persistor.StartAsync();
         store.SetTheme("dark");
-        Assert.False(storage.Data.ContainsKey("reflex:settings"));
+        Assert.False(storage.Data.ContainsKey("blex:settings"));
 
         await persistor.DisposeAsync();
-        Assert.Contains("dark", storage.Data["reflex:settings"]);
+        Assert.Contains("dark", storage.Data["blex:settings"]);
     }
 
     [Fact]
     public async Task RestoredState_IsWrittenBackToStorage()
     {
         var (store, manager, storage) = Setup();
-        var history = new ReflexHistory(manager);
+        var history = new BlexHistory(manager);
         history.Start();
 
         await using var persistor = new StatePersistor(manager, storage);
@@ -184,17 +184,17 @@ public class PersistenceAdvancedTests
 
         store.SetTheme("dark");
         await persistor.FlushAsync();
-        Assert.Contains("dark", storage.Data["reflex:settings"]);
+        Assert.Contains("dark", storage.Data["blex:settings"]);
 
         history.Undo(); // restore does not record an action...
         await persistor.FlushAsync();
 
         // ...but storage must still reflect the restored (light) state, or a reload would
         // resurrect the undone value.
-        Assert.Contains("light", storage.Data["reflex:settings"]);
+        Assert.Contains("light", storage.Data["blex:settings"]);
     }
 
-    private sealed class CountingStorage(IReflexStorage inner, Action onWrite) : IReflexStorage
+    private sealed class CountingStorage(IBlexStorage inner, Action onWrite) : IBlexStorage
     {
         public ValueTask<string?> GetAsync(string key, CancellationToken ct = default) => inner.GetAsync(key, ct);
 

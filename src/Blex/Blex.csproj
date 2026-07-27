@@ -1,11 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>$(ReflexTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(BlexTargetFrameworks)</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <PackageId>Reflex</PackageId>
-    <Title>Reflex</Title>
+    <PackageId>Blex</PackageId>
+    <Title>Blex</Title>
     <Description>Lightweight, source-generator-powered reactive state management for Blazor with computed state, middleware, and Redux DevTools time-travel. The source generator ships inside this package, so a single reference lights up codegen.</Description>
   </PropertyGroup>
 
@@ -21,13 +21,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Reflex.Blazor" />
-    <InternalsVisibleTo Include="Reflex.Tests" />
+    <InternalsVisibleTo Include="Blex.Blazor" />
+    <InternalsVisibleTo Include="Blex.Tests" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Ship the source generator inside the core package so a single reference lights up codegen. -->
-    <ProjectReference Include="..\Reflex.Generators\Reflex.Generators.csproj"
+    <ProjectReference Include="..\Blex.Generators\Blex.Generators.csproj"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false"
                       SetTargetFramework="TargetFramework=netstandard2.0" />
@@ -42,14 +42,14 @@
     call because the MSBuild task otherwise forwards the parent's, which the netstandard2.0-only
     generator cannot resolve assets for.
   -->
-  <Target Name="PackReflexGenerator" BeforeTargets="_GetPackageFiles" Condition="'$(TargetFramework)' == ''">
-    <MSBuild Projects="..\Reflex.Generators\Reflex.Generators.csproj"
+  <Target Name="PackBlexGenerator" BeforeTargets="_GetPackageFiles" Condition="'$(TargetFramework)' == ''">
+    <MSBuild Projects="..\Blex.Generators\Blex.Generators.csproj"
              Targets="GetTargetPath"
              Properties="Configuration=$(Configuration);TargetFramework=netstandard2.0">
-      <Output TaskParameter="TargetOutputs" ItemName="_ReflexGeneratorBuildOutput" />
+      <Output TaskParameter="TargetOutputs" ItemName="_BlexGeneratorBuildOutput" />
     </MSBuild>
     <ItemGroup>
-      <None Include="@(_ReflexGeneratorBuildOutput)"
+      <None Include="@(_BlexGeneratorBuildOutput)"
             Condition="'%(Extension)' == '.dll'"
             Pack="true"
             PackagePath="analyzers/dotnet/cs"

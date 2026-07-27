@@ -1,6 +1,6 @@
 using Microsoft.JSInterop;
 
-namespace Reflex.Blazor;
+namespace Blex.Blazor;
 
 /// <summary>
 /// Which Web Storage area a <see cref="BrowserStorage"/> instance targets.
@@ -15,10 +15,10 @@ public enum BrowserStorageKind
 }
 
 /// <summary>
-/// <see cref="IReflexStorage"/> backed by the browser's <c>localStorage</c>/<c>sessionStorage</c>
-/// via a tiny JS bridge. Used by Reflex persistence to survive page reloads in Blazor WebAssembly.
+/// <see cref="IBlexStorage"/> backed by the browser's <c>localStorage</c>/<c>sessionStorage</c>
+/// via a tiny JS bridge. Used by Blex persistence to survive page reloads in Blazor WebAssembly.
 /// </summary>
-public sealed class BrowserStorage : IReflexStorage, IAsyncDisposable
+public sealed class BrowserStorage : IBlexStorage, IAsyncDisposable
 {
     private readonly IJSRuntime _js;
     private readonly string _area;
@@ -33,7 +33,7 @@ public sealed class BrowserStorage : IReflexStorage, IAsyncDisposable
 
     private async ValueTask<IJSObjectReference> ModuleAsync(CancellationToken ct)
         => _module ??= await _js.InvokeAsync<IJSObjectReference>(
-            "import", ct, "./_content/Reflex.Blazor/reflex-storage.js");
+            "import", ct, "./_content/Blex.Blazor/blex-storage.js");
 
     /// <inheritdoc />
     public async ValueTask<string?> GetAsync(string key, CancellationToken cancellationToken = default)

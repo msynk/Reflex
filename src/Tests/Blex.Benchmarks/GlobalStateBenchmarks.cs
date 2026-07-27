@@ -1,8 +1,8 @@
 using System.Text.Json.Nodes;
 using BenchmarkDotNet.Attributes;
-using Reflex;
+using Blex;
 
-namespace Reflex.Benchmarks;
+namespace Blex.Benchmarks;
 
 /// <summary>
 /// Measures whole-application state operations as the store count scales: building the global
@@ -16,13 +16,13 @@ public class GlobalStateBenchmarks
     [Params(10, 100, 500)]
     public int StoreCount;
 
-    private ReflexManager _manager = null!;
+    private BlexManager _manager = null!;
     private JsonObject _snapshot = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        _manager = new ReflexManager();
+        _manager = new BlexManager();
         for (var i = 0; i < StoreCount; i++)
         {
             var w = new BenchWideStore();

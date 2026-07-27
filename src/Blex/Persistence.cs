@@ -1,13 +1,13 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
 /// Storage-agnostic, asynchronous key/value sink used to persist store state. Implementations
 /// might wrap browser <c>localStorage</c>/<c>sessionStorage</c>, a file, a database, etc. The
-/// core library ships only this abstraction; concrete browser storage lives in <c>Reflex.Blazor</c>.
+/// core library ships only this abstraction; concrete browser storage lives in <c>Blex.Blazor</c>.
 /// </summary>
-public interface IReflexStorage
+public interface IBlexStorage
 {
     /// <summary>Reads the raw string stored under <paramref name="key"/>, or <c>null</c> if absent.</summary>
     ValueTask<string?> GetAsync(string key, CancellationToken cancellationToken = default);
@@ -20,10 +20,10 @@ public interface IReflexStorage
 }
 
 /// <summary>Configuration for <see cref="StatePersistor"/>.</summary>
-public sealed class ReflexPersistenceOptions
+public sealed class BlexPersistenceOptions
 {
-    /// <summary>Prefix prepended to every store's storage key. Defaults to <c>"reflex:"</c>.</summary>
-    public string KeyPrefix { get; set; } = "reflex:";
+    /// <summary>Prefix prepended to every store's storage key. Defaults to <c>"blex:"</c>.</summary>
+    public string KeyPrefix { get; set; } = "blex:";
 
     /// <summary>
     /// When set, writes are coalesced: a burst of actions produces a single storage write after
@@ -59,7 +59,7 @@ public sealed class ReflexPersistenceOptions
 
 /// <summary>
 /// Coordinates automatic persistence: rehydrates persistent stores on startup and saves their
-/// slice through an <see cref="IReflexStorage"/> after every action (optionally debounced).
+/// slice through an <see cref="IBlexStorage"/> after every action (optionally debounced).
 /// A store opts in via <c>[Store(Persist = true)]</c>. Restored state (undo/redo, time-travel)
 /// is also written back so a reload never resurrects pre-restore state. Writes are serialized
 /// in dispatch order so a stale payload can never overwrite a newer one.
@@ -67,12 +67,12 @@ public sealed class ReflexPersistenceOptions
 /// </summary>
 public sealed class StatePersistor : IAsyncDisposable
 {
-    private const string VersionKey = "__reflexVersion";
+    private const string VersionKey = "__blexVersion";
     private const string StateKey = "state";
 
-    private readonly ReflexManager _manager;
-    private readonly IReflexStorage _storage;
-    private readonly ReflexPersistenceOptions _options;
+    private readonly BlexManager _manager;
+    private readonly IBlexStorage _storage;
+    private readonly BlexPersistenceOptions _options;
     private readonly HashSet<string> _pending = [];
 
     // Debounced saves can resume off the dispatch thread when no SynchronizationContext exists
@@ -86,13 +86,13 @@ public sealed class StatePersistor : IAsyncDisposable
     private bool _suspended;
 
     /// <summary>Creates a persistor over a manager and storage sink.</summary>
-    public StatePersistor(ReflexManager manager, IReflexStorage storage, ReflexPersistenceOptions? options = null)
+    public StatePersistor(BlexManager manager, IBlexStorage storage, BlexPersistenceOptions? options = null)
     {
         ArgumentNullException.ThrowIfNull(manager);
         ArgumentNullException.ThrowIfNull(storage);
         _manager = manager;
         _storage = storage;
-        _options = options ?? new ReflexPersistenceOptions();
+        _options = options ?? new BlexPersistenceOptions();
     }
 
     private string KeyFor(IStore store) => _options.KeyPrefix + store.Name;
@@ -106,7 +106,7 @@ public sealed class StatePersistor : IAsyncDisposable
     /// </summary>
     /// <remarks>
     /// Only stores already registered with the manager are rehydrated. In hosts without
-    /// <c>&lt;ReflexProvider&gt;</c>, resolve every store from DI (which registers it) before
+    /// <c>&lt;BlexProvider&gt;</c>, resolve every store from DI (which registers it) before
     /// calling this method.
     /// </remarks>
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -178,9 +178,9 @@ public sealed class StatePersistor : IAsyncDisposable
         var storedVersion = 0;
         var state = parsed;
 
-        // An envelope has exactly { "__reflexVersion": n, "state": {...} }; requiring the exact
+        // An envelope has exactly { "__blexVersion": n, "state": {...} }; requiring the exact
         // shape prevents misreading a raw store payload that happens to contain a key named
-        // "__reflexVersion".
+        // "__blexVersion".
         if (parsed.Count == 2
             && parsed.TryGetPropertyValue(VersionKey, out var versionNode)
             && parsed.TryGetPropertyValue(StateKey, out var stateNode))
@@ -221,7 +221,7 @@ public sealed class StatePersistor : IAsyncDisposable
         }
     }
 
-    private void OnAction(ReflexActionContext context)
+    private void OnAction(BlexActionContext context)
     {
         if (_suspended || !context.Store.Persist)
             return;

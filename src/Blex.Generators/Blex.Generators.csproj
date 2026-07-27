@@ -7,8 +7,8 @@
     <IsRoslynComponent>true</IsRoslynComponent>
     <NoWarn>$(NoWarn);RS2008</NoWarn>
     <!--
-      Never published on its own: the generator is bundled into the Reflex package under
-      analyzers/dotnet/cs, so referencing Reflex is all a consumer ever needs.
+      Never published on its own: the generator is bundled into the Blex package under
+      analyzers/dotnet/cs, so referencing Blex is all a consumer ever needs.
     -->
     <IsPackable>false</IsPackable>
   </PropertyGroup>

@@ -1,10 +1,10 @@
 using Xunit;
 
-namespace Reflex.Generators.Tests;
+namespace Blex.Generators.Tests;
 
 public class EmissionTests
 {
-    private const string Usings = "using System.Threading; using System.Threading.Tasks; using Reflex;\n";
+    private const string Usings = "using System.Threading; using System.Threading.Tasks; using Blex;\n";
 
     [Fact]
     public void HappyPath_CompilesWithoutErrors()
@@ -197,13 +197,13 @@ public class EmissionTests
             }
             """);
 
-        Assert.True(result.HasDiagnostic("REFLEX005"));
+        Assert.True(result.HasDiagnostic("BLEX005"));
         // No generated source: emitting would just bury the user in CS0102 cascades.
         Assert.Empty(result.GeneratedSources);
     }
 
     [Fact]
-    public void UserFieldCollidingWithGeneratedBackingField_ReportsREFLEX005()
+    public void UserFieldCollidingWithGeneratedBackingField_ReportsBLEX005()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
@@ -215,7 +215,7 @@ public class EmissionTests
             }
             """);
 
-        Assert.True(result.HasDiagnostic("REFLEX005"));
+        Assert.True(result.HasDiagnostic("BLEX005"));
         Assert.Empty(result.GeneratedSources);
     }
 

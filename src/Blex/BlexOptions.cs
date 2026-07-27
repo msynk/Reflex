@@ -1,19 +1,19 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex;
+namespace Blex;
 
-/// <summary>Configuration for the Reflex manager, populated via <c>AddReflex</c>.</summary>
-public sealed class ReflexOptions
+/// <summary>Configuration for the Blex manager, populated via <c>AddBlex</c>.</summary>
+public sealed class BlexOptions
 {
     internal List<Type> MiddlewareTypes { get; } = [];
-    internal List<IReflexMiddleware> MiddlewareInstances { get; } = [];
+    internal List<IBlexMiddleware> MiddlewareInstances { get; } = [];
 
-    /// <summary>Display name shown in Redux DevTools. Defaults to <c>"Reflex"</c>.</summary>
-    public string DevToolsName { get; set; } = "Reflex";
+    /// <summary>Display name shown in Redux DevTools. Defaults to <c>"Blex"</c>.</summary>
+    public string DevToolsName { get; set; } = "Blex";
 
     /// <summary>
     /// Sanitizer applied to the state tree before it is sent to DevTools (display only). Wired onto
-    /// <see cref="ReflexManager.DevToolsStateSanitizer"/>. See the remarks there for the time-travel caveat.
+    /// <see cref="BlexManager.DevToolsStateSanitizer"/>. See the remarks there for the time-travel caveat.
     /// </summary>
     public Func<JsonObject, JsonObject>? DevToolsStateSanitizer { get; set; }
 
@@ -21,17 +21,17 @@ public sealed class ReflexOptions
     public Func<string, string>? DevToolsActionSanitizer { get; set; }
 
     /// <summary>
-    /// Sink for non-fatal errors Reflex isolates from the dispatch pipeline (throwing
+    /// Sink for non-fatal errors Blex isolates from the dispatch pipeline (throwing
     /// subscribers, middleware, persistence writes, restores, ...). Wired onto
-    /// <see cref="ReflexManager.OnError"/>. When unset, errors go to <see cref="Console.Error"/>.
+    /// <see cref="BlexManager.OnError"/>. When unset, errors go to <see cref="Console.Error"/>.
     /// </summary>
-    public Action<ReflexError>? OnError { get; set; }
+    public Action<BlexError>? OnError { get; set; }
 
     /// <summary>
     /// Convenience: redacts the named top-level keys (recursively, anywhere in the tree) from the
     /// state sent to DevTools, replacing their values with <c>"&lt;redacted&gt;"</c>.
     /// </summary>
-    public ReflexOptions RedactDevToolsKeys(params string[] keys)
+    public BlexOptions RedactDevToolsKeys(params string[] keys)
     {
         var set = new HashSet<string>(keys, StringComparer.Ordinal);
         DevToolsStateSanitizer = state => RedactKeys(state, set);
@@ -73,7 +73,7 @@ public sealed class ReflexOptions
     }
 
     /// <summary>Registers a middleware type resolved from DI.</summary>
-    public ReflexOptions UseMiddleware<TMiddleware>() where TMiddleware : class, IReflexMiddleware
+    public BlexOptions UseMiddleware<TMiddleware>() where TMiddleware : class, IBlexMiddleware
     {
         MiddlewareTypes.Add(typeof(TMiddleware));
         return this;
@@ -87,7 +87,7 @@ public sealed class ReflexOptions
     /// middleware. Ordering note: all DI-registered middleware (<see cref="UseMiddleware{TMiddleware}"/>)
     /// run before instance/delegate middleware, regardless of registration interleaving.
     /// </remarks>
-    public ReflexOptions UseMiddleware(IReflexMiddleware middleware)
+    public BlexOptions UseMiddleware(IBlexMiddleware middleware)
     {
         ArgumentNullException.ThrowIfNull(middleware);
         MiddlewareInstances.Add(middleware);
@@ -95,13 +95,13 @@ public sealed class ReflexOptions
     }
 
     /// <summary>Registers a delegate-based middleware (handy for quick logging).</summary>
-    public ReflexOptions UseMiddleware(Action<ReflexActionContext> handler)
+    public BlexOptions UseMiddleware(Action<BlexActionContext> handler)
         => UseMiddleware(new DelegateMiddleware(handler));
 
     /// <summary>
     /// Registers a veto filter that runs before each action. Return <c>false</c> to cancel the
     /// action so its mutation never runs (e.g. guard rails, read-only modes, validation).
     /// </summary>
-    public ReflexOptions UseFilter(Func<ReflexPreActionContext, bool> filter)
+    public BlexOptions UseFilter(Func<BlexPreActionContext, bool> filter)
         => UseMiddleware(new FilterMiddleware(filter));
 }

@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Reflex;
+using Blex;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 [Store(Name = "counter")]
 public partial class CounterStore
@@ -47,7 +47,7 @@ public partial class CounterStore
 
     // Returns ValueTask<T>: the generator must await it (via AsTask) rather than fire-and-forget.
     // The explicit name contains spaces, so it is a display label only; the wrapper is "LoadValue".
-    // REFLEX011 (discarded return value) is expected here and suppressed via NoWarn in the csproj
+    // BLEX011 (discarded return value) is expected here and suppressed via NoWarn in the csproj
     // -- exercising that shape is exactly what this fixture is for.
     [Action(Name = "Load Value")]
     private async ValueTask<int> OnLoadValue()

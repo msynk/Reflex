@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
 /// In-app undo/redo for the whole application state, independent of the Redux DevTools extension.
@@ -11,11 +11,11 @@ namespace Reflex;
 /// Call <see cref="Start"/> once after all stores are registered to capture the baseline snapshot.
 /// Single-threaded dispatch is assumed (Blazor's model).
 /// </remarks>
-public sealed class ReflexHistory : IDisposable
+public sealed class BlexHistory : IDisposable
 {
     private readonly record struct Entry(JsonObject State, string? Label);
 
-    private readonly ReflexManager _manager;
+    private readonly BlexManager _manager;
     private readonly List<Entry> _undo = [];
     private readonly List<Entry> _redo = [];
     private JsonObject? _present;
@@ -24,7 +24,7 @@ public sealed class ReflexHistory : IDisposable
     private bool _restoring;
 
     /// <summary>Creates a history bound to a manager. Set <paramref name="maxEntries"/> to cap memory.</summary>
-    public ReflexHistory(ReflexManager manager, int maxEntries = 100)
+    public BlexHistory(BlexManager manager, int maxEntries = 100)
     {
         ArgumentNullException.ThrowIfNull(manager);
         if (maxEntries < 1)
@@ -97,7 +97,7 @@ public sealed class ReflexHistory : IDisposable
         }
     }
 
-    private void OnAction(ReflexActionContext context)
+    private void OnAction(BlexActionContext context)
     {
         if (_restoring)
             return;

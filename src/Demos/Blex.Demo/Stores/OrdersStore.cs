@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>An order placed in the cross-store coordination demo.</summary>
 public sealed record Order(int Id, string Item, int Quantity);

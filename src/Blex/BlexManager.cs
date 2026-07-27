@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
 /// The central state manager. Aggregates every registered <see cref="IStore"/> into a single
@@ -15,19 +15,19 @@ namespace Reflex;
 /// pipeline itself (sequence counter, middleware, DevTools) assumes actions are not dispatched
 /// concurrently. Coordinate access externally if you dispatch from multiple threads.
 /// </remarks>
-public sealed class ReflexManager
+public sealed class BlexManager
 {
     private readonly List<IStore> _stores = [];
-    private readonly List<IReflexMiddleware> _middleware;
+    private readonly List<IBlexMiddleware> _middleware;
     private readonly Lock _gate = new();
-    private IReflexDevTools? _devTools;
+    private IBlexDevTools? _devTools;
     private JsonObject? _initialState;
     private JsonObject? _committedState;
     private int _sequence;
     private bool _connected;
 
     /// <summary>Creates a manager with the supplied middleware (order preserved).</summary>
-    public ReflexManager(IEnumerable<IReflexMiddleware>? middleware = null)
+    public BlexManager(IEnumerable<IBlexMiddleware>? middleware = null)
     {
         _middleware = middleware?.ToList() ?? [];
     }
@@ -47,12 +47,12 @@ public sealed class ReflexManager
     public Func<string, string>? DevToolsActionSanitizer { get; set; }
 
     /// <summary>
-    /// Optional sink for non-fatal errors that Reflex isolates from the dispatch pipeline
+    /// Optional sink for non-fatal errors that Blex isolates from the dispatch pipeline
     /// (throwing subscribers, middleware, persistence writes, restores, sanitizers, ...).
     /// When unset, errors are written to <see cref="Console.Error"/>. Handlers must not throw;
     /// a throwing handler is itself swallowed to keep dispatch alive.
     /// </summary>
-    public Action<ReflexError>? OnError { get; set; }
+    public Action<BlexError>? OnError { get; set; }
 
     /// <summary>
     /// Whether anything observes dispatched actions (middleware, DevTools or subscribers).
@@ -66,13 +66,13 @@ public sealed class ReflexManager
         var handler = OnError;
         if (handler is null)
         {
-            Console.Error.WriteLine($"[Reflex] {source} failed{(detail is null ? "" : $" ({detail})")}: {exception.Message}");
+            Console.Error.WriteLine($"[Blex] {source} failed{(detail is null ? "" : $" ({detail})")}: {exception.Message}");
             return;
         }
 
         try
         {
-            handler(new ReflexError(source, exception, detail));
+            handler(new BlexError(source, exception, detail));
         }
         catch
         {
@@ -96,17 +96,17 @@ public sealed class ReflexManager
     }
 
     /// <summary>Raised whenever any store changes (after the per-store event).</summary>
-    public event Action<ReflexActionContext>? ActionDispatched;
+    public event Action<BlexActionContext>? ActionDispatched;
 
     /// <summary>
     /// Subscribes to dispatched actions, optionally filtered. Returns a token; dispose it to stop
     /// listening. Handler exceptions are isolated so one reactor can't break dispatch. This is the
     /// building block for cross-store coordination (react to one store's action, mutate another).
     /// </summary>
-    public IDisposable Subscribe(Action<ReflexActionContext> handler, Func<ReflexActionContext, bool>? filter = null)
+    public IDisposable Subscribe(Action<BlexActionContext> handler, Func<BlexActionContext, bool>? filter = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
-        void Wrapped(ReflexActionContext ctx)
+        void Wrapped(BlexActionContext ctx)
         {
             if (filter is not null && !filter(ctx))
                 return;
@@ -125,14 +125,14 @@ public sealed class ReflexManager
     }
 
     /// <summary>Subscribes to actions originating from a specific store type.</summary>
-    public IDisposable SubscribeTo<TStore>(Action<ReflexActionContext> handler) where TStore : IStore
+    public IDisposable SubscribeTo<TStore>(Action<BlexActionContext> handler) where TStore : IStore
         => Subscribe(handler, ctx => ctx.Store is TStore);
 
     /// <summary>
     /// Subscribes to actions by name. Matches either the bare action name (e.g. <c>"Increment"</c>)
     /// or the qualified name (e.g. <c>"counter/Increment"</c>).
     /// </summary>
-    public IDisposable SubscribeToAction(string actionName, Action<ReflexActionContext> handler)
+    public IDisposable SubscribeToAction(string actionName, Action<BlexActionContext> handler)
     {
         ArgumentNullException.ThrowIfNull(actionName);
         return Subscribe(handler, ctx => ctx.ActionName == actionName || ctx.QualifiedName == actionName);
@@ -142,7 +142,7 @@ public sealed class ReflexManager
     /// Subscribes with an asynchronous reactor (e.g. to trigger an effect on another store). The
     /// returned task is observed; failures are logged rather than surfaced as unobserved exceptions.
     /// </summary>
-    public IDisposable SubscribeAsync(Func<ReflexActionContext, Task> handler, Func<ReflexActionContext, bool>? filter = null)
+    public IDisposable SubscribeAsync(Func<BlexActionContext, Task> handler, Func<BlexActionContext, bool>? filter = null)
     {
         ArgumentNullException.ThrowIfNull(handler);
         return Subscribe(ctx => ObserveAsync(handler(ctx)), filter);
@@ -155,7 +155,7 @@ public sealed class ReflexManager
 
         _ = Awaited(this, task);
 
-        static async Task Awaited(ReflexManager manager, Task t)
+        static async Task Awaited(BlexManager manager, Task t)
         {
             try
             {
@@ -208,7 +208,7 @@ public sealed class ReflexManager
     }
 
     /// <summary>Attaches a DevTools sink and sends the current state as the initial snapshot.</summary>
-    public void ConnectDevTools(IReflexDevTools devTools)
+    public void ConnectDevTools(IBlexDevTools devTools)
     {
         ArgumentNullException.ThrowIfNull(devTools);
         _devTools = devTools;
@@ -249,7 +249,7 @@ public sealed class ReflexManager
     /// action lazily captures its snapshot; freezing in-flight snapshots first keeps attribution
     /// correct.
     /// </summary>
-    private readonly List<ReflexActionContext> _inFlight = [];
+    private readonly List<BlexActionContext> _inFlight = [];
 
     private void FreezeInFlightSnapshots()
     {
@@ -267,7 +267,7 @@ public sealed class ReflexManager
         if (_middleware.Count == 0)
             return true;
 
-        var context = new ReflexPreActionContext(source, actionName, args);
+        var context = new BlexPreActionContext(source, actionName, args);
         foreach (var mw in _middleware)
         {
             try
@@ -295,7 +295,7 @@ public sealed class ReflexManager
         if (!HasObservers)
             return;
 
-        var context = new ReflexActionContext(source, actionName, CaptureGlobalState, ++_sequence, args);
+        var context = new BlexActionContext(source, actionName, CaptureGlobalState, ++_sequence, args);
 
         _inFlight.Add(context);
         try
@@ -342,7 +342,7 @@ public sealed class ReflexManager
             JsonNode? node;
             try
             {
-                node = JsonSerializer.SerializeToNode(arg.Value, ReflexJson.Options);
+                node = JsonSerializer.SerializeToNode(arg.Value, BlexJson.Options);
             }
             catch
             {

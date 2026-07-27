@@ -1,5 +1,5 @@
 @page "/actions"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Counter
 
 <DocPage Href="actions" Title="Actions"
@@ -36,7 +36,7 @@
         In other words: a name containing spaces (or anything else illegal in an identifier, or a C#
         keyword) is treated purely as a display label, and the method name still comes from the
         <code>On</code> prefix. A method that neither starts with <code>On</code> nor supplies a
-        usable name is <code>REFLEX002</code>.
+        usable name is <code>BLEX002</code>.
     </p>
 
     <h2>Arguments become the payload</h2>
@@ -56,8 +56,8 @@
     <p>Parameter rules:</p>
     <ul>
         <li>Default values and <code>params</code> are preserved on the wrapper.</li>
-        <li><code>ref</code>, <code>out</code> and <code>in</code> parameters are rejected — the wrapper has to capture them by value (<code>REFLEX013</code>).</li>
-        <li>Generic action methods are rejected; the wrapper cannot carry type parameters (<code>REFLEX014</code>).</li>
+        <li><code>ref</code>, <code>out</code> and <code>in</code> parameters are rejected — the wrapper has to capture them by value (<code>BLEX013</code>).</li>
+        <li>Generic action methods are rejected; the wrapper cannot carry type parameters (<code>BLEX014</code>).</li>
     </ul>
 
     <h2>Batching</h2>
@@ -151,8 +151,8 @@
     <Callout Kind="Callout.CalloutKind.Warning" Title="Never async void">
         <p style="margin-bottom:0">
             An <code>async void</code> action cannot be awaited or recorded correctly, so it is a
-            hard error (<code>REFLEX010</code>). Return <code>Task</code> or <code>ValueTask</code>.
-            Similarly, an action that returns a <em>value</em> gets warning <code>REFLEX011</code>,
+            hard error (<code>BLEX010</code>). Return <code>Task</code> or <code>ValueTask</code>.
+            Similarly, an action that returns a <em>value</em> gets warning <code>BLEX011</code>,
             because the generated wrapper discards it — put the result in a <code>[State]</code>
             field instead.
         </p>
@@ -179,7 +179,7 @@
     private int _lastBatchNotifications;
     private int _lastBatchActions;
 
-    [Inject] private ReflexManager Manager { get; set; } = default!;
+    [Inject] private BlexManager Manager { get; set; } = default!;
 
     protected override void OnInitialized()
     {
@@ -215,7 +215,7 @@
         Counter.Step = 3;
     }));
 
-    // ReflexComponentBase owns IDisposable; this is its hook for extra cleanup.
+    // BlexComponentBase owns IDisposable; this is its hook for extra cleanup.
     protected override void Dispose(bool disposing)
         => Counter.StateChanged -= CountNotification;
 

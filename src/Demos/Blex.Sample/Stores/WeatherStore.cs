@@ -1,7 +1,7 @@
 using System.Net.Http.Json;
-using Reflex;
+using Blex;
 
-namespace Reflex.Sample.Stores;
+namespace Blex.Sample.Stores;
 
 /// <summary>A forecast row loaded from <c>sample-data/weather.json</c>.</summary>
 public sealed record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
@@ -42,7 +42,7 @@ public partial class WeatherStore
         if (simulateFailure)
             throw new HttpRequestException("The weather service is unavailable (simulated).");
 
-        Forecasts = await _http.GetFromJsonAsync<WeatherForecast[]>("sample-data/weather.json", ReflexJson.Options, ct);
+        Forecasts = await _http.GetFromJsonAsync<WeatherForecast[]>("sample-data/weather.json", BlexJson.Options, ct);
         LoadedAt = DateTimeOffset.Now;
     }
 

@@ -1,6 +1,6 @@
 @page "/stores"
 @using System.Text.Json
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Counter
 @inject EqualityDemoStore Equality
 
@@ -29,10 +29,10 @@
     <h2>Shape requirements</h2>
     <p>The generator writes a flat, top-level partial declaration, so the class must be one it can extend:</p>
     <ul>
-        <li>declared <code>partial</code> — otherwise <code>REFLEX001</code>;</li>
-        <li>a plain class, not a <code>record</code> — <code>REFLEX015</code>. Records get value equality and a synthesized clone that fight a mutable reactive container;</li>
-        <li>top-level and non-generic — <code>REFLEX006</code>;</li>
-        <li>with no other base class, since the generated partial adds <code>: Reflex.StoreBase</code> — <code>REFLEX016</code>.</li>
+        <li>declared <code>partial</code> — otherwise <code>BLEX001</code>;</li>
+        <li>a plain class, not a <code>record</code> — <code>BLEX015</code>. Records get value equality and a synthesized clone that fight a mutable reactive container;</li>
+        <li>top-level and non-generic — <code>BLEX006</code>;</li>
+        <li>with no other base class, since the generated partial adds <code>: Blex.StoreBase</code> — <code>BLEX016</code>.</li>
     </ul>
     <p>
         Constructors, interfaces, ordinary members and dependency injection all work normally. A
@@ -59,13 +59,13 @@
                 <tr><td><code>_count</code></td><td><code>Count</code></td></tr>
                 <tr><td><code>count</code></td><td><code>Count</code></td></tr>
                 <tr><td><code>_isLoggedIn</code></td><td><code>IsLoggedIn</code></td></tr>
-                <tr><td><code>Count</code></td><td class="check-no">error <code>REFLEX012</code> — the field and property would collide</td></tr>
+                <tr><td><code>Count</code></td><td class="check-no">error <code>BLEX012</code> — the field and property would collide</td></tr>
             </tbody>
         </table>
     </div>
     <p>
         A <code>[State]</code> field must be a writable instance field: <code>static</code>,
-        <code>const</code> and <code>readonly</code> are rejected with <code>REFLEX008</code>.
+        <code>const</code> and <code>readonly</code> are rejected with <code>BLEX008</code>.
     </p>
 
     <h2 id="change-detection">Change detection</h2>
@@ -73,7 +73,7 @@
         Setters compare with <code>EqualityComparer&lt;T&gt;.Default</code>. For value types and
         records that is structural equality, which is what you want. For a <code>List&lt;T&gt;</code>,
         an array or any class that does not override equality, it is <strong>reference</strong>
-        equality — so mutating a collection in place changes nothing as far as Reflex is concerned.
+        equality — so mutating a collection in place changes nothing as far as Blex is concerned.
     </p>
 
     <DemoCard Title="In-place mutation vs. assignment"
@@ -119,7 +119,7 @@
         Every store gets generated <code>SerializeState()</code> and <code>DeserializeState()</code>
         methods keyed by the <em>property</em> names. This is the identity used for DevTools, undo/redo
         and persistence. Values round-trip through <code>System.Text.Json</code> with
-        <code>ReflexJson.Options</code> (web defaults, case-insensitive, enums as strings).
+        <code>BlexJson.Options</code> (web defaults, case-insensitive, enums as strings).
     </p>
 
     <DemoCard Title="Live snapshot" Description="SerializeState() on the counter store, re-read on every change.">
@@ -160,11 +160,11 @@
 
     <h2>Lifetime</h2>
     <p>
-        <code>AddReflexStore&lt;T&gt;</code> registers the store as <strong>scoped</strong>. In Blazor
+        <code>AddBlexStore&lt;T&gt;</code> registers the store as <strong>scoped</strong>. In Blazor
         WebAssembly there is one scope for the whole app, so a store is effectively a singleton. In
         Blazor Server each circuit gets its own scope, so every user has an independent copy of the
-        state — which is what you want. The same applies to <code>ReflexManager</code>,
-        <code>StatePersistor</code> and <code>ReflexHistory</code>.
+        state — which is what you want. The same applies to <code>BlexManager</code>,
+        <code>StatePersistor</code> and <code>BlexHistory</code>.
     </p>
 
 </DocPage>

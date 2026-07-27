@@ -1,5 +1,5 @@
 @page "/middleware"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Counter
 @inject DemoGuard Guard
 @inject ActionFeed Feed
@@ -123,7 +123,7 @@
     </DemoCard>
 
     <h2>The pre-action context</h2>
-    <ApiTable Title="ReflexPreActionContext" Rows="@PreRows" />
+    <ApiTable Title="BlexPreActionContext" Rows="@PreRows" />
 
     <p>
         Because the payload is available before the mutation, a filter can validate arguments and
@@ -185,8 +185,8 @@
     [
         new("options.UseMiddleware&lt;T&gt;()", "Registers the type as scoped and resolves it from DI — use this whenever the middleware has dependencies or per-scope state."),
         new("options.UseMiddleware(instance)", "Registers a pre-built instance. Shared across every scope."),
-        new("options.UseMiddleware(Action&lt;ReflexActionContext&gt;)", "Wraps a delegate in <code>DelegateMiddleware</code>. Handy for one-line logging."),
-        new("options.UseFilter(Func&lt;ReflexPreActionContext, bool&gt;)", "Wraps a predicate in <code>FilterMiddleware</code>. Return <code>false</code> to veto."),
+        new("options.UseMiddleware(Action&lt;BlexActionContext&gt;)", "Wraps a delegate in <code>DelegateMiddleware</code>. Handy for one-line logging."),
+        new("options.UseFilter(Func&lt;BlexPreActionContext, bool&gt;)", "Wraps a predicate in <code>FilterMiddleware</code>. Return <code>false</code> to veto."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> PreRows =
@@ -200,18 +200,18 @@
     ];
 
     private const string Interface = """
-        public interface IReflexMiddleware
+        public interface IBlexMiddleware
         {
             // After the action has been applied to its store.
-            void OnAction(ReflexActionContext context);
+            void OnAction(BlexActionContext context);
 
             // Before it runs. The default implementation does nothing.
-            void BeforeAction(ReflexPreActionContext context) { }
+            void BeforeAction(BlexPreActionContext context) { }
         }
         """;
 
     private const string Register = """
-        builder.Services.AddReflex(options =>
+        builder.Services.AddBlex(options =>
         {
             // 1. Resolved from DI (scoped) -- can take dependencies.
             options.UseMiddleware<AuditMiddleware>();
@@ -220,7 +220,7 @@
             options.UseMiddleware(new MetricsMiddleware(meterFactory));
 
             // 3. A delegate, for quick logging.
-            options.UseMiddleware(ctx => Console.WriteLine($"[reflex] {ctx.QualifiedName}"));
+            options.UseMiddleware(ctx => Console.WriteLine($"[blex] {ctx.QualifiedName}"));
 
             // 4. A veto filter.
             options.UseFilter(ctx => ctx.Store.Name != "settings" || _user.CanEditSettings);
@@ -228,9 +228,9 @@
         """;
 
     private const string Observe = """
-        public sealed class AuditMiddleware(IAuditLog log) : IReflexMiddleware
+        public sealed class AuditMiddleware(IAuditLog log) : IBlexMiddleware
         {
-            public void OnAction(ReflexActionContext context)
+            public void OnAction(BlexActionContext context)
             {
                 log.Write(new AuditEntry(
                     Action:   context.QualifiedName,
@@ -242,22 +242,22 @@
         """;
 
     private const string FeedSource = """
-        public sealed class ActionFeedMiddleware(ActionFeed feed) : IReflexMiddleware
+        public sealed class ActionFeedMiddleware(ActionFeed feed) : IBlexMiddleware
         {
-            public void OnAction(ReflexActionContext context) => feed.Add(context);
+            public void OnAction(BlexActionContext context) => feed.Add(context);
         }
 
         // Program.cs
         builder.Services.AddScoped<ActionFeed>();
-        builder.Services.AddReflex(options => options.UseMiddleware<ActionFeedMiddleware>());
+        builder.Services.AddBlex(options => options.UseMiddleware<ActionFeedMiddleware>());
         """;
 
     private const string Veto = """
-        public sealed class ReadOnlyMiddleware(AppMode mode) : IReflexMiddleware
+        public sealed class ReadOnlyMiddleware(AppMode mode) : IBlexMiddleware
         {
-            public void OnAction(ReflexActionContext context) { }
+            public void OnAction(BlexActionContext context) { }
 
-            public void BeforeAction(ReflexPreActionContext context)
+            public void BeforeAction(BlexPreActionContext context)
             {
                 if (mode.IsReadOnly)
                     context.Cancel();   // the mutation never runs
@@ -266,11 +266,11 @@
         """;
 
     private const string GuardSource = """
-        public sealed class GuardMiddleware(DemoGuard guard) : IReflexMiddleware
+        public sealed class GuardMiddleware(DemoGuard guard) : IBlexMiddleware
         {
-            public void OnAction(ReflexActionContext context) { }
+            public void OnAction(BlexActionContext context) { }
 
-            public void BeforeAction(ReflexPreActionContext context)
+            public void BeforeAction(BlexPreActionContext context)
             {
                 if (!guard.IsReadOnly || guard.AlwaysAllow.Contains(context.QualifiedName))
                     return;

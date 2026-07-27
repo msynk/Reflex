@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>
 /// A realistic type-ahead: <c>Latest</c> concurrency means each keystroke supersedes the

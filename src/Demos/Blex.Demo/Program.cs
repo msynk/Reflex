@@ -1,17 +1,17 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Reflex;
-using Reflex.Blazor;
-using Reflex.Demo;
-using Reflex.Demo.Services;
-using Reflex.Demo.Stores;
+using Blex;
+using Blex.Blazor;
+using Blex.Demo;
+using Blex.Demo.Services;
+using Blex.Demo.Stores;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// --- Site services (not part of Reflex; they power the live panels) --------------------------
+// --- Site services (not part of Blex; they power the live panels) --------------------------
 builder.Services.AddScoped<ActionFeed>();
 builder.Services.AddScoped<DemoGuard>();
 builder.Services.AddScoped<ThemeService>();
@@ -21,10 +21,10 @@ builder.Services.AddScoped<ThemeService>();
 var errorLog = new ErrorLog();
 builder.Services.AddSingleton(errorLog);
 
-// --- Reflex ----------------------------------------------------------------------------------
-builder.Services.AddReflex(options =>
+// --- Blex ----------------------------------------------------------------------------------
+builder.Services.AddBlex(options =>
 {
-    options.DevToolsName = "Reflex Docs";
+    options.DevToolsName = "Blex Docs";
 
     // Observing middleware, resolved from DI so it can take scoped dependencies.
     options.UseMiddleware<ActionFeedMiddleware>();
@@ -35,25 +35,25 @@ builder.Services.AddReflex(options =>
     // Display-only redaction: the settings store's Token never reaches the DevTools monitor.
     options.RedactDevToolsKeys("Token");
 
-    // Every non-fatal failure Reflex isolates from the pipeline lands here.
+    // Every non-fatal failure Blex isolates from the pipeline lands here.
     options.OnError = errorLog.Add;
 });
 
-builder.Services.AddReflexStore<CounterStore>();
-builder.Services.AddReflexStore<CartStore>();
-builder.Services.AddReflexStore<EqualityDemoStore>();
-builder.Services.AddReflexStore<EffectLabStore>();
-builder.Services.AddReflexStore<SearchStore>();
-builder.Services.AddReflexStore<ContactsStore>();
-builder.Services.AddReflexStore<SettingsStore>();
-builder.Services.AddReflexStore<OrdersStore>();
-builder.Services.AddReflexStore<NotificationsStore>();
+builder.Services.AddBlexStore<CounterStore>();
+builder.Services.AddBlexStore<CartStore>();
+builder.Services.AddBlexStore<EqualityDemoStore>();
+builder.Services.AddBlexStore<EffectLabStore>();
+builder.Services.AddBlexStore<SearchStore>();
+builder.Services.AddBlexStore<ContactsStore>();
+builder.Services.AddBlexStore<SettingsStore>();
+builder.Services.AddBlexStore<OrdersStore>();
+builder.Services.AddBlexStore<NotificationsStore>();
 
 // Durable persistence for [Store(Persist = true)] stores, with debounced writes and a
 // versioned envelope so the shape can evolve without stranding visitors on old payloads.
-builder.Services.AddReflexLocalStoragePersistence(options =>
+builder.Services.AddBlexLocalStoragePersistence(options =>
 {
-    options.KeyPrefix = "reflex-docs:";
+    options.KeyPrefix = "blex-docs:";
     options.DebounceInterval = TimeSpan.FromMilliseconds(300);
     options.DebounceMaxDelay = TimeSpan.FromSeconds(2);
     options.Version = 1;
@@ -68,7 +68,7 @@ builder.Services.AddReflexLocalStoragePersistence(options =>
     };
 });
 
-// In-app undo/redo across every store. <ReflexProvider> calls Start() once rehydration finishes.
-builder.Services.AddReflexHistory(maxEntries: 50);
+// In-app undo/redo across every store. <BlexProvider> calls Start() once rehydration finishes.
+builder.Services.AddBlexHistory(maxEntries: 50);
 
 await builder.Build().RunAsync();

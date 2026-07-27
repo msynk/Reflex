@@ -1,5 +1,5 @@
 @page "/effects"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject EffectLabStore Lab
 @inject SearchStore Search
 
@@ -187,15 +187,15 @@
     <ul>
         <li>
             The return type must be non-generic <code>Task</code> or <code>ValueTask</code>
-            (<code>REFLEX007</code>). An effect owns the loading and error lifecycle, so there is
+            (<code>BLEX007</code>). An effect owns the loading and error lifecycle, so there is
             nowhere to put a return value — write results into <code>[State]</code> fields.
         </li>
         <li>
             <code>Latest</code> without a <code>CancellationToken</code> parameter is warning
-            <code>REFLEX009</code>: supersession still marks the run stale, but the superseded body
+            <code>BLEX009</code>: supersession still marks the run stale, but the superseded body
             keeps executing because nothing can observe the cancellation.
         </li>
-        <li>Effects cannot be <code>static</code> (<code>REFLEX008</code>) or generic (<code>REFLEX014</code>), and cannot take by-ref parameters (<code>REFLEX013</code>).</li>
+        <li>Effects cannot be <code>static</code> (<code>BLEX008</code>) or generic (<code>BLEX014</code>), and cannot take by-ref parameters (<code>BLEX013</code>).</li>
     </ul>
 
     <Callout Kind="Callout.CalloutKind.Warning" Title="A Queue effect must never invoke itself">

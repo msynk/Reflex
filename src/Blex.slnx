@@ -1,19 +1,19 @@
 <Solution>
   <Folder Name="/demos/">
-    <Project Path="Demos/Reflex.Sample/Reflex.Sample.csproj" />
-    <Project Path="Demos/Reflex.Demo/Reflex.Demo.csproj" />
+    <Project Path="Demos/Blex.Sample/Blex.Sample.csproj" />
+    <Project Path="Demos/Blex.Demo/Blex.Demo.csproj" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="Reflex.Blazor/Reflex.Blazor.csproj" />
-    <Project Path="Reflex.Generators/Reflex.Generators.csproj" />
-    <Project Path="Reflex.Testing/Reflex.Testing.csproj" />
-    <Project Path="Reflex/Reflex.csproj" />
+    <Project Path="Blex.Blazor/Blex.Blazor.csproj" />
+    <Project Path="Blex.Generators/Blex.Generators.csproj" />
+    <Project Path="Blex.Testing/Blex.Testing.csproj" />
+    <Project Path="Blex/Blex.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="Tests/Reflex.Tests/Reflex.Tests.csproj" />
-    <Project Path="Tests/Reflex.Generators.Tests/Reflex.Generators.Tests.csproj" />
+    <Project Path="Tests/Blex.Tests/Blex.Tests.csproj" />
+    <Project Path="Tests/Blex.Generators.Tests/Blex.Generators.Tests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">
-    <Project Path="Tests/Reflex.Benchmarks/Reflex.Benchmarks.csproj" />
+    <Project Path="Tests/Blex.Benchmarks/Blex.Benchmarks.csproj" />
   </Folder>
 </Solution>

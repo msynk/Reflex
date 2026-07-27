@@ -1,9 +1,9 @@
 using System.Text.Json;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>Shared <see cref="JsonSerializerOptions"/> used by generated serialization code.</summary>
-public static class ReflexJson
+public static class BlexJson
 {
     /// <summary>Default options: camelCase-insensitive, enums as strings, tolerant reading.</summary>
     public static readonly JsonSerializerOptions Options = new(JsonSerializerDefaults.Web)

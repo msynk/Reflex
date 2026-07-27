@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
-using Reflex;
+using Blex;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class EntityStateTests
 {

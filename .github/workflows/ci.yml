@@ -22,13 +22,13 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore src/Reflex.slnx
+        run: dotnet restore src/Blex.slnx
 
       - name: Build (warnings as errors)
-        run: dotnet build src/Reflex.slnx --no-restore --configuration Release
+        run: dotnet build src/Blex.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test src/Reflex.slnx --no-build --configuration Release --logger "trx" --results-directory TestResults
+        run: dotnet test src/Blex.slnx --no-build --configuration Release --logger "trx" --results-directory TestResults
 
       - name: Upload test results
         if: always()
@@ -40,7 +40,7 @@ jobs:
       # Packing on every run means a broken nuspec, a missing analyzer or a stale
       # readme/icon path is caught here rather than at release time.
       - name: Pack
-        run: dotnet pack src/Reflex.slnx --no-build --configuration Release
+        run: dotnet pack src/Blex.slnx --no-build --configuration Release
 
       - name: Upload packages
         if: matrix.os == 'ubuntu-latest'

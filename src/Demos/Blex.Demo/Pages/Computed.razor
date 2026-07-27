@@ -1,5 +1,5 @@
 @page "/computed"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CartStore Cart
 
 <DocPage Href="computed" Title="Computed state"
@@ -87,7 +87,7 @@
 
     <Callout Kind="Callout.CalloutKind.Gotcha" Title="Invalidation is store-wide, not per-dependency">
         <p style="margin-bottom:0">
-            Reflex does not track which fields a computed method touched. <em>Any</em> state change
+            Blex does not track which fields a computed method touched. <em>Any</em> state change
             on the store invalidates <em>every</em> computed value on it. That keeps invalidation
             correct and free of bookkeeping, but it means an expensive computation on a busy store
             recomputes more often than strictly necessary. If that matters, split the store, or cache
@@ -97,10 +97,10 @@
 
     <h2>Rules</h2>
     <ul>
-        <li>The method must be <strong>parameterless</strong> — a computed value backs a property, so there is nowhere to pass arguments (<code>REFLEX004</code>).</li>
-        <li>The name must start with <code>Compute</code> or <code>Get</code> and have something after it (<code>REFLEX003</code>).</li>
-        <li>It must be an instance method, not <code>static</code> (<code>REFLEX008</code>).</li>
-        <li>The generated property name must not collide with anything else on the store (<code>REFLEX005</code>).</li>
+        <li>The method must be <strong>parameterless</strong> — a computed value backs a property, so there is nowhere to pass arguments (<code>BLEX004</code>).</li>
+        <li>The name must start with <code>Compute</code> or <code>Get</code> and have something after it (<code>BLEX003</code>).</li>
+        <li>It must be an instance method, not <code>static</code> (<code>BLEX008</code>).</li>
+        <li>The generated property name must not collide with anything else on the store (<code>BLEX005</code>).</li>
         <li>Any return type is allowed, including collections and records.</li>
     </ul>
 

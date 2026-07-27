@@ -1,49 +1,49 @@
 using Xunit;
 
-namespace Reflex.Generators.Tests;
+namespace Blex.Generators.Tests;
 
 public class DiagnosticTests
 {
-    private const string Usings = "using System.Threading; using System.Threading.Tasks; using Reflex;\n";
+    private const string Usings = "using System.Threading; using System.Threading.Tasks; using Blex;\n";
 
     [Fact]
-    public void NotPartial_ReportsREFLEX001()
+    public void NotPartial_ReportsBLEX001()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public class S { [State] private int _x; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX001"));
+        Assert.True(result.HasDiagnostic("BLEX001"));
     }
 
     [Fact]
-    public void ActionWithoutOnPrefix_ReportsREFLEX002()
+    public void ActionWithoutOnPrefix_ReportsBLEX002()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Action] private void Increment() { } }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX002"));
+        Assert.True(result.HasDiagnostic("BLEX002"));
     }
 
     [Fact]
-    public void ComputedWithBadName_ReportsREFLEX003()
+    public void ComputedWithBadName_ReportsBLEX003()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Computed] private int Twice() => 2; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX003"));
+        Assert.True(result.HasDiagnostic("BLEX003"));
     }
 
     [Fact]
-    public void ComputedWithParameters_ReportsREFLEX004()
+    public void ComputedWithParameters_ReportsBLEX004()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Computed] private int ComputeX(int y) => y; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX004"));
+        Assert.True(result.HasDiagnostic("BLEX004"));
     }
 
     [Fact]
-    public void CollidingGeneratedNames_ReportsREFLEX005()
+    public void CollidingGeneratedNames_ReportsBLEX005()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S
@@ -52,11 +52,11 @@ public class DiagnosticTests
                 [Computed] private int ComputeValue() => 1;
             }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX005"));
+        Assert.True(result.HasDiagnostic("BLEX005"));
     }
 
     [Fact]
-    public void CollisionWithUserMember_ReportsREFLEX005()
+    public void CollisionWithUserMember_ReportsBLEX005()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S
@@ -65,56 +65,56 @@ public class DiagnosticTests
                 public int Count => 42; // user already declared what the generator would emit
             }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX005"));
+        Assert.True(result.HasDiagnostic("BLEX005"));
     }
 
     [Fact]
-    public void CollisionWithReservedName_ReportsREFLEX005()
+    public void CollisionWithReservedName_ReportsBLEX005()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [State] private string _name; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX005")); // Name is a StoreBase member
+        Assert.True(result.HasDiagnostic("BLEX005")); // Name is a StoreBase member
     }
 
     [Fact]
-    public void NestedStore_ReportsREFLEX006()
+    public void NestedStore_ReportsBLEX006()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             public class Outer { [Store] public partial class S { [State] private int _x; } }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX006"));
+        Assert.True(result.HasDiagnostic("BLEX006"));
     }
 
     [Fact]
-    public void SyncEffect_ReportsREFLEX007()
+    public void SyncEffect_ReportsBLEX007()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Effect] private void OnLoad() { } }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX007"));
+        Assert.True(result.HasDiagnostic("BLEX007"));
     }
 
     [Fact]
-    public void StaticStateField_ReportsREFLEX008()
+    public void StaticStateField_ReportsBLEX008()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [State] private static int _x; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX008"));
+        Assert.True(result.HasDiagnostic("BLEX008"));
     }
 
     [Fact]
-    public void ReadonlyStateField_ReportsREFLEX008()
+    public void ReadonlyStateField_ReportsBLEX008()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [State] private readonly int _x; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX008"));
+        Assert.True(result.HasDiagnostic("BLEX008"));
     }
 
     [Fact]
-    public void LatestEffectWithoutToken_ReportsREFLEX009Warning()
+    public void LatestEffectWithoutToken_ReportsBLEX009Warning()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S
@@ -123,81 +123,81 @@ public class DiagnosticTests
                 private async Task OnSearch(string q) => await Task.Yield();
             }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX009"));
+        Assert.True(result.HasDiagnostic("BLEX009"));
         Assert.False(result.HasGeneratorError); // warning only; wrapper still generated
     }
 
     [Fact]
-    public void AsyncVoidAction_ReportsREFLEX010()
+    public void AsyncVoidAction_ReportsBLEX010()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Action] private async void OnFire() => await Task.Yield(); }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX010"));
+        Assert.True(result.HasDiagnostic("BLEX010"));
     }
 
     [Fact]
-    public void ValueReturningAction_ReportsREFLEX011Warning()
+    public void ValueReturningAction_ReportsBLEX011Warning()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Action] private int OnCalc() => 42; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX011"));
+        Assert.True(result.HasDiagnostic("BLEX011"));
         Assert.False(result.HasGeneratorError);
     }
 
     [Fact]
-    public void StateFieldWithoutPrefix_ReportsREFLEX012()
+    public void StateFieldWithoutPrefix_ReportsBLEX012()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [State] private int Count; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX012"));
+        Assert.True(result.HasDiagnostic("BLEX012"));
     }
 
     [Fact]
-    public void RefParameter_ReportsREFLEX013()
+    public void RefParameter_ReportsBLEX013()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Action] private void OnPush(ref int x) { } }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX013"));
+        Assert.True(result.HasDiagnostic("BLEX013"));
     }
 
     [Fact]
-    public void GenericActionMethod_ReportsREFLEX014()
+    public void GenericActionMethod_ReportsBLEX014()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S { [Action] private void OnSet<T>(T value) { } }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX014"));
+        Assert.True(result.HasDiagnostic("BLEX014"));
     }
 
     [Fact]
-    public void RecordStore_ReportsREFLEX015()
+    public void RecordStore_ReportsBLEX015()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial record S { [State] private int _x; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX015"));
+        Assert.True(result.HasDiagnostic("BLEX015"));
     }
 
     [Fact]
-    public void StoreWithBaseClass_ReportsREFLEX016()
+    public void StoreWithBaseClass_ReportsBLEX016()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             public class MyBase { }
             [Store] public partial class S : MyBase { [State] private int _x; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX016"));
+        Assert.True(result.HasDiagnostic("BLEX016"));
     }
 
     [Fact]
-    public void GenericStore_ReportsREFLEX006()
+    public void GenericStore_ReportsBLEX006()
     {
         var result = GeneratorTestHelper.Run(Usings + """
             [Store] public partial class S<T> { [State] private int _x; }
             """);
-        Assert.True(result.HasDiagnostic("REFLEX006"));
+        Assert.True(result.HasDiagnostic("BLEX006"));
     }
 }

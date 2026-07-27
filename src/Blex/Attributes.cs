@@ -1,7 +1,7 @@
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
-/// Marks a partial class as a Reflex state store. The source generator will emit reactive
+/// Marks a partial class as a Blex state store. The source generator will emit reactive
 /// properties for <see cref="StateAttribute"/> fields, memoized <see cref="ComputedAttribute"/>
 /// accessors, named action wrappers, JSON snapshot support and the <see cref="StoreBase"/> base type.
 /// </summary>
@@ -13,8 +13,8 @@ public sealed class StoreAttribute : Attribute
 
     /// <summary>
     /// When <c>true</c>, the store opts in to automatic persistence: its state is saved through the
-    /// registered <see cref="IReflexStorage"/> after every action and rehydrated on startup.
-    /// Has no effect unless a persistence provider is wired up (see <c>AddReflexPersistence</c>).
+    /// registered <see cref="IBlexStorage"/> after every action and rehydrated on startup.
+    /// Has no effect unless a persistence provider is wired up (see <c>AddBlexPersistence</c>).
     /// </summary>
     public bool Persist { get; set; }
 }

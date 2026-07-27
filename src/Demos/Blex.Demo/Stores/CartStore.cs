@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>A line item in the <see cref="CartStore"/>.</summary>
 public sealed record CartLine(string Sku, string Name, decimal UnitPrice, int Quantity)
@@ -17,7 +17,7 @@ public partial class CartStore
 {
     [State] private IReadOnlyList<CartLine> _lines =
     [
-        new("REF-001", "Reflex T-shirt", 24.00m, 1),
+        new("REF-001", "Blex T-shirt", 24.00m, 1),
         new("REF-002", "Sticker pack", 6.50m, 2),
     ];
 

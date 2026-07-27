@@ -15,9 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Reflex\Reflex.csproj" />
-    <ProjectReference Include="..\..\Reflex.Blazor\Reflex.Blazor.csproj" />
-    <ProjectReference Include="..\..\Reflex.Generators\Reflex.Generators.csproj"
+    <ProjectReference Include="..\..\Blex\Blex.csproj" />
+    <ProjectReference Include="..\..\Blex.Blazor\Blex.Blazor.csproj" />
+    <ProjectReference Include="..\..\Blex.Generators\Blex.Generators.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

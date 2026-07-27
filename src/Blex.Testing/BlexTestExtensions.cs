@@ -1,12 +1,12 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex.Testing;
+namespace Blex.Testing;
 
-/// <summary>Convenience extensions for testing Reflex stores and managers.</summary>
-public static class ReflexTestExtensions
+/// <summary>Convenience extensions for testing Blex stores and managers.</summary>
+public static class BlexTestExtensions
 {
     /// <summary>Starts recording dispatched actions on the manager. Dispose the result to stop.</summary>
-    public static ActionLog RecordActions(this ReflexManager manager)
+    public static ActionLog RecordActions(this BlexManager manager)
     {
         ArgumentNullException.ThrowIfNull(manager);
         return new ActionLog(manager);

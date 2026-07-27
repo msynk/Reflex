@@ -1,12 +1,12 @@
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Components;
 
-namespace Reflex.Blazor;
+namespace Blex.Blazor;
 
 /// <summary>
-/// Bridges Reflex stores to Blazor's <see cref="PersistentComponentState"/> so that state produced
+/// Bridges Blex stores to Blazor's <see cref="PersistentComponentState"/> so that state produced
 /// during prerendering is handed to the interactive render without re-fetching, eliminating the
-/// "double render" flicker. This is distinct from durable <see cref="IReflexStorage"/> persistence:
+/// "double render" flicker. This is distinct from durable <see cref="IBlexStorage"/> persistence:
 /// it only survives the prerender-to-interactive transition within a single page load.
 /// </summary>
 /// <remarks>
@@ -15,7 +15,7 @@ namespace Reflex.Blazor;
 /// </remarks>
 public sealed class ComponentStatePersistence : IDisposable
 {
-    private const string KeyPrefix = "reflex.cs:";
+    private const string KeyPrefix = "blex.cs:";
 
     private readonly PersistentComponentState _state;
     private readonly IReadOnlyList<IStore> _stores;

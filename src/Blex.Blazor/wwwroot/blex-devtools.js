@@ -1,4 +1,4 @@
-// Bridge between Reflex and the Redux DevTools browser extension.
+// Bridge between Blex and the Redux DevTools browser extension.
 // Implements the documented extension integration API:
 //   window.__REDUX_DEVTOOLS_EXTENSION__.connect(options) -> { init, send, subscribe }
 // Time-travel is driven by the extension sending DISPATCH messages back to us.
@@ -9,12 +9,12 @@ let unsubscribe = null;
 export function connect(dotNetRef, name) {
     const ext = window.__REDUX_DEVTOOLS_EXTENSION__;
     if (!ext) {
-        console.info("[Reflex] Redux DevTools extension not detected. Time-travel disabled.");
+        console.info("[Blex] Redux DevTools extension not detected. Time-travel disabled.");
         return false;
     }
 
     connection = ext.connect({
-        name: name || "Reflex",
+        name: name || "Blex",
         // Only advertise what the .NET side actually implements.
         features: {
             pause: false,

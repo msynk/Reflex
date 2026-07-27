@@ -3,25 +3,25 @@ using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
-namespace Reflex.Blazor;
+namespace Blex.Blazor;
 
 /// <summary>
-/// Root component that wires every registered <see cref="IStore"/> into the <see cref="ReflexManager"/>
+/// Root component that wires every registered <see cref="IStore"/> into the <see cref="BlexManager"/>
 /// manager and (on first render) connects the Redux DevTools bridge. Place it once near the root of
 /// your app, wrapping your routes:
-/// <code>&lt;ReflexProvider&gt;&lt;Router ... /&gt;&lt;/ReflexProvider&gt;</code>
+/// <code>&lt;BlexProvider&gt;&lt;Router ... /&gt;&lt;/BlexProvider&gt;</code>
 /// </summary>
-public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
+public sealed class BlexProvider : ComponentBase, IAsyncDisposable
 {
     private ReduxDevToolsConnector? _connector;
     private ComponentStatePersistence? _componentState;
     private Task? _durableStartTask;
     private bool _durableStateReady;
 
-    [Inject] private ReflexManager Manager { get; set; } = default!;
+    [Inject] private BlexManager Manager { get; set; } = default!;
     [Inject] private IEnumerable<IStore> Stores { get; set; } = default!;
     [Inject] private IJSRuntime Js { get; set; } = default!;
-    [Inject] private ReflexOptions Options { get; set; } = default!;
+    [Inject] private BlexOptions Options { get; set; } = default!;
     [Inject] private IServiceProvider Services { get; set; } = default!;
 
     /// <summary>
@@ -113,7 +113,7 @@ public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
 
         // Start recording history only after rehydration so the baseline (the state Undo
         // ultimately returns to) is the hydrated state, not the pre-hydration defaults.
-        Services.GetService<ReflexHistory>()?.Start();
+        Services.GetService<BlexHistory>()?.Start();
     }
 
     /// <inheritdoc />

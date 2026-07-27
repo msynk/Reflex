@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>One line in the effect lab's timeline.</summary>
 /// <param name="Mode">Which concurrency mode produced it.</param>

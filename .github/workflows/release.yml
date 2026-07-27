@@ -1,15 +1,16 @@
 name: Release
 
-# Publishes Reflex, Reflex.Blazor and Reflex.Testing to nuget.org.
+# Publishes Blex, Blex.Blazor and Blex.Testing to nuget.org.
 #
-# One-time setup:
-#   1. Repository Settings -> Secrets and variables -> Actions -> New repository secret named
-#      NUGET_API_KEY, holding a nuget.org API key scoped to the Reflex* package IDs.
-#   2. The `Reflex` ID is currently held by an unrelated, dormant package (owner `mycroes`,
-#      last published 2023-01-19). Until that ID is transferred through the NuGet package ID
-#      dispute process (https://learn.microsoft.com/nuget/nuget-org/policies/id-prefix-reservation
-#      and support@nuget.org), pushing Reflex.0.x.nupkg fails with 403 while Reflex.Blazor and
-#      Reflex.Testing publish fine.
+# One-time setup, in order:
+#   1. Make sure the GitHub repository is named `Blex` (Settings -> General -> Repository name).
+#      Every project/repository URL in the package metadata, the README badges and the GitHub
+#      Pages base href point at msynk/Blex, so the metadata is wrong until the name matches.
+#   2. Repository Settings -> Secrets and variables -> Actions -> New repository secret named
+#      NUGET_API_KEY, holding a nuget.org API key scoped to the Blex* package IDs.
+#   3. After the first successful push, reserve the `Blex.*` ID prefix on nuget.org so nobody
+#      else can publish Blex.Something. (`Blex.f10-solutions` already exists under an unrelated
+#      owner; reserving the prefix is what stops that pattern spreading.)
 #
 # To ship: bump <Version> in src/Directory.Build.props, update CHANGELOG.md, commit, then
 #   git tag v0.3.0 && git push origin v0.3.0
@@ -55,16 +56,16 @@ jobs:
           fi
 
       - name: Restore
-        run: dotnet restore src/Reflex.slnx
+        run: dotnet restore src/Blex.slnx
 
       - name: Build (warnings as errors)
-        run: dotnet build src/Reflex.slnx --no-restore --configuration Release
+        run: dotnet build src/Blex.slnx --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test src/Reflex.slnx --no-build --configuration Release
+        run: dotnet test src/Blex.slnx --no-build --configuration Release
 
       - name: Pack
-        run: dotnet pack src/Reflex.slnx --no-build --configuration Release
+        run: dotnet pack src/Blex.slnx --no-build --configuration Release
 
       - name: Upload packages as a build artifact
         uses: actions/upload-artifact@v4

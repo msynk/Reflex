@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
-using Reflex;
+using Blex;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class StoreBehaviorTests
 {
@@ -109,7 +109,7 @@ public class StoreBehaviorTests
     public void StandaloneSetter_RecordsActionOnManager()
     {
         var seen = new List<string>();
-        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var manager = new BlexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
         var store = new CounterStore();
         manager.Register(store);
 
@@ -122,7 +122,7 @@ public class StoreBehaviorTests
     public async Task AsyncAction_RecordsExactlyOneAction()
     {
         var seen = new List<string>();
-        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var manager = new BlexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
         var store = new CounterStore();
         manager.Register(store);
 
@@ -145,7 +145,7 @@ public class StoreBehaviorTests
     public async Task Action_ExplicitLabelWithSpaces_KeepsValidWrapperName_AndLabel()
     {
         var seen = new List<string>();
-        var manager = new ReflexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
+        var manager = new BlexManager(new[] { new DelegateMiddleware(c => seen.Add(c.ActionName)) });
         var store = new CounterStore();
         manager.Register(store);
 

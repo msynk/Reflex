@@ -1,8 +1,8 @@
 using System.Threading.Tasks;
-using Reflex.Testing;
+using Blex.Testing;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class EffectConcurrencyTests
 {

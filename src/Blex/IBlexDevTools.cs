@@ -1,12 +1,12 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
 /// Abstraction over a DevTools sink. The core library depends only on this interface; the concrete
-/// Redux DevTools bridge lives in <c>Reflex.Blazor</c> so the core has no JS dependency.
+/// Redux DevTools bridge lives in <c>Blex.Blazor</c> so the core has no JS dependency.
 /// </summary>
-public interface IReflexDevTools
+public interface IBlexDevTools
 {
     /// <summary>Sends the initial application state when the DevTools session connects.</summary>
     void Init(JsonObject globalState);

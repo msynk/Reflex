@@ -1,9 +1,9 @@
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
-using Reflex;
-using Reflex.Blazor;
-using Reflex.Sample;
-using Reflex.Sample.Stores;
+using Blex;
+using Blex.Blazor;
+using Blex.Sample;
+using Blex.Sample.Stores;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
@@ -11,26 +11,26 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 
-// Register Reflex with a console-logging middleware, then add the stores.
-builder.Services.AddReflex(options =>
+// Register Blex with a console-logging middleware, then add the stores.
+builder.Services.AddBlex(options =>
 {
-    options.DevToolsName = "Reflex Sample";
+    options.DevToolsName = "Blex Sample";
     options.UseMiddleware(ctx =>
-        Console.WriteLine($"[reflex] {ctx.QualifiedName} #{ctx.Sequence}"));
+        Console.WriteLine($"[blex] {ctx.QualifiedName} #{ctx.Sequence}"));
     // Demonstrate the DevTools state sanitizer (display-only redaction).
     options.RedactDevToolsKeys("secret");
     // Route isolated pipeline errors (persistence writes, throwing subscribers, ...) somewhere visible.
     options.OnError = error =>
-        Console.Error.WriteLine($"[reflex:{error.Source}] {error.Detail}: {error.Exception.Message}");
+        Console.Error.WriteLine($"[blex:{error.Source}] {error.Detail}: {error.Exception.Message}");
 });
-builder.Services.AddReflexStore<CounterStore>();
-builder.Services.AddReflexStore<TodoStore>();
-builder.Services.AddReflexStore<WeatherStore>();
+builder.Services.AddBlexStore<CounterStore>();
+builder.Services.AddBlexStore<TodoStore>();
+builder.Services.AddBlexStore<WeatherStore>();
 
 // Persist [Store(Persist = true)] stores to localStorage (debounced so bursts of clicks
 // coalesce into one write), and enable in-app undo/redo.
-builder.Services.AddReflexLocalStoragePersistence(options =>
+builder.Services.AddBlexLocalStoragePersistence(options =>
     options.DebounceInterval = TimeSpan.FromMilliseconds(300));
-builder.Services.AddReflexHistory();
+builder.Services.AddBlexHistory();
 
 await builder.Build().RunAsync();

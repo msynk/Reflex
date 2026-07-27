@@ -1,6 +1,6 @@
 using BenchmarkDotNet.Attributes;
 
-namespace Reflex.Benchmarks;
+namespace Blex.Benchmarks;
 
 /// <summary>
 /// Cost of a single state change as the number of <c>StateChanged</c> subscribers grows. This

@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>A normalized entity stored in <see cref="ContactsStore"/>.</summary>
 public sealed record Contact(int Id, string Name, string Team, bool Starred);

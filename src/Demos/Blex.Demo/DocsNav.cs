@@ -1,4 +1,4 @@
-namespace Reflex.Demo;
+namespace Blex.Demo;
 
 /// <summary>One page in the documentation.</summary>
 /// <param name="Href">Route, without a leading slash.</param>
@@ -22,7 +22,7 @@ public static class DocsNav
     [
         new("Getting started",
         [
-            new("", "Introduction", "What Reflex is, and how it compares to the alternatives."),
+            new("", "Introduction", "What Blex is, and how it compares to the alternatives."),
             new("installation", "Installation", "Packages, DI registration and the provider component."),
             new("quick-start", "Quick start", "A working counter in three files."),
         ]),
@@ -53,7 +53,7 @@ public static class DocsNav
         new("Quality",
         [
             new("testing", "Testing", "The harness, the action log and waiting on state."),
-            new("diagnostics", "Compile-time diagnostics", "Every REFLEX#### the generator can report."),
+            new("diagnostics", "Compile-time diagnostics", "Every BLEX#### the generator can report."),
         ]),
         new("Reference",
         [

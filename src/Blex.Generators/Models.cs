@@ -1,4 +1,4 @@
-namespace Reflex.Generators;
+namespace Blex.Generators;
 
 internal sealed record StateModel(string FieldName, string PropertyName, string TypeFqn) : System.IEquatable<StateModel>;
 
@@ -16,7 +16,7 @@ internal sealed record ActionModel(
     bool IsValueTask,
     EquatableArray<ParamModel> Parameters) : System.IEquatable<ActionModel>;
 
-/// <param name="Concurrency">0 = Parallel, 1 = Latest, 2 = Drop, 3 = Queue (mirrors Reflex.EffectConcurrency).</param>
+/// <param name="Concurrency">0 = Parallel, 1 = Latest, 2 = Drop, 3 = Queue (mirrors Blex.EffectConcurrency).</param>
 /// <param name="HasCancellationToken">True when the impl method's last parameter is a CancellationToken supplied by the wrapper.</param>
 internal sealed record EffectModel(
     string ImplName,

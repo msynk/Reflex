@@ -1,9 +1,9 @@
 using System.Text.Json.Nodes;
 
-namespace Reflex;
+namespace Blex;
 
 /// <summary>
-/// Base class for all Reflex stores. Provides change notification, batched dispatch and the
+/// Base class for all Blex stores. Provides change notification, batched dispatch and the
 /// hooks the source generator wires up. You normally never derive from this directly --
 /// decorate a partial class with <see cref="StoreAttribute"/> and the generator does it for you.
 /// </summary>
@@ -20,7 +20,7 @@ public abstract class StoreBase : IStore
     private int _recordDepth;
     private int _notifyDepth;
     private bool _dirty;
-    private ReflexManager? _manager;
+    private BlexManager? _manager;
     private JsonObject? _initialState;
 
     /// <inheritdoc />
@@ -62,14 +62,14 @@ public abstract class StoreBase : IStore
         StateChanged?.Invoke();
     }
 
-    internal void Attach(ReflexManager manager)
+    internal void Attach(BlexManager manager)
     {
         _manager = manager;
         // First registration captures the store's initial state so ResetState can return to it.
         _initialState ??= SerializeState();
     }
 
-    /// <summary>Detaches from the manager so actions are no longer observed (see <see cref="ReflexManager.Unregister"/>).</summary>
+    /// <summary>Detaches from the manager so actions are no longer observed (see <see cref="BlexManager.Unregister"/>).</summary>
     internal void Detach() => _manager = null;
 
     /// <summary>

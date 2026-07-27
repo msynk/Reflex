@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFrameworks>$(ReflexTargetFrameworks)</TargetFrameworks>
+    <TargetFrameworks>$(BlexTargetFrameworks)</TargetFrameworks>
     <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <PackageId>Reflex.Blazor</PackageId>
-    <Title>Reflex.Blazor</Title>
-    <Description>Blazor integration for Reflex: the ReflexComponentBase base class, &lt;ReflexProvider&gt;, browser-storage persistence, and the Redux DevTools time-travel bridge.</Description>
+    <PackageId>Blex.Blazor</PackageId>
+    <Title>Blex.Blazor</Title>
+    <Description>Blazor integration for Blex: the BlexComponentBase base class, &lt;BlexProvider&gt;, browser-storage persistence, and the Redux DevTools time-travel bridge.</Description>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
   </PropertyGroup>
 
@@ -22,11 +22,11 @@
 
   <ItemGroup>
     <!--
-      PrivateAssets="none" keeps NuGet from stamping exclude="Build,Analyzers" on the Reflex
+      PrivateAssets="none" keeps NuGet from stamping exclude="Build,Analyzers" on the Blex
       dependency, so the bundled source generator still reaches a project that references only
-      Reflex.Blazor. Without it those consumers get the runtime but no codegen.
+      Blex.Blazor. Without it those consumers get the runtime but no codegen.
     -->
-    <ProjectReference Include="..\Reflex\Reflex.csproj" PrivateAssets="none" />
+    <ProjectReference Include="..\Blex\Blex.csproj" PrivateAssets="none" />
   </ItemGroup>
 
 </Project>

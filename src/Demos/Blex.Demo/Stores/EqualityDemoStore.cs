@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>
 /// Demonstrates the one rule that catches everybody: change detection uses

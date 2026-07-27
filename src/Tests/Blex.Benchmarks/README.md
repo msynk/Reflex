@@ -1,6 +1,6 @@
-# Reflex.Benchmarks
+# Blex.Benchmarks
 
-[BenchmarkDotNet](https://benchmarkdotnet.org/) micro-benchmarks for the Reflex hot paths. They
+[BenchmarkDotNet](https://benchmarkdotnet.org/) micro-benchmarks for the Blex hot paths. They
 measure per-operation time and allocations under heavy, repeated load and print result tables to
 the console (and export CSV/HTML/Markdown to `BenchmarkDotNet.Artifacts/`).
 
@@ -13,19 +13,19 @@ From the `src` directory:
 
 ```bash
 # Interactive menu to pick a suite
-dotnet run -c Release --project Tests/Reflex.Benchmarks
+dotnet run -c Release --project Tests/Blex.Benchmarks
 
 # Run everything (takes several minutes)
-dotnet run -c Release --project Tests/Reflex.Benchmarks -- --filter *
+dotnet run -c Release --project Tests/Blex.Benchmarks -- --filter *
 
 # Run one suite
-dotnet run -c Release --project Tests/Reflex.Benchmarks -- --filter *Dispatch*
+dotnet run -c Release --project Tests/Blex.Benchmarks -- --filter *Dispatch*
 
 # List all benchmarks without running them
-dotnet run -c Release --project Tests/Reflex.Benchmarks -- --list flat
+dotnet run -c Release --project Tests/Blex.Benchmarks -- --list flat
 
 # Fast smoke run (fewer iterations; for validation, not for reporting)
-dotnet run -c Release --project Tests/Reflex.Benchmarks -- --filter *Serialization* --job short
+dotnet run -c Release --project Tests/Blex.Benchmarks -- --filter *Serialization* --job short
 ```
 
 `--filter` accepts glob patterns matched against the fully-qualified benchmark name, so

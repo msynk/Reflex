@@ -1,6 +1,6 @@
 // Minimal interop for the documentation site: clipboard and theme persistence.
 // Everything else on the site is C#.
-window.reflexDocs = {
+window.blexDocs = {
     copy: function (text) {
         if (navigator.clipboard && window.isSecureContext) {
             return navigator.clipboard.writeText(text);
@@ -29,7 +29,7 @@ window.reflexDocs = {
         }
     },
 
-    // Used by the persistence page to show the raw payload Reflex wrote.
+    // Used by the persistence page to show the raw payload Blex wrote.
     readStorage: function (key) {
         try {
             return localStorage.getItem(key);

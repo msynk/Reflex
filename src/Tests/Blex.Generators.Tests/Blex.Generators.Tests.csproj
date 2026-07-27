@@ -15,9 +15,9 @@
 
   <ItemGroup>
     <!-- The generator is referenced as an ordinary library so tests can drive it directly. -->
-    <ProjectReference Include="..\..\Reflex.Generators\Reflex.Generators.csproj" />
-    <!-- Reflex provides the attribute/runtime types the test compilations reference. -->
-    <ProjectReference Include="..\..\Reflex\Reflex.csproj" />
+    <ProjectReference Include="..\..\Blex.Generators\Blex.Generators.csproj" />
+    <!-- Blex provides the attribute/runtime types the test compilations reference. -->
+    <ProjectReference Include="..\..\Blex\Blex.csproj" />
   </ItemGroup>
 
 </Project>

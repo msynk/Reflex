@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Services;
+namespace Blex.Demo.Services;
 
 /// <summary>
 /// Backs the middleware veto demo. When <see cref="IsReadOnly"/> is on, <see cref="GuardMiddleware"/>
@@ -54,18 +54,18 @@ public sealed class DemoGuard
 
 /// <summary>
 /// Veto middleware. <see cref="BeforeAction"/> runs ahead of the mutation and calling
-/// <see cref="ReflexPreActionContext.Cancel"/> stops the action entirely -- nothing mutates,
+/// <see cref="BlexPreActionContext.Cancel"/> stops the action entirely -- nothing mutates,
 /// nothing is recorded, no notification fires.
 /// </summary>
-public sealed class GuardMiddleware(DemoGuard guard) : IReflexMiddleware
+public sealed class GuardMiddleware(DemoGuard guard) : IBlexMiddleware
 {
     /// <inheritdoc />
-    public void OnAction(ReflexActionContext context)
+    public void OnAction(BlexActionContext context)
     {
     }
 
     /// <inheritdoc />
-    public void BeforeAction(ReflexPreActionContext context)
+    public void BeforeAction(BlexPreActionContext context)
     {
         if (!guard.IsReadOnly || guard.AlwaysAllow.Contains(context.QualifiedName))
             return;

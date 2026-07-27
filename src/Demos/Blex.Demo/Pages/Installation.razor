@@ -5,10 +5,10 @@
 
     <h2>Packages</h2>
     <p>
-        Reference <code>Reflex</code> for the runtime and <code>Reflex.Blazor</code> for the Blazor
+        Reference <code>Blex</code> for the runtime and <code>Blex.Blazor</code> for the Blazor
         integration. The source generator is packed <em>inside</em> the core package (under
         <code>analyzers/dotnet/cs</code>), so a single package reference lights up code generation —
-        you never reference <code>Reflex.Generators</code> yourself. Every package targets
+        you never reference <code>Blex.Generators</code> yourself. Every package targets
         <code>net8.0</code>, <code>net9.0</code> and <code>net10.0</code>.
     </p>
 
@@ -21,15 +21,15 @@
         <p style="margin-bottom:0">
             The sample and docs projects live next to the sources, so they reference the generator
             as an analyzer <em>project</em> reference instead of consuming the published package:
-            <code>&lt;ProjectReference Include="..\..\Reflex.Generators\Reflex.Generators.csproj"
+            <code>&lt;ProjectReference Include="..\..\Blex.Generators\Blex.Generators.csproj"
             OutputItemType="Analyzer" ReferenceOutputAssembly="false" /&gt;</code>.
         </p>
     </Callout>
 
     <h2>Register the services</h2>
     <p>
-        <code>AddReflex</code> registers the manager and the middleware pipeline;
-        <code>AddReflexStore&lt;T&gt;</code> registers each store as a scoped service exposed both as
+        <code>AddBlex</code> registers the manager and the middleware pipeline;
+        <code>AddBlexStore&lt;T&gt;</code> registers each store as a scoped service exposed both as
         its concrete type and as <code>IStore</code>. A store is attached to the manager on first
         resolution, so its actions are observed even in hosts without a provider component — console
         apps, workers and tests included.
@@ -41,7 +41,7 @@
 
     <h2>Add the provider</h2>
     <p>
-        <code>&lt;ReflexProvider&gt;</code> goes once, near the root of the app, wrapping the router.
+        <code>&lt;BlexProvider&gt;</code> goes once, near the root of the app, wrapping the router.
         On initialization it registers every <code>IStore</code> with the manager, restores
         prerendered and persisted state, and starts undo/redo recording; on first render it connects
         the Redux DevTools bridge.
@@ -49,7 +49,7 @@
 
     <CodeBlock Code="@AppSample" Language="razor" FileName="App.razor" />
 
-    <ApiTable Title="&lt;ReflexProvider&gt; parameters" Rows="@ProviderRows" MemberHeader="Parameter" />
+    <ApiTable Title="&lt;BlexProvider&gt; parameters" Rows="@ProviderRows" MemberHeader="Parameter" />
 
     <Callout Kind="Callout.CalloutKind.Warning" Title="Turn DevTools off in production">
         <p style="margin-bottom:0">
@@ -64,15 +64,15 @@
     <p>
         The core package has no JS or Blazor dependency. In a console app, worker or test, resolve
         the stores from DI (which registers them with the manager) and drive them directly. For
-        persistence, implement <code>IReflexStorage</code> over a file or database and call
-        <code>AddReflexPersistence()</code>.
+        persistence, implement <code>IBlexStorage</code> over a file or database and call
+        <code>AddBlexPersistence()</code>.
     </p>
 
     <CodeBlock Code="@HeadlessSample" Title="Headless host" />
 
     <h2>Requirements</h2>
     <ul>
-        <li><strong>.NET 10</strong> for <code>Reflex</code>, <code>Reflex.Blazor</code> and <code>Reflex.Testing</code>.</li>
+        <li><strong>.NET 10</strong> for <code>Blex</code>, <code>Blex.Blazor</code> and <code>Blex.Testing</code>.</li>
         <li><strong>netstandard2.0</strong> for the generator, as Roslyn analyzers require.</li>
         <li>Nullable reference types are supported and expected; generated code is annotated.</li>
     </ul>
@@ -82,12 +82,12 @@
 @code {
     private static readonly IReadOnlyList<ApiTable.Row> RegistrationRows =
     [
-        new("AddReflex(Action&lt;ReflexOptions&gt;?)", "Registers <code>ReflexManager</code> (scoped) and the middleware pipeline. The options object configures the DevTools name, sanitizers, middleware and the error sink."),
-        new("AddReflexStore&lt;TStore&gt;()", "Registers a store as scoped, resolvable both as <code>TStore</code> and as <code>IStore</code>. Constructor dependencies are injected, so a store can take an <code>HttpClient</code> like any other service."),
-        new("AddReflexPersistence(Action&lt;ReflexPersistenceOptions&gt;?)", "Enables durable persistence for stores marked <code>Persist = true</code>. Requires an <code>IReflexStorage</code> registration."),
-        new("AddReflexLocalStoragePersistence(…)", "Blazor: registers <code>BrowserStorage</code> over <code>window.localStorage</code> and calls <code>AddReflexPersistence</code>."),
-        new("AddReflexSessionStoragePersistence(…)", "Blazor: the same, over <code>window.sessionStorage</code> — cleared when the tab closes."),
-        new("AddReflexHistory(int maxEntries = 100)", "Registers <code>ReflexHistory</code> for in-app undo/redo. <code>&lt;ReflexProvider&gt;</code> starts recording once rehydration completes."),
+        new("AddBlex(Action&lt;BlexOptions&gt;?)", "Registers <code>BlexManager</code> (scoped) and the middleware pipeline. The options object configures the DevTools name, sanitizers, middleware and the error sink."),
+        new("AddBlexStore&lt;TStore&gt;()", "Registers a store as scoped, resolvable both as <code>TStore</code> and as <code>IStore</code>. Constructor dependencies are injected, so a store can take an <code>HttpClient</code> like any other service."),
+        new("AddBlexPersistence(Action&lt;BlexPersistenceOptions&gt;?)", "Enables durable persistence for stores marked <code>Persist = true</code>. Requires an <code>IBlexStorage</code> registration."),
+        new("AddBlexLocalStoragePersistence(…)", "Blazor: registers <code>BrowserStorage</code> over <code>window.localStorage</code> and calls <code>AddBlexPersistence</code>."),
+        new("AddBlexSessionStoragePersistence(…)", "Blazor: the same, over <code>window.sessionStorage</code> — cleared when the tab closes."),
+        new("AddBlexHistory(int maxEntries = 100)", "Registers <code>BlexHistory</code> for in-app undo/redo. <code>&lt;BlexProvider&gt;</code> starts recording once rehydration completes."),
     ];
 
     private static readonly IReadOnlyList<ApiTable.Row> ProviderRows =
@@ -98,45 +98,45 @@
     ];
 
     private const string Install = """
-        dotnet add package Reflex
-        dotnet add package Reflex.Blazor
+        dotnet add package Blex
+        dotnet add package Blex.Blazor
 
         # optional, for unit tests
-        dotnet add package Reflex.Testing
+        dotnet add package Blex.Testing
         """;
 
     private const string CsprojSample = """
         <ItemGroup>
-          <PackageReference Include="Reflex" Version="0.3.0" />
-          <PackageReference Include="Reflex.Blazor" Version="0.3.0" />
+          <PackageReference Include="Blex" Version="0.3.0" />
+          <PackageReference Include="Blex.Blazor" Version="0.3.0" />
         </ItemGroup>
         """;
 
     private const string ProgramSample = """
-        using Reflex;
-        using Reflex.Blazor;
+        using Blex;
+        using Blex.Blazor;
 
         var builder = WebAssemblyHostBuilder.CreateDefault(args);
         builder.RootComponents.Add<App>("#app");
 
-        builder.Services.AddReflex(options =>
+        builder.Services.AddBlex(options =>
         {
             options.DevToolsName = "My App";
-            options.UseMiddleware(ctx => Console.WriteLine($"[reflex] {ctx.QualifiedName}"));
+            options.UseMiddleware(ctx => Console.WriteLine($"[blex] {ctx.QualifiedName}"));
         });
 
-        builder.Services.AddReflexStore<CounterStore>();
-        builder.Services.AddReflexStore<TodoStore>();
+        builder.Services.AddBlexStore<CounterStore>();
+        builder.Services.AddBlexStore<TodoStore>();
 
         // Optional extras
-        builder.Services.AddReflexLocalStoragePersistence();
-        builder.Services.AddReflexHistory();
+        builder.Services.AddBlexLocalStoragePersistence();
+        builder.Services.AddBlexHistory();
 
         await builder.Build().RunAsync();
         """;
 
     private const string AppSample = """
-        <ReflexProvider EnableDevTools="@builder.HostEnvironment.IsDevelopment()">
+        <BlexProvider EnableDevTools="@builder.HostEnvironment.IsDevelopment()">
             <Router AppAssembly="@typeof(App).Assembly">
                 <Found Context="routeData">
                     <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
@@ -145,19 +145,19 @@
                     <p>Not found.</p>
                 </NotFound>
             </Router>
-        </ReflexProvider>
+        </BlexProvider>
         """;
 
     private const string HeadlessSample = """
         var services = new ServiceCollection();
-        services.AddReflex();
-        services.AddReflexStore<CounterStore>();
+        services.AddBlex();
+        services.AddBlexStore<CounterStore>();
 
         var provider = services.BuildServiceProvider();
 
         // Resolving the store registers it with the manager.
         var store = provider.GetRequiredService<CounterStore>();
-        var manager = provider.GetRequiredService<ReflexManager>();
+        var manager = provider.GetRequiredService<BlexManager>();
 
         store.Increment();
         Console.WriteLine(manager.CaptureGlobalState().ToJsonString());

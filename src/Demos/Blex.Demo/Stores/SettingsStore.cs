@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>UI density options for the settings demo.</summary>
 public enum Density
@@ -11,7 +11,7 @@ public enum Density
 }
 
 /// <summary>
-/// A persisted store: <c>Persist = true</c> plus a registered <see cref="IReflexStorage"/> means
+/// A persisted store: <c>Persist = true</c> plus a registered <see cref="IBlexStorage"/> means
 /// the state is rehydrated on startup and written back after every action. <c>Token</c> exists to
 /// demonstrate DevTools redaction -- it is replaced with <c>&lt;redacted&gt;</c> in the monitor.
 /// </summary>

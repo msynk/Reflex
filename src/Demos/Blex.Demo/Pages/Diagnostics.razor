@@ -4,7 +4,7 @@
          Lead="The generator validates every store and fails the build with a precise message rather than emitting code that does not compile.">
 
     <p>
-        All sixteen diagnostics live in the <code>Reflex</code> category. Fourteen are errors — they
+        All sixteen diagnostics live in the <code>Blex</code> category. Fourteen are errors — they
         describe shapes the generator genuinely cannot emit — and two are warnings about code that
         compiles but almost certainly does not do what you meant.
     </p>
@@ -54,8 +54,8 @@
 
     <h2>Suppressing a warning</h2>
     <p>
-        The two warnings are suppressible like any other. Reflex's own test project suppresses
-        <code>REFLEX011</code> project-wide, because it has a fixture that deliberately declares a
+        The two warnings are suppressible like any other. Blex's own test project suppresses
+        <code>BLEX011</code> project-wide, because it has a fixture that deliberately declares a
         value-returning action.
     </p>
     <CodeBlock Code="@Suppress" Language="xml" FileName="MyApp.csproj" />
@@ -65,7 +65,7 @@
         <p style="margin-bottom:0">
             When a store fails validation, the generator reports the diagnostic and emits
             <em>no</em> partial for it. Expect a cascade of "does not contain a definition for
-            <code>Count</code>" errors alongside the Reflex diagnostic — fix the Reflex one first and
+            <code>Count</code>" errors alongside the Blex diagnostic — fix the Blex one first and
             the rest disappear.
         </p>
     </Callout>
@@ -83,11 +83,11 @@
 
     private static readonly IReadOnlyList<Diagnostic> All =
     [
-        new("REFLEX001", "Store class must be partial", true,
+        new("BLEX001", "Store class must be partial", true,
             "The generator adds members through a second partial declaration, so the class has to be <code>partial</code>.",
             """
             [Store]
-            public class CounterStore   // REFLEX001
+            public class CounterStore   // BLEX001
             {
                 [State] private int _count;
             }
@@ -100,14 +100,14 @@
             }
             """),
 
-        new("REFLEX002", "Cannot derive action name", true,
+        new("BLEX002", "Cannot derive action name", true,
             "An action or effect method must either start with <code>On</code> followed by an uppercase letter, or supply a usable <code>Name</code>. Note that a <code>Name</code> containing spaces is treated as a display label only, so the method still needs the <code>On</code> prefix.",
             """
             [Action]
-            private void Increment() { }              // REFLEX002 -- no "On" prefix
+            private void Increment() { }              // BLEX002 -- no "On" prefix
 
             [Action(Name = "Apply preset")]
-            private void ApplyPreset() { }            // REFLEX002 -- label only, still no "On"
+            private void ApplyPreset() { }            // BLEX002 -- label only, still no "On"
             """,
             """
             [Action]
@@ -120,11 +120,11 @@
             private void OnApplyPreset() { }          // -> ApplyPreset(), labelled "Apply preset"
             """),
 
-        new("REFLEX003", "Cannot derive computed name", true,
+        new("BLEX003", "Cannot derive computed name", true,
             "A computed method's name must start with <code>Compute</code> or <code>Get</code> and have something after it.",
             """
             [Computed]
-            private int DoubleCount() => Count * 2;   // REFLEX003
+            private int DoubleCount() => Count * 2;   // BLEX003
             """,
             """
             [Computed]
@@ -134,11 +134,11 @@
             private int GetDoubleCount() => Count * 2;       // -> DoubleCount
             """),
 
-        new("REFLEX004", "Computed method must be parameterless", true,
+        new("BLEX004", "Computed method must be parameterless", true,
             "A computed value backs a property, so there is nowhere to pass arguments. Use an ordinary method for a parameterised projection.",
             """
             [Computed]
-            private int ComputeTotalFor(int rate) => Count * rate;   // REFLEX004
+            private int ComputeTotalFor(int rate) => Count * rate;   // BLEX004
             """,
             """
             [Computed]
@@ -148,7 +148,7 @@
             private int TotalFor(int rate) => Count * rate;
             """),
 
-        new("REFLEX005", "Generated member name collides", true,
+        new("BLEX005", "Generated member name collides", true,
             "Two generated members would share a name, or a generated member would collide with something you already declared or with a <code>StoreBase</code> member. The check covers the memoization backing fields (<code>__XxxValid</code>, <code>__XxxValue</code>) and the effect fields (<code>__XxxPending</code>, <code>__XxxError</code>, <code>__XxxCts</code>, …) too.",
             """
             [Store]
@@ -156,9 +156,9 @@
             {
                 [State] private int _count;
 
-                [Computed] private int ComputeCount() => 0;   // REFLEX005 -- both want "Count"
+                [Computed] private int ComputeCount() => 0;   // BLEX005 -- both want "Count"
 
-                [Action] private void OnBatch() { }           // REFLEX005 -- StoreBase.Batch
+                [Action] private void OnBatch() { }           // BLEX005 -- StoreBase.Batch
             }
             """,
             """
@@ -173,17 +173,17 @@
             }
             """),
 
-        new("REFLEX006", "Unsupported store class shape", true,
+        new("BLEX006", "Unsupported store class shape", true,
             "The generator writes a flat, top-level partial declaration, so nested and generic stores would produce broken output.",
             """
             public class Outer
             {
                 [Store]
-                public partial class Inner { }        // REFLEX006 -- nested
+                public partial class Inner { }        // BLEX006 -- nested
             }
 
             [Store]
-            public partial class Cache<T> { }         // REFLEX006 -- generic
+            public partial class Cache<T> { }         // BLEX006 -- generic
             """,
             """
             [Store]
@@ -193,14 +193,14 @@
             public partial class StringCache { }      // closed over a concrete type
             """),
 
-        new("REFLEX007", "Effect method must return Task or ValueTask", true,
+        new("BLEX007", "Effect method must return Task or ValueTask", true,
             "An effect owns the loading and error lifecycle, so it cannot hand back a result. Non-generic <code>Task</code> or <code>ValueTask</code> only.",
             """
             [Effect]
-            private async Task<User> OnLoadUser(int id) => await _api.GetAsync(id);   // REFLEX007
+            private async Task<User> OnLoadUser(int id) => await _api.GetAsync(id);   // BLEX007
 
             [Effect]
-            private void OnLoadUser(int id) { }                                       // REFLEX007
+            private void OnLoadUser(int id) { }                                       // BLEX007
             """,
             """
             [Effect]
@@ -210,13 +210,13 @@
             }
             """),
 
-        new("REFLEX008", "Reflex member must be a writable instance member", true,
+        new("BLEX008", "Blex member must be a writable instance member", true,
             "<code>[State]</code>, <code>[Computed]</code>, <code>[Action]</code> and <code>[Effect]</code> members are per-instance and must be assignable. <code>static</code>, <code>const</code> and <code>readonly</code> are rejected.",
             """
-            [State] private static int _count;      // REFLEX008
-            [State] private readonly int _max = 10; // REFLEX008
+            [State] private static int _count;      // BLEX008
+            [State] private readonly int _max = 10; // BLEX008
 
-            [Action] private static void OnReset() { }   // REFLEX008
+            [Action] private static void OnReset() { }   // BLEX008
             """,
             """
             [State] private int _count;
@@ -227,11 +227,11 @@
             [Action] private void OnReset() => Count = 0;
             """),
 
-        new("REFLEX009", "Latest effect cannot cancel without a CancellationToken", false,
+        new("BLEX009", "Latest effect cannot cancel without a CancellationToken", false,
             "<code>Latest</code> marks the superseded run stale so it cannot overwrite newer state — but without a token the superseded body keeps running to completion, because nothing can observe the cancellation.",
             """
             [Effect(Concurrency = EffectConcurrency.Latest)]
-            private async Task OnSearch(string query)          // REFLEX009 (warning)
+            private async Task OnSearch(string query)          // BLEX009 (warning)
                 => Results = await _api.SearchAsync(query);
             """,
             """
@@ -240,11 +240,11 @@
                 => Results = await _api.SearchAsync(query, ct);
             """),
 
-        new("REFLEX010", "Action must not be 'async void'", true,
+        new("BLEX010", "Action must not be 'async void'", true,
             "An <code>async void</code> method cannot be awaited, so the dispatch pipeline cannot know when it finished or record it correctly.",
             """
             [Action]
-            private async void OnSave() => await _api.SaveAsync();   // REFLEX010
+            private async void OnSave() => await _api.SaveAsync();   // BLEX010
             """,
             """
             [Action]
@@ -255,11 +255,11 @@
             private async Task OnSave() => await _api.SaveAsync();
             """),
 
-        new("REFLEX011", "Action return value is discarded", false,
+        new("BLEX011", "Action return value is discarded", false,
             "The generated wrapper returns <code>void</code> (or <code>Task</code>), so any value the implementation returns is silently dropped.",
             """
             [Action]
-            private int OnIncrement() => ++Count;   // REFLEX011 (warning) -- the caller never sees it
+            private int OnIncrement() => ++Count;   // BLEX011 (warning) -- the caller never sees it
             """,
             """
             [Action]
@@ -270,21 +270,21 @@
             var current = store.Count;
             """),
 
-        new("REFLEX012", "State field name equals generated property name", true,
+        new("BLEX012", "State field name equals generated property name", true,
             "The property is derived by trimming a leading underscore and capitalizing. A field already in that form would collide with its own property.",
             """
-            [State] private int Count;    // REFLEX012 -- the property would also be "Count"
+            [State] private int Count;    // BLEX012 -- the property would also be "Count"
             """,
             """
             [State] private int _count;   // -> Count
             [State] private int count;    // -> Count  (also fine)
             """),
 
-        new("REFLEX013", "Unsupported parameter modifier", true,
+        new("BLEX013", "Unsupported parameter modifier", true,
             "The wrapper captures arguments by value so they can travel as the action payload, which is impossible for a by-ref parameter.",
             """
             [Action]
-            private void OnTryParse(string text, out int value)   // REFLEX013
+            private void OnTryParse(string text, out int value)   // BLEX013
             {
                 int.TryParse(text, out value);
             }
@@ -295,11 +295,11 @@
                 => Value = int.TryParse(text, out var value) ? value : 0;
             """),
 
-        new("REFLEX014", "Generic action/effect methods are not supported", true,
+        new("BLEX014", "Generic action/effect methods are not supported", true,
             "The generated wrapper cannot carry type parameters.",
             """
             [Action]
-            private void OnSet<T>(T value) { }        // REFLEX014
+            private void OnSet<T>(T value) { }        // BLEX014
             """,
             """
             [Action]
@@ -309,11 +309,11 @@
             private void OnSetCount(int value) => Count = value;
             """),
 
-        new("REFLEX015", "Store must be a plain class", true,
+        new("BLEX015", "Store must be a plain class", true,
             "Records get value-equality members and a synthesized clone, which fight the mutable reactive-container model a store needs.",
             """
             [Store]
-            public partial record CounterStore        // REFLEX015
+            public partial record CounterStore        // BLEX015
             {
                 [State] private int _count;
             }
@@ -329,11 +329,11 @@
             public sealed record Todo(int Id, string Title, bool Done);
             """),
 
-        new("REFLEX016", "Store cannot have another base class", true,
-            "The generated partial adds <code>: Reflex.StoreBase</code>. A different base class would make the type inherit from two classes.",
+        new("BLEX016", "Store cannot have another base class", true,
+            "The generated partial adds <code>: Blex.StoreBase</code>. A different base class would make the type inherit from two classes.",
             """
             [Store]
-            public partial class CounterStore : MyBaseViewModel   // REFLEX016
+            public partial class CounterStore : MyBaseViewModel   // BLEX016
             {
                 [State] private int _count;
             }
@@ -355,13 +355,13 @@
 
     private const string Suppress = """
         <PropertyGroup>
-          <NoWarn>$(NoWarn);REFLEX011</NoWarn>
+          <NoWarn>$(NoWarn);BLEX011</NoWarn>
         </PropertyGroup>
         """;
 
     private const string SuppressLocal = """
-        #pragma warning disable REFLEX011
+        #pragma warning disable BLEX011
         [Action] private int OnIncrement() => ++Count;
-        #pragma warning restore REFLEX011
+        #pragma warning restore BLEX011
         """;
 }

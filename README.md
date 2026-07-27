@@ -1,18 +1,18 @@
-# Reflex
+# Blex
 
-[![NuGet](https://img.shields.io/nuget/v/Reflex.svg?label=Reflex)](https://www.nuget.org/packages/Reflex)
-[![NuGet](https://img.shields.io/nuget/v/Reflex.Blazor.svg?label=Reflex.Blazor)](https://www.nuget.org/packages/Reflex.Blazor)
-[![NuGet](https://img.shields.io/nuget/v/Reflex.Testing.svg?label=Reflex.Testing)](https://www.nuget.org/packages/Reflex.Testing)
-[![CI](https://github.com/msynk/Reflex/actions/workflows/ci.yml/badge.svg)](https://github.com/msynk/Reflex/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/msynk/Reflex/blob/main/LICENSE)
+[![NuGet](https://img.shields.io/nuget/v/Blex.svg?label=Blex)](https://www.nuget.org/packages/Blex)
+[![NuGet](https://img.shields.io/nuget/v/Blex.Blazor.svg?label=Blex.Blazor)](https://www.nuget.org/packages/Blex.Blazor)
+[![NuGet](https://img.shields.io/nuget/v/Blex.Testing.svg?label=Blex.Testing)](https://www.nuget.org/packages/Blex.Testing)
+[![CI](https://github.com/msynk/Blex/actions/workflows/ci.yml/badge.svg)](https://github.com/msynk/Blex/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/msynk/Blex/blob/main/LICENSE)
 
 Lightweight, source-generator-powered **reactive state management for Blazor** - with **Redux DevTools time-travel** built in.
 
-Reflex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux library but is widely criticized for boilerplate (separate Action / Reducer / Effect / Feature classes per operation) and for having no first-class DevTools time-travel. Reflex keeps the good parts of the Flux model - a single observable state tree, named actions, middleware - while a Roslyn source generator removes the ceremony and a tiny JS bridge wires you straight into the Redux DevTools browser extension.
+Blex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux library but is widely criticized for boilerplate (separate Action / Reducer / Effect / Feature classes per operation) and for having no first-class DevTools time-travel. Blex keeps the good parts of the Flux model - a single observable state tree, named actions, middleware - while a Roslyn source generator removes the ceremony and a tiny JS bridge wires you straight into the Redux DevTools browser extension.
 
-## Why Reflex
+## Why Blex
 
-| | Fluxor | Reflex |
+| | Fluxor | Blex |
 |---|---|---|
 | Define a piece of state | Feature + State class | one `[State]` field |
 | Define an action | Action class + Reducer method | one `[Action]` method |
@@ -26,23 +26,23 @@ Reflex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux li
 | Granular re-render | manual selectors | selector `Subscribe(...)` (+ prev/current, fireImmediately) |
 | Normalized collections | manual | `EntityAdapter` / `EntityState` (+ sorting, `UpdateMany`, `Map`) |
 | Persistence | 3rd-party | `[Store(Persist = true)]` + debounce + versioning/migrations |
-| Undo / redo | ✗ | `ReflexHistory` (in-app, labeled entries) |
+| Undo / redo | ✗ | `BlexHistory` (in-app, labeled entries) |
 | Redux DevTools time-travel | ✗ | ✓ built in (+ state/action sanitizers) |
 | Error isolation hook | ✗ | `options.OnError` |
-| Test helpers | ✗ | `Reflex.Testing` harness (+ `WaitForAsync`) |
+| Test helpers | ✗ | `Blex.Testing` harness (+ `WaitForAsync`) |
 | Boilerplate | high | minimal (generated) |
 
 ## Install
 
 ```bash
-dotnet add package Reflex          # runtime + source generator
-dotnet add package Reflex.Blazor   # Blazor integration (ReflexProvider, DevTools bridge)
-dotnet add package Reflex.Testing  # optional, for unit tests
+dotnet add package Blex          # runtime + source generator
+dotnet add package Blex.Blazor   # Blazor integration (BlexProvider, DevTools bridge)
+dotnet add package Blex.Testing  # optional, for unit tests
 ```
 
 The packages target **net8.0, net9.0 and net10.0**. The Roslyn generator is packed *inside*
-`Reflex` (under `analyzers/dotnet/cs`), so a package reference is all it takes to light up
-codegen - there is no `Reflex.Generators` package to install.
+`Blex` (under `analyzers/dotnet/cs`), so a package reference is all it takes to light up
+codegen - there is no `Blex.Generators` package to install.
 
 ## The whole store
 
@@ -87,25 +87,25 @@ support and the `StoreBase` base type.
 
 ```csharp
 // Program.cs
-builder.Services.AddReflex(options =>
+builder.Services.AddBlex(options =>
 {
     options.DevToolsName = "My App";
-    options.UseMiddleware(ctx => Console.WriteLine($"[reflex] {ctx.QualifiedName}"));
+    options.UseMiddleware(ctx => Console.WriteLine($"[blex] {ctx.QualifiedName}"));
 });
-builder.Services.AddReflexStore<CounterStore>();
-builder.Services.AddReflexStore<TodoStore>();
+builder.Services.AddBlexStore<CounterStore>();
+builder.Services.AddBlexStore<TodoStore>();
 ```
 
 ```razor
 @* App.razor - wrap your router once *@
-<ReflexProvider>
+<BlexProvider>
     <Router ... />
-</ReflexProvider>
+</BlexProvider>
 ```
 
 ```razor
 @* Counter.razor *@
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Store
 
 <p>Count: @Store.Count (double: @Store.DoubleCount)</p>
@@ -116,7 +116,7 @@ builder.Services.AddReflexStore<TodoStore>();
 }
 ```
 
-`ReflexComponentBase.Subscribe(...)` re-renders the component whenever a subscribed store changes
+`BlexComponentBase.Subscribe(...)` re-renders the component whenever a subscribed store changes
 and unsubscribes automatically on dispose.
 
 ## Granular subscriptions (selectors)
@@ -226,15 +226,15 @@ public partial class SettingsStore { [State] private string _theme = "light"; ..
 
 ```csharp
 // Program.cs (Blazor WebAssembly)
-builder.Services.AddReflexLocalStoragePersistence();   // or AddReflexSessionStoragePersistence()
+builder.Services.AddBlexLocalStoragePersistence();   // or AddBlexSessionStoragePersistence()
 ```
 
-`<ReflexProvider>` restores persisted state on init. It also bridges to Blazor's
+`<BlexProvider>` restores persisted state on init. It also bridges to Blazor's
 `PersistentComponentState` automatically (set `PersistComponentState="false"` to opt out), handing
 prerendered state to the interactive render to avoid the prerender "double render" flicker. Under
 Blazor Server prerendering (where JS interop is unavailable), hydration is automatically retried on
-first render instead of crashing startup. For non-Blazor hosts, implement `IReflexStorage` and call
-`AddReflexPersistence()`.
+first render instead of crashing startup. For non-Blazor hosts, implement `IBlexStorage` and call
+`AddBlexPersistence()`.
 
 Persistence is production-hardened:
 
@@ -246,7 +246,7 @@ Persistence is production-hardened:
   supply `options.Migrate` to upgrade (or discard) old payloads, zustand-persist style:
 
 ```csharp
-builder.Services.AddReflexLocalStoragePersistence(options =>
+builder.Services.AddBlexLocalStoragePersistence(options =>
 {
     options.Version = 2;
     options.Migrate = (storeName, fromVersion, state) =>
@@ -279,28 +279,28 @@ Middleware sees every action after it applies (including its argument payload vi
 can veto an action before it runs — also based on the payload:
 
 ```csharp
-builder.Services.AddReflex(options =>
+builder.Services.AddBlex(options =>
 {
     options.UseMiddleware(ctx => Console.WriteLine($"{ctx.QualifiedName}({string.Join(", ", ctx.Args)})"));
     options.UseFilter(ctx => !IsReadOnly);   // return false to cancel
-    options.OnError = err => _logger.LogWarning(err.Exception, "[reflex:{Source}] {Detail}", err.Source, err.Detail);
+    options.OnError = err => _logger.LogWarning(err.Exception, "[blex:{Source}] {Detail}", err.Source, err.Detail);
 });
 ```
 
-`OnError` receives every non-fatal failure Reflex isolates from the dispatch pipeline (throwing
+`OnError` receives every non-fatal failure Blex isolates from the dispatch pipeline (throwing
 subscribers, middleware, persistence writes, restores) — without it they go to `Console.Error`.
 
 ## Undo / redo
 
-`ReflexHistory` provides in-app undo/redo over the whole application state, independent of the
+`BlexHistory` provides in-app undo/redo over the whole application state, independent of the
 DevTools extension:
 
 ```csharp
-builder.Services.AddReflexHistory();   // <ReflexProvider> starts recording automatically
+builder.Services.AddBlexHistory();   // <BlexProvider> starts recording automatically
 ```
 
 ```razor
-@inject ReflexHistory History
+@inject BlexHistory History
 <button @onclick="History.Undo" disabled="@(!History.CanUndo)">Undo @History.NextUndoLabel</button>
 <button @onclick="History.Redo" disabled="@(!History.CanRedo)">Redo @History.NextRedoLabel</button>
 ```
@@ -311,10 +311,10 @@ undo/redo writes the restored state back to storage.
 
 ## Testing
 
-`Reflex.Testing` provides a zero-setup harness that records dispatched actions:
+`Blex.Testing` provides a zero-setup harness that records dispatched actions:
 
 ```csharp
-using var harness = ReflexTestHarness.For<CounterStore>();
+using var harness = BlexTestHarness.For<CounterStore>();
 harness.Store.Increment();
 Assert.Equal(new[] { "Increment" }, harness.Log.Names);
 Assert.Equal(1, harness.Snapshot()["Count"]!.GetValue<int>());
@@ -331,14 +331,14 @@ await harness.Store.WaitForAsync(() => !harness.Store.LoadUserIsLoading);
 ## Compile-time diagnostics
 
 The generator validates store shapes and fails fast with precise errors instead of emitting broken
-code: `REFLEX001` store not partial · `REFLEX002/003` underivable action/computed names ·
-`REFLEX004` computed with parameters · `REFLEX005` generated-member collisions (including against
-your own members and `StoreBase`) · `REFLEX006` nested/generic stores · `REFLEX007` non-async
-effects · `REFLEX008` static/readonly members · `REFLEX009` `Latest` effect without a
-`CancellationToken` (warning) · `REFLEX010` `async void` actions · `REFLEX011` discarded action
-return values (warning) · `REFLEX012` state field/property name conflicts · `REFLEX013` by-ref
-parameters · `REFLEX014` generic action/effect methods · `REFLEX015` record stores ·
-`REFLEX016` conflicting base class.
+code: `BLEX001` store not partial · `BLEX002/003` underivable action/computed names ·
+`BLEX004` computed with parameters · `BLEX005` generated-member collisions (including against
+your own members and `StoreBase`) · `BLEX006` nested/generic stores · `BLEX007` non-async
+effects · `BLEX008` static/readonly members · `BLEX009` `Latest` effect without a
+`CancellationToken` (warning) · `BLEX010` `async void` actions · `BLEX011` discarded action
+return values (warning) · `BLEX012` state field/property name conflicts · `BLEX013` by-ref
+parameters · `BLEX014` generic action/effect methods · `BLEX015` record stores ·
+`BLEX016` conflicting base class.
 
 ## Time-travel debugging
 
@@ -347,15 +347,15 @@ parameters · `REFLEX014` generic action/effect methods · `REFLEX015` record st
 3. Every action streams in with its argument payload and the resulting state tree.
 4. Use the slider / jump buttons to rewind and replay your application state live.
 
-Under the hood the `Reflex.Blazor` JS bridge talks to `window.__REDUX_DEVTOOLS_EXTENSION__`,
+Under the hood the `Blex.Blazor` JS bridge talks to `window.__REDUX_DEVTOOLS_EXTENSION__`,
 sends each action via `send(action, state)`, and applies `JUMP_TO_STATE` / `JUMP_TO_ACTION` /
 `ROLLBACK` / `RESET` / `COMMIT` messages back onto the stores.
 
-For production, set `<ReflexProvider EnableDevTools="false">` to disable the connection entirely, or
+For production, set `<BlexProvider EnableDevTools="false">` to disable the connection entirely, or
 redact sensitive values from the monitor with sanitizers:
 
 ```csharp
-builder.Services.AddReflex(options =>
+builder.Services.AddBlex(options =>
 {
     options.RedactDevToolsKeys("token", "password");      // replace matching keys with <redacted>
                                                           // (applies to action payloads too)
@@ -367,40 +367,40 @@ builder.Services.AddReflex(options =>
 
 | Project | Description |
 |---|---|
-| `src/Reflex` | Core runtime (no JS dependency): `StoreBase`, attributes, dispatch, middleware, persistence, entity adapter, undo/redo, `ReflexManager` manager. |
-| `src/Reflex.Generators` | Roslyn incremental source generator. |
-| `src/Reflex.Blazor` | Blazor integration: `ReflexComponentBase`, `<ReflexProvider>`, browser-storage persistence, Redux DevTools bridge. |
-| `src/Reflex.Testing` | Test harness and assertions (`ReflexTestHarness`, `ActionLog`). |
-| `src/Demos/Reflex.Demo` | Documentation website: every feature explained with a live, runnable demo. |
-| `src/Demos/Reflex.Sample` | Blazor WebAssembly demo (Counter, Todos, Weather). |
-| `src/Tests/Reflex.Tests` | xUnit tests for the runtime and generated code. |
-| `src/Tests/Reflex.Generators.Tests` | Generator-driver tests: all REFLEX diagnostics + emission snapshots. |
-| `src/Tests/Reflex.Benchmarks` | BenchmarkDotNet suites (dispatch, fan-out, serialization, entity adapter). |
+| `src/Blex` | Core runtime (no JS dependency): `StoreBase`, attributes, dispatch, middleware, persistence, entity adapter, undo/redo, `BlexManager` manager. |
+| `src/Blex.Generators` | Roslyn incremental source generator. |
+| `src/Blex.Blazor` | Blazor integration: `BlexComponentBase`, `<BlexProvider>`, browser-storage persistence, Redux DevTools bridge. |
+| `src/Blex.Testing` | Test harness and assertions (`BlexTestHarness`, `ActionLog`). |
+| `src/Demos/Blex.Demo` | Documentation website: every feature explained with a live, runnable demo. |
+| `src/Demos/Blex.Sample` | Blazor WebAssembly demo (Counter, Todos, Weather). |
+| `src/Tests/Blex.Tests` | xUnit tests for the runtime and generated code. |
+| `src/Tests/Blex.Generators.Tests` | Generator-driver tests: all BLEX diagnostics + emission snapshots. |
+| `src/Tests/Blex.Benchmarks` | BenchmarkDotNet suites (dispatch, fan-out, serialization, entity adapter). |
 
-When consumed as a NuGet package, referencing `Reflex` brings the generator automatically
+When consumed as a NuGet package, referencing `Blex` brings the generator automatically
 (it is packed into `analyzers/dotnet/cs`). Inside this repo the sample/tests reference the
 generator project directly as an analyzer.
 
 ## Build & test
 
 ```bash
-dotnet build src/Reflex.slnx
-dotnet test src/Reflex.slnx
-dotnet run --project src/Demos/Reflex.Demo     # documentation site
-dotnet run --project src/Demos/Reflex.Sample   # minimal sample app
-dotnet pack src/Reflex.slnx -c Release         # nupkg + snupkg into artifacts/packages
+dotnet build src/Blex.slnx
+dotnet test src/Blex.slnx
+dotnet run --project src/Demos/Blex.Demo     # documentation site
+dotnet run --project src/Demos/Blex.Sample   # minimal sample app
+dotnet pack src/Blex.slnx -c Release         # nupkg + snupkg into artifacts/packages
 ```
 
 ## Releasing
 
 Package metadata (version, authors, tags, readme, icon, Source Link) is centralised in
-[`src/Directory.Build.props`](https://github.com/msynk/Reflex/blob/main/src/Directory.Build.props).
+[`src/Directory.Build.props`](https://github.com/msynk/Blex/blob/main/src/Directory.Build.props).
 To publish:
 
 1. Bump `<Version>` there and move the `[Unreleased]` section of
-   [CHANGELOG.md](https://github.com/msynk/Reflex/blob/main/CHANGELOG.md) under the new version heading.
+   [CHANGELOG.md](https://github.com/msynk/Blex/blob/main/CHANGELOG.md) under the new version heading.
 2. Commit, then tag and push: `git tag v0.3.0 && git push origin v0.3.0`.
-3. The [Release workflow](https://github.com/msynk/Reflex/blob/main/.github/workflows/release.yml)
+3. The [Release workflow](https://github.com/msynk/Blex/blob/main/.github/workflows/release.yml)
    verifies that the tag matches
    `<Version>`, builds, tests, packs, and pushes every package plus its symbol package to
    nuget.org using the `NUGET_API_KEY` repository secret.

@@ -1,15 +1,15 @@
 using System.Threading.Tasks;
-using Reflex.Testing;
+using Blex.Testing;
 using Xunit;
 
-namespace Reflex.Tests;
+namespace Blex.Tests;
 
 public class BatchAndResetTests
 {
     [Fact]
     public void Batch_GroupsAdHocMutations_IntoOneActionAndNotification()
     {
-        using var harness = ReflexTestHarness.For<CounterStore>();
+        using var harness = BlexTestHarness.For<CounterStore>();
         var store = harness.Store;
 
         var notifications = store.CountNotifications(() =>
@@ -30,7 +30,7 @@ public class BatchAndResetTests
     public void Batch_IsVetoable_ByFilterMiddleware()
     {
         var store = new CounterStore();
-        var manager = new ReflexManager([new FilterMiddleware(ctx => ctx.ActionName != "Blocked")]);
+        var manager = new BlexManager([new FilterMiddleware(ctx => ctx.ActionName != "Blocked")]);
         manager.Register(store);
 
         store.Batch("Blocked", () => store.Count = 99);
@@ -41,7 +41,7 @@ public class BatchAndResetTests
     [Fact]
     public void ResetState_RestoresInitialValues_AndRecordsAction()
     {
-        using var harness = ReflexTestHarness.For<CounterStore>();
+        using var harness = BlexTestHarness.For<CounterStore>();
         var store = harness.Store;
 
         store.Add(41);
@@ -56,7 +56,7 @@ public class BatchAndResetTests
     [Fact]
     public void ResetState_InvalidatesComputedValues()
     {
-        using var harness = ReflexTestHarness.For<CounterStore>();
+        using var harness = BlexTestHarness.For<CounterStore>();
         var store = harness.Store;
 
         store.Add(5);

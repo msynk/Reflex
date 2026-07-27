@@ -1,4 +1,4 @@
-namespace Reflex.Demo.Stores;
+namespace Blex.Demo.Stores;
 
 /// <summary>
 /// The canonical first store. Exercises the four building blocks -- <c>[State]</c>,

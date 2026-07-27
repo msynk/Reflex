@@ -1,7 +1,7 @@
 @page "/counter"
-@inherits ReflexComponentBase
+@inherits BlexComponentBase
 @inject CounterStore Store
-@inject ReflexHistory History
+@inject BlexHistory History
 
 <PageTitle>Counter</PageTitle>
 
@@ -84,6 +84,6 @@
         });
 
     protected override void Dispose(bool disposing)
-        // ReflexHistory outlives this page; detach or every visit would leak a subscription.
+        // BlexHistory outlives this page; detach or every visit would leak a subscription.
         => History.Changed -= OnHistoryChanged;
 }

@@ -1,16 +1,16 @@
-# Reflex.Demo
+# Blex.Demo
 
-The Reflex documentation website: a Blazor WebAssembly app that documents every feature of the
+The Blex documentation website: a Blazor WebAssembly app that documents every feature of the
 library and demonstrates each one with a live, runnable example on the same page.
 
-It is deliberately self-hosting — the site is itself a Reflex app, so the **Inspector** dock at the
+It is deliberately self-hosting — the site is itself a Blex app, so the **Inspector** dock at the
 bottom of every page shows the real action feed, the real serialized state tree, the real undo stack
 and the real `OnError` sink. Nothing on the site is mocked.
 
 ## Running it
 
 ```bash
-dotnet run --project src/Demos/Reflex.Demo
+dotnet run --project src/Demos/Blex.Demo
 ```
 
 Then open <http://localhost:5280>.
@@ -20,27 +20,27 @@ Then open <http://localhost:5280>.
 | Page | Feature |
 |---|---|
 | Introduction | Positioning, comparison table, the whole-store sample |
-| Installation | Packages, DI registration, `<ReflexProvider>` parameters, headless hosts |
+| Installation | Packages, DI registration, `<BlexProvider>` parameters, headless hosts |
 | Quick start | A working counter in three files |
 | Stores & state | `[Store]`, `[State]`, naming, shape rules, change detection, `StoreBase` API |
 | Computed state | `[Computed]`, memoization, composition, invalidation semantics |
 | Actions | `[Action]`, naming, payloads, batching, `Set X`, `Batch`, `ResetState`, async actions |
 | Effects | `[Effect]`, loading/error, cancellation, all four concurrency modes |
-| Components & selectors | `ReflexComponentBase`, selector subscriptions, `OwnsSubscription` |
-| Cross-store coordination | `ReflexManager` registry, subscriptions, action context |
+| Components & selectors | `BlexComponentBase`, selector subscriptions, `OwnsSubscription` |
+| Cross-store coordination | `BlexManager` registry, subscriptions, action context |
 | Entity adapter | `EntityState`, `EntityAdapter`, sorting, every CRUD operation |
 | Middleware | Observing, vetoing, registration modes, error isolation |
-| Error isolation | `ReflexError`, `OnError`, every reported source |
+| Error isolation | `BlexError`, `OnError`, every reported source |
 | Persistence | `Persist`, providers, debounce, versioning, migrations, `StatePersistor` |
-| Undo & redo | `ReflexHistory` |
+| Undo & redo | `BlexHistory` |
 | DevTools & time travel | The bridge, wire format, time-travel messages, sanitizers |
-| Testing | `ReflexTestHarness`, `ActionLog`, `WaitForAsync`, `CountNotifications` |
-| Diagnostics | All sixteen `REFLEX####` codes, each with a rejected and a fixed sample |
+| Testing | `BlexTestHarness`, `ActionLog`, `WaitForAsync`, `CountNotifications` |
+| Diagnostics | All sixteen `BLEX####` codes, each with a rejected and a fixed sample |
 | API reference | Every public type, grouped by namespace |
 
 ## No third-party dependencies
 
-The site references only `Reflex`, `Reflex.Blazor` and the Blazor WebAssembly packages. There is no
+The site references only `Blex`, `Blex.Blazor` and the Blazor WebAssembly packages. There is no
 CSS framework, no CDN and no JavaScript library:
 
 - **Syntax highlighting** is [`Components/CodeHighlighter.cs`](Components/CodeHighlighter.cs), a
@@ -87,7 +87,7 @@ of Razor escaping.
 The site is a static Blazor WebAssembly app, so any static host will serve it.
 
 ```bash
-dotnet publish src/Demos/Reflex.Demo -c Release -o publish
+dotnet publish src/Demos/Blex.Demo -c Release -o publish
 # the deployable site is publish/wwwroot
 ```
 
@@ -97,7 +97,7 @@ every push to `main`. It handles the two things a project page needs:
 1. **Base href** — rewrites `<base href="/" />` to `<base href="/<repo>/" />`, since the site is
    served from a subpath.
 2. **SPA fallback** — copies `index.html` to `404.html`, because GitHub Pages has no rewrite rule
-   and would otherwise 404 on a deep link such as `/Reflex/effects`.
+   and would otherwise 404 on a deep link such as `/Blex/effects`.
 
 `wwwroot/.nojekyll` is committed so Pages does not strip the `_framework` directory.
 

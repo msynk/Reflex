@@ -6,22 +6,22 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
-namespace Reflex.Generators;
+namespace Blex.Generators;
 
 /// <summary>
-/// Generates the reactive plumbing for classes annotated with <c>[Reflex.Store]</c>:
+/// Generates the reactive plumbing for classes annotated with <c>[Blex.Store]</c>:
 /// reactive properties, memoized computed accessors, named action wrappers, effect wrappers
 /// (loading/error lifecycle, cancellation, concurrency modes), JSON snapshot support and the
 /// <c>StoreBase</c> base type.
 /// </summary>
 [Generator(LanguageNames.CSharp)]
-public sealed class ReflexGenerator : IIncrementalGenerator
+public sealed class BlexGenerator : IIncrementalGenerator
 {
-    private const string StoreAttribute = "Reflex.StoreAttribute";
-    private const string StateAttribute = "Reflex.StateAttribute";
-    private const string ComputedAttribute = "Reflex.ComputedAttribute";
-    private const string ActionAttribute = "Reflex.ActionAttribute";
-    private const string EffectAttribute = "Reflex.EffectAttribute";
+    private const string StoreAttribute = "Blex.StoreAttribute";
+    private const string StateAttribute = "Blex.StateAttribute";
+    private const string ComputedAttribute = "Blex.ComputedAttribute";
+    private const string ActionAttribute = "Blex.ActionAttribute";
+    private const string EffectAttribute = "Blex.EffectAttribute";
     private const string CancellationTokenType = "System.Threading.CancellationToken";
 
     /// <summary>Fully-qualified display that keeps nullable reference annotations (e.g. <c>string?</c>).</summary>
@@ -42,130 +42,130 @@ public sealed class ReflexGenerator : IIncrementalGenerator
     ];
 
     private static readonly DiagnosticDescriptor NotPartial = new(
-        "REFLEX001",
+        "BLEX001",
         "Store class must be partial",
-        "Reflex store '{0}' must be declared 'partial' so the generator can extend it",
-        "Reflex",
+        "Blex store '{0}' must be declared 'partial' so the generator can extend it",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor BadActionName = new(
-        "REFLEX002",
+        "BLEX002",
         "Cannot derive action name",
         "Action method '{0}' must start with 'On' or specify [Action(Name = \"...\")] to derive a public action name",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor BadComputedName = new(
-        "REFLEX003",
+        "BLEX003",
         "Cannot derive computed name",
         "Computed method '{0}' must start with 'Compute' or 'Get' to derive a property name",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor ComputedHasParameters = new(
-        "REFLEX004",
+        "BLEX004",
         "Computed method must be parameterless",
         "Computed method '{0}' must be parameterless so it can back a memoized property",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor DuplicateMember = new(
-        "REFLEX005",
+        "BLEX005",
         "Generated member name collides",
-        "Reflex store '{0}' would generate more than one member named '{1}' (or collide with an existing/reserved member). Rename the conflicting state, computed, action or effect.",
-        "Reflex",
+        "Blex store '{0}' would generate more than one member named '{1}' (or collide with an existing/reserved member). Rename the conflicting state, computed, action or effect.",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor UnsupportedClassShape = new(
-        "REFLEX006",
+        "BLEX006",
         "Unsupported store class shape",
-        "Reflex store '{0}' must be a top-level, non-generic class. Nested and generic stores are not supported.",
-        "Reflex",
+        "Blex store '{0}' must be a top-level, non-generic class. Nested and generic stores are not supported.",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor EffectMustBeAsync = new(
-        "REFLEX007",
+        "BLEX007",
         "Effect method must return Task or ValueTask",
         "Effect method '{0}' must return Task or ValueTask (non-generic). Use [Action] for value-returning or synchronous methods.",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor MustBeInstanceMember = new(
-        "REFLEX008",
-        "Reflex member must be a writable instance member",
+        "BLEX008",
+        "Blex member must be a writable instance member",
         "'{0}' cannot be static, const or readonly; [State]/[Computed]/[Action]/[Effect] members must be writable instance members",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor LatestWithoutToken = new(
-        "REFLEX009",
+        "BLEX009",
         "Latest effect cannot cancel without a CancellationToken",
         "Effect '{0}' uses EffectConcurrency.Latest but has no CancellationToken parameter; superseded runs will keep executing, so add a trailing CancellationToken parameter to make cancellation effective",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor AsyncVoidAction = new(
-        "REFLEX010",
+        "BLEX010",
         "Action must not be 'async void'",
         "Action method '{0}' is 'async void'; return Task or ValueTask so the dispatch pipeline can await and record it correctly",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor ActionReturnsValue = new(
-        "REFLEX011",
+        "BLEX011",
         "Action return value is discarded",
         "Action method '{0}' returns a value that the generated wrapper discards; use void, Task or ValueTask (store results in [State] fields instead)",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor StateFieldNameConflict = new(
-        "REFLEX012",
+        "BLEX012",
         "State field name equals generated property name",
         "State field '{0}' would generate a property with the same name; use camelCase or an underscore prefix such as '_{0}'",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor UnsupportedParameterModifier = new(
-        "REFLEX013",
+        "BLEX013",
         "Unsupported parameter modifier",
         "Method '{0}' has a ref/out/in parameter; action and effect parameters must be passed by value so the generated wrapper can capture them",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor GenericMethodNotSupported = new(
-        "REFLEX014",
+        "BLEX014",
         "Generic action/effect methods are not supported",
         "Method '{0}' is generic; the generated wrapper cannot carry type parameters, so make the method non-generic",
-        "Reflex",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor RecordStoreNotSupported = new(
-        "REFLEX015",
+        "BLEX015",
         "Store must be a plain class",
-        "Reflex store '{0}' is declared as a record; stores are mutable reactive containers and must be plain (non-record) classes",
-        "Reflex",
+        "Blex store '{0}' is declared as a record; stores are mutable reactive containers and must be plain (non-record) classes",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
     private static readonly DiagnosticDescriptor ConflictingBaseType = new(
-        "REFLEX016",
+        "BLEX016",
         "Store cannot have another base class",
-        "Reflex store '{0}' derives from '{1}', but the generator needs to make it derive from Reflex.StoreBase; remove the base class or compose it instead",
-        "Reflex",
+        "Blex store '{0}' derives from '{1}', but the generator needs to make it derive from Blex.StoreBase; remove the base class or compose it instead",
+        "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
@@ -188,8 +188,8 @@ public sealed class ReflexGenerator : IIncrementalGenerator
                 // Include the namespace in the hint name so equally-named stores in different
                 // namespaces don't collide.
                 var hint = model.Namespace is null
-                    ? $"{model.ClassName}.Reflex.g.cs"
-                    : $"{model.Namespace}.{model.ClassName}.Reflex.g.cs";
+                    ? $"{model.ClassName}.Blex.g.cs"
+                    : $"{model.Namespace}.{model.ClassName}.Blex.g.cs";
                 spc.AddSource(hint, SourceText.From(Emit(model), Encoding.UTF8));
             }
         });
@@ -228,10 +228,10 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             return Fail();
         }
 
-        // The generated partial adds ": Reflex.StoreBase"; an existing different base class would
+        // The generated partial adds ": Blex.StoreBase"; an existing different base class would
         // produce an uncompilable "inherits from two classes" error deep in generated code.
         if (symbol.BaseType is { SpecialType: not SpecialType.System_Object } baseType
-            && baseType.ToDisplayString() != "Reflex.StoreBase")
+            && baseType.ToDisplayString() != "Blex.StoreBase")
         {
             Report(ConflictingBaseType, classDecl.Identifier.GetLocation(), symbol.Name, baseType.Name);
             return Fail();
@@ -438,7 +438,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             }
         }
 
-        // A name collision would emit uncompilable code; report REFLEX005 and emit nothing.
+        // A name collision would emit uncompilable code; report BLEX005 and emit nothing.
         var beforeDuplicates = diagnostics.Count;
         DetectDuplicates(storeName, states, computeds, actions, effects, symbol, Report);
         if (diagnostics.Count > beforeDuplicates)
@@ -459,7 +459,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
 
     /// <summary>
     /// Builds parameter models for a wrapper, propagating default values and <c>params</c>.
-    /// Returns null (and reports REFLEX013) when a by-ref parameter makes wrapping impossible.
+    /// Returns null (and reports BLEX013) when a by-ref parameter makes wrapping impossible.
     /// </summary>
     private static ParamModel[]? BuildParams(
         IMethodSymbol method,
@@ -723,8 +723,8 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             return null;
 
         var items = string.Join(", ", parameters.Select(p =>
-            $"new global::Reflex.ActionArg(\"{Escape(p.Name)}\", {Id(p.Name)})"));
-        return $"IsObserved ? new global::Reflex.ActionArg[] {{ {items} }} : null";
+            $"new global::Blex.ActionArg(\"{Escape(p.Name)}\", {Id(p.Name)})"));
+        return $"IsObserved ? new global::Blex.ActionArg[] {{ {items} }} : null";
     }
 
     private static string Emit(StoreModel m)
@@ -745,7 +745,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             indent = "    ";
         }
 
-        sb.AppendLine($"{indent}partial class {m.ClassName} : global::Reflex.StoreBase");
+        sb.AppendLine($"{indent}partial class {m.ClassName} : global::Blex.StoreBase");
         sb.AppendLine($"{indent}{{");
 
         var body = indent + "    ";
@@ -834,9 +834,9 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             var versionField = $"__{e.WrapperName}Version";
             var paramList = ParamList(e.Parameters);
             var argList = string.Join(", ", e.Parameters.Select(p => Id(p.Name)));
-            // Wrapper locals carry a __reflex prefix so user parameters (even "__ct") can't collide.
+            // Wrapper locals carry a __blex prefix so user parameters (even "__ct") can't collide.
             var implArgs = e.HasCancellationToken
-                ? (argList.Length == 0 ? "__reflexCt" : $"{argList}, __reflexCt")
+                ? (argList.Length == 0 ? "__blexCt" : $"{argList}, __blexCt")
                 : argList;
             var call = e.IsValueTask ? $"{e.ImplName}({implArgs}).AsTask()" : $"{e.ImplName}({implArgs})";
             var label = Escape(e.ActionLabel);
@@ -880,22 +880,22 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             }
 
             if (isLatest) // stale runs must not clobber the newest run's error state
-                sb.AppendLine($"{body}    var __reflexVersion = ++{versionField};");
+                sb.AppendLine($"{body}    var __blexVersion = ++{versionField};");
 
             if (e.HasCancellationToken)
             {
                 if (isLatest) // cancel the previous run
                     sb.AppendLine($"{body}    {ctsField}?.Cancel();");
-                sb.AppendLine($"{body}    var __reflexCts = new global::System.Threading.CancellationTokenSource();");
-                sb.AppendLine($"{body}    {ctsField} = __reflexCts;");
-                sb.AppendLine($"{body}    var __reflexCt = __reflexCts.Token;");
+                sb.AppendLine($"{body}    var __blexCts = new global::System.Threading.CancellationTokenSource();");
+                sb.AppendLine($"{body}    {ctsField} = __blexCts;");
+                sb.AppendLine($"{body}    var __blexCt = __blexCts.Token;");
             }
 
             if (isQueue) // run after the previous invocation completes
             {
-                sb.AppendLine($"{body}    var __reflexPrevious = {queueField};");
-                sb.AppendLine($"{body}    var __reflexGate = new global::System.Threading.Tasks.TaskCompletionSource(global::System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);");
-                sb.AppendLine($"{body}    {queueField} = __reflexGate.Task;");
+                sb.AppendLine($"{body}    var __blexPrevious = {queueField};");
+                sb.AppendLine($"{body}    var __blexGate = new global::System.Threading.Tasks.TaskCompletionSource(global::System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);");
+                sb.AppendLine($"{body}    {queueField} = __blexGate.Task;");
             }
 
             sb.AppendLine($"{body}    try");
@@ -907,7 +907,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             {
                 // Wait for the predecessor BEFORE clearing the error: clearing first would let a
                 // failed predecessor overwrite this (successful) run's cleared state out of order.
-                sb.AppendLine($"{body}        await __reflexPrevious.ConfigureAwait(true);");
+                sb.AppendLine($"{body}        await __blexPrevious.ConfigureAwait(true);");
             }
 
             sb.AppendLine($"{body}        SetEffectState(ref {errorField}, null);");
@@ -917,35 +917,35 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             {
                 // Only *our* cancellation is benign; a foreign OperationCanceledException (e.g. an
                 // HttpClient timeout) is a real failure and falls through to the error handler.
-                sb.AppendLine($"{body}    catch (global::System.OperationCanceledException) when (__reflexCt.IsCancellationRequested)");
+                sb.AppendLine($"{body}    catch (global::System.OperationCanceledException) when (__blexCt.IsCancellationRequested)");
                 sb.AppendLine($"{body}    {{");
                 sb.AppendLine($"{body}        // Cancelled via Cancel{e.WrapperName}() or supersession -- a normal outcome, not an error.");
                 sb.AppendLine($"{body}    }}");
             }
 
-            sb.AppendLine($"{body}    catch (global::System.Exception __reflexEx)");
+            sb.AppendLine($"{body}    catch (global::System.Exception __blexEx)");
             sb.AppendLine($"{body}    {{");
             if (isLatest)
             {
                 sb.AppendLine($"{body}        // A superseded (stale) run must not clobber the newest run's error state.");
-                sb.AppendLine($"{body}        if (__reflexVersion == {versionField})");
-                sb.AppendLine($"{body}            SetEffectState(ref {errorField}, __reflexEx);");
+                sb.AppendLine($"{body}        if (__blexVersion == {versionField})");
+                sb.AppendLine($"{body}            SetEffectState(ref {errorField}, __blexEx);");
             }
             else
             {
-                sb.AppendLine($"{body}        SetEffectState(ref {errorField}, __reflexEx);");
+                sb.AppendLine($"{body}        SetEffectState(ref {errorField}, __blexEx);");
             }
 
             sb.AppendLine($"{body}    }}");
             sb.AppendLine($"{body}    finally");
             sb.AppendLine($"{body}    {{");
             if (isQueue)
-                sb.AppendLine($"{body}        __reflexGate.SetResult();");
+                sb.AppendLine($"{body}        __blexGate.SetResult();");
             if (e.HasCancellationToken)
             {
-                sb.AppendLine($"{body}        if (object.ReferenceEquals({ctsField}, __reflexCts))");
+                sb.AppendLine($"{body}        if (object.ReferenceEquals({ctsField}, __blexCts))");
                 sb.AppendLine($"{body}            {ctsField} = null;");
-                sb.AppendLine($"{body}        __reflexCts.Dispose();");
+                sb.AppendLine($"{body}        __blexCts.Dispose();");
             }
 
             sb.AppendLine($"{body}        EndEffect(ref {pendingField});");
@@ -971,7 +971,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         sb.AppendLine($"{body}{{");
         sb.AppendLine($"{body}    var __o = new {JsonObject}();");
         foreach (var s in m.States)
-            sb.AppendLine($"{body}    __o[\"{Escape(s.PropertyName)}\"] = {JsonSerializer}.SerializeToNode(this.{Id(s.FieldName)}, global::Reflex.ReflexJson.Options);");
+            sb.AppendLine($"{body}    __o[\"{Escape(s.PropertyName)}\"] = {JsonSerializer}.SerializeToNode(this.{Id(s.FieldName)}, global::Blex.BlexJson.Options);");
         sb.AppendLine($"{body}    return __o;");
         sb.AppendLine($"{body}}}");
         sb.AppendLine();
@@ -987,7 +987,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             // only a *missing* property leaves the current value untouched.
             var node = $"__n{idx++}";
             sb.AppendLine($"{body}    if (state.TryGetPropertyValue(\"{Escape(s.PropertyName)}\", out var {node}))");
-            sb.AppendLine($"{body}        this.{Id(s.FieldName)} = {node} is null ? default! : {JsonSerializer}.Deserialize<{s.TypeFqn}>({node}, global::Reflex.ReflexJson.Options)!;");
+            sb.AppendLine($"{body}        this.{Id(s.FieldName)} = {node} is null ? default! : {JsonSerializer}.Deserialize<{s.TypeFqn}>({node}, global::Blex.BlexJson.Options)!;");
         }
 
         sb.AppendLine($"{body}}}");
