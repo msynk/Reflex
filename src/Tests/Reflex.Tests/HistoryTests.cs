@@ -98,6 +98,56 @@ public class HistoryTests
     }
 
     [Fact]
+    public void UndoRedoLabels_AndCounts_TrackActions()
+    {
+        var (_, store, history) = Setup();
+
+        Assert.Null(history.NextUndoLabel);
+        Assert.Equal(0, history.UndoCount);
+
+        store.Increment();
+        store.Add(5);
+
+        Assert.Equal(2, history.UndoCount);
+        Assert.Equal("counter/Add", history.NextUndoLabel);
+        Assert.Null(history.NextRedoLabel);
+
+        history.Undo();
+        Assert.Equal("counter/Increment", history.NextUndoLabel);
+        Assert.Equal("counter/Add", history.NextRedoLabel);
+        Assert.Equal(1, history.RedoCount);
+
+        history.Redo();
+        Assert.Equal("counter/Add", history.NextUndoLabel);
+        Assert.Null(history.NextRedoLabel);
+    }
+
+    [Fact]
+    public void ThrowingChangedHandler_DoesNotBreakObserversRegisteredAfterHistory()
+    {
+        var manager = new ReflexManager();
+        var counter = new CounterStore();
+        manager.Register(counter);
+
+        var history = new ReflexHistory(manager);
+        history.Start(); // subscribes to ActionDispatched first
+        history.Changed += () => throw new System.InvalidOperationException("ui boom");
+
+        var errors = new System.Collections.Generic.List<ReflexError>();
+        manager.OnError = errors.Add;
+
+        // A later observer (like the persistor) must still be notified.
+        var observed = 0;
+        using var sub = manager.Subscribe(_ => observed++);
+
+        counter.Increment(); // must not throw
+
+        Assert.Equal(1, observed);
+        Assert.Contains(errors, e => e.Source == "history");
+        Assert.Equal(1, counter.Count);
+    }
+
+    [Fact]
     public void MaxEntries_CapsUndoDepth()
     {
         var (_, counter, history) = Setup(max: 2);

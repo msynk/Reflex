@@ -13,19 +13,19 @@ From the `src` directory:
 
 ```bash
 # Interactive menu to pick a suite
-dotnet run -c Release --project Reflex.Benchmarks
+dotnet run -c Release --project Tests/Reflex.Benchmarks
 
 # Run everything (takes several minutes)
-dotnet run -c Release --project Reflex.Benchmarks -- --filter *
+dotnet run -c Release --project Tests/Reflex.Benchmarks -- --filter *
 
 # Run one suite
-dotnet run -c Release --project Reflex.Benchmarks -- --filter *Dispatch*
+dotnet run -c Release --project Tests/Reflex.Benchmarks -- --filter *Dispatch*
 
 # List all benchmarks without running them
-dotnet run -c Release --project Reflex.Benchmarks -- --list flat
+dotnet run -c Release --project Tests/Reflex.Benchmarks -- --list flat
 
 # Fast smoke run (fewer iterations; for validation, not for reporting)
-dotnet run -c Release --project Reflex.Benchmarks -- --filter *Serialization* --job short
+dotnet run -c Release --project Tests/Reflex.Benchmarks -- --filter *Serialization* --job short
 ```
 
 `--filter` accepts glob patterns matched against the fully-qualified benchmark name, so

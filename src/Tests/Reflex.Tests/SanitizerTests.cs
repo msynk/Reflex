@@ -77,19 +77,50 @@ public class SanitizerTests
     }
 
     [Fact]
-    public void Sanitizer_Exception_FallsBackToOriginal()
+    public void RedactDevToolsKeys_RedactsInsideArrays()
+    {
+        var options = new ReflexOptions();
+        options.RedactDevToolsKeys("token");
+
+        // Entity-style collection state: objects nested inside arrays must be redacted too.
+        var state = new JsonObject
+        {
+            ["sessions"] = new JsonObject
+            {
+                ["Items"] = new JsonArray(
+                    new JsonObject { ["Id"] = 1, ["token"] = "secret-1" },
+                    new JsonObject { ["Id"] = 2, ["token"] = "secret-2" }),
+            },
+        };
+
+        var sanitized = options.DevToolsStateSanitizer!(state);
+
+        var items = sanitized["sessions"]!["Items"]!.AsArray();
+        Assert.Equal("<redacted>", items[0]!["token"]!.GetValue<string>());
+        Assert.Equal("<redacted>", items[1]!["token"]!.GetValue<string>());
+        Assert.Equal(1, items[0]!["Id"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void Sanitizer_Exception_FailsClosed_AndReportsError()
     {
         var sink = new CapturingDevTools();
+        var errors = new List<ReflexError>();
         var manager = new ReflexManager
         {
             DevToolsStateSanitizer = _ => throw new System.Exception("boom"),
         };
+        manager.OnError = errors.Add;
         var counter = new CounterStore();
         manager.Register(counter);
         manager.ConnectDevTools(sink);
 
         counter.Increment(); // must not throw
 
+        // A broken redaction sanitizer must not leak the data it was meant to hide: the state
+        // sent to the extension is withheld (empty), and the failure is reported.
         Assert.Single(sink.Sends);
+        Assert.Empty(sink.Sends[0].State);
+        Assert.Contains(errors, e => e.Source == "devtools");
     }
 }

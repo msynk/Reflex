@@ -47,6 +47,8 @@ public partial class CounterStore
 
     // Returns ValueTask<T>: the generator must await it (via AsTask) rather than fire-and-forget.
     // The explicit name contains spaces, so it is a display label only; the wrapper is "LoadValue".
+    // REFLEX011 (discarded return value) is expected here and suppressed via NoWarn in the csproj
+    // -- exercising that shape is exactly what this fixture is for.
     [Action(Name = "Load Value")]
     private async ValueTask<int> OnLoadValue()
     {
@@ -88,6 +90,93 @@ public partial class DataStore
         if (ShouldThrow)
             throw new InvalidOperationException("boom");
         Value = input;
+    }
+}
+
+[Store(Name = "profile")]
+public partial class ProfileStore
+{
+    [State] private string? _userName = "anonymous";
+    [State] private int _age;
+
+    [Action]
+    private void OnSignOut() => UserName = null;
+
+    [Action]
+    private void OnSignIn(string name) => UserName = name;
+}
+
+/// <summary>Gated effects for deterministic concurrency tests. Enqueue gates before invoking.</summary>
+[Store(Name = "fx")]
+public partial class EffectConcurrencyStore
+{
+    [State] private string _last = "";
+    [State] private int _completed;
+
+    public Queue<TaskCompletionSource> Gates { get; } = new();
+
+    private Task NextGate() => Gates.Count > 0 ? Gates.Dequeue().Task : Task.CompletedTask;
+
+    [Effect(Concurrency = EffectConcurrency.Latest)]
+    private async Task OnSearch(string query, CancellationToken ct)
+    {
+        await NextGate().WaitAsync(ct);
+        Last = query;
+        Completed++;
+    }
+
+    [Effect(Concurrency = EffectConcurrency.Drop)]
+    private async Task OnSubmit()
+    {
+        await NextGate();
+        Completed++;
+    }
+
+    [Effect(Concurrency = EffectConcurrency.Queue)]
+    private async Task OnWrite(string value)
+    {
+        await NextGate();
+        Last = Last + value;
+        Completed++;
+    }
+
+    [Effect]
+    private async Task OnFetch()
+    {
+        await NextGate();
+        Completed++;
+    }
+
+    // The gate is intentionally NOT linked to the token: a superseded run keeps executing and
+    // then fails, which must not clobber the newest run's error state.
+    [Effect(Concurrency = EffectConcurrency.Latest)]
+    private async Task OnFlaky(bool fail, CancellationToken ct)
+    {
+        await NextGate();
+        if (fail)
+            throw new InvalidOperationException("stale-boom");
+        Last = "flaky-ok";
+        Completed++;
+    }
+
+    // Throws a *foreign* cancellation (like an HttpClient timeout) while our token is NOT
+    // cancelled -- this must surface as an error, not be swallowed as a benign cancel.
+    [Effect]
+    private async Task OnTimeout(CancellationToken ct)
+    {
+        await Task.Yield();
+        throw new TaskCanceledException("simulated http timeout");
+    }
+
+    // Queue effect whose runs can fail: a failed predecessor's error must not survive a
+    // successful successor (the successor clears the error only after the predecessor ends).
+    [Effect(Concurrency = EffectConcurrency.Queue)]
+    private async Task OnQueuedFlaky(bool fail)
+    {
+        await NextGate();
+        if (fail)
+            throw new InvalidOperationException("queued-boom");
+        Completed++;
     }
 }
 

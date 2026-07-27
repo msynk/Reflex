@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Reflex;
 using Xunit;
 
@@ -32,6 +33,31 @@ public class SubscriptionTests
         store.Label = "b";
 
         Assert.Equal(0, fires);
+    }
+
+    [Fact]
+    public void SelectorSubscription_PreviousAndCurrent_AreDelivered()
+    {
+        var store = new CounterStore();
+        var transitions = new List<(int From, int To)>();
+        using var sub = store.Subscribe(() => store.Count, (prev, curr) => transitions.Add((prev, curr)));
+
+        store.Increment();
+        store.Add(4);
+
+        Assert.Equal([(0, 1), (1, 5)], transitions);
+    }
+
+    [Fact]
+    public void SelectorSubscription_FireImmediately_InvokesOnSubscribe()
+    {
+        var store = new CounterStore();
+        store.Increment();
+
+        var seen = new List<int>();
+        using var sub = store.Subscribe(() => store.Count, seen.Add, fireImmediately: true);
+
+        Assert.Equal([1], seen);
     }
 
     [Fact]

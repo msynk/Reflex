@@ -1,0 +1,209 @@
+using System;
+using System.Collections.Generic;
+using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
+using Xunit;
+
+namespace Reflex.Tests;
+
+public class PersistenceAdvancedTests
+{
+    private sealed class InMemoryStorage : IReflexStorage
+    {
+        public Dictionary<string, string> Data { get; } = new();
+
+        public ValueTask<string?> GetAsync(string key, CancellationToken cancellationToken = default)
+            => new(Data.TryGetValue(key, out var v) ? v : null);
+
+        public ValueTask SetAsync(string key, string value, CancellationToken cancellationToken = default)
+        {
+            Data[key] = value;
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
+        {
+            Data.Remove(key);
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private static (SettingsStore Store, ReflexManager Manager, InMemoryStorage Storage) Setup()
+    {
+        var store = new SettingsStore();
+        var manager = new ReflexManager();
+        manager.Register(store);
+        return (store, manager, new InMemoryStorage());
+    }
+
+    [Fact]
+    public async Task CorruptPayload_IsReportedDiscardedAndRemoved_StartupContinues()
+    {
+        var (store, manager, storage) = Setup();
+        storage.Data["reflex:settings"] = "{not valid json!!";
+        var errors = new List<ReflexError>();
+        manager.OnError = errors.Add;
+
+        await using var persistor = new StatePersistor(manager, storage);
+        await persistor.StartAsync(); // must not throw
+
+        Assert.Equal("light", store.Theme); // defaults kept
+        Assert.Single(errors);
+        Assert.Equal("persistence", errors[0].Source);
+        Assert.False(storage.Data.ContainsKey("reflex:settings")); // corrupt entry removed
+    }
+
+    [Fact]
+    public async Task RehydrationSubscriberThrow_KeepsStoredData()
+    {
+        var (store, manager, storage) = Setup();
+        storage.Data["reflex:settings"] = """{"Theme":"dark","FontSize":16}""";
+        var errors = new List<ReflexError>();
+        manager.OnError = errors.Add;
+
+        // The payload is valid; only a UI subscriber misbehaves during the restore notification.
+        store.StateChanged += () => throw new InvalidOperationException("render boom");
+
+        await using var persistor = new StatePersistor(manager, storage);
+        await persistor.StartAsync(); // must not throw
+
+        Assert.Equal("dark", store.Theme); // state applied
+        Assert.True(storage.Data.ContainsKey("reflex:settings")); // data NOT deleted
+        Assert.Contains(errors, e => e.Source == "persistence");
+    }
+
+    [Fact]
+    public async Task VersionedPayload_RoundTrips_InEnvelope()
+    {
+        var (store, manager, storage) = Setup();
+        var options = new ReflexPersistenceOptions { Version = 2 };
+
+        await using (var persistor = new StatePersistor(manager, storage, options))
+        {
+            await persistor.StartAsync();
+            store.SetTheme("dark");
+            await persistor.FlushAsync();
+        }
+
+        var stored = JsonNode.Parse(storage.Data["reflex:settings"])!.AsObject();
+        Assert.Equal(2, stored["__reflexVersion"]!.GetValue<int>());
+        Assert.Equal("dark", stored["state"]!["Theme"]!.GetValue<string>());
+
+        // A fresh app instance rehydrates from the envelope.
+        var (store2, manager2, _) = (new SettingsStore(), new ReflexManager(), 0);
+        manager2.Register(store2);
+        await using var persistor2 = new StatePersistor(manager2, storage, new ReflexPersistenceOptions { Version = 2 });
+        await persistor2.StartAsync();
+        Assert.Equal("dark", store2.Theme);
+    }
+
+    [Fact]
+    public async Task VersionMismatch_RunsMigration()
+    {
+        var (store, manager, storage) = Setup();
+        // Legacy (v0, unversioned) payload with an obsolete theme name.
+        storage.Data["reflex:settings"] = """{"Theme":"classic","FontSize":11}""";
+
+        var options = new ReflexPersistenceOptions
+        {
+            Version = 1,
+            Migrate = (storeName, fromVersion, state) =>
+            {
+                Assert.Equal("settings", storeName);
+                Assert.Equal(0, fromVersion);
+                state["Theme"] = "light"; // rename the obsolete value
+                return state;
+            },
+        };
+
+        await using var persistor = new StatePersistor(manager, storage, options);
+        await persistor.StartAsync();
+
+        Assert.Equal("light", store.Theme);
+        Assert.Equal(11, store.FontSize); // untouched fields survive migration
+    }
+
+    [Fact]
+    public async Task VersionMismatch_WithoutMigration_DiscardsPayload()
+    {
+        var (store, manager, storage) = Setup();
+        storage.Data["reflex:settings"] = """{"Theme":"ancient"}""";
+
+        await using var persistor = new StatePersistor(manager, storage, new ReflexPersistenceOptions { Version = 3 });
+        await persistor.StartAsync();
+
+        Assert.Equal("light", store.Theme); // discarded -> defaults
+    }
+
+    [Fact]
+    public async Task Debounce_CoalescesBurstsIntoOneWrite()
+    {
+        var (store, manager, storage) = Setup();
+        var writes = 0;
+        var counting = new CountingStorage(storage, () => writes++);
+        var options = new ReflexPersistenceOptions { DebounceInterval = TimeSpan.FromMilliseconds(50) };
+
+        await using var persistor = new StatePersistor(manager, counting, options);
+        await persistor.StartAsync();
+
+        store.SetTheme("a");
+        store.SetTheme("b");
+        store.SetTheme("c");
+        Assert.Equal(0, writes); // nothing written yet
+
+        await persistor.FlushAsync();
+        Assert.Equal(1, writes); // one coalesced write
+        Assert.Contains("\"c\"", storage.Data["reflex:settings"]);
+    }
+
+    [Fact]
+    public async Task DisposeAsync_FlushesPendingDebouncedWrites()
+    {
+        var (store, manager, storage) = Setup();
+        var options = new ReflexPersistenceOptions { DebounceInterval = TimeSpan.FromMinutes(5) };
+
+        var persistor = new StatePersistor(manager, storage, options);
+        await persistor.StartAsync();
+        store.SetTheme("dark");
+        Assert.False(storage.Data.ContainsKey("reflex:settings"));
+
+        await persistor.DisposeAsync();
+        Assert.Contains("dark", storage.Data["reflex:settings"]);
+    }
+
+    [Fact]
+    public async Task RestoredState_IsWrittenBackToStorage()
+    {
+        var (store, manager, storage) = Setup();
+        var history = new ReflexHistory(manager);
+        history.Start();
+
+        await using var persistor = new StatePersistor(manager, storage);
+        await persistor.StartAsync();
+
+        store.SetTheme("dark");
+        await persistor.FlushAsync();
+        Assert.Contains("dark", storage.Data["reflex:settings"]);
+
+        history.Undo(); // restore does not record an action...
+        await persistor.FlushAsync();
+
+        // ...but storage must still reflect the restored (light) state, or a reload would
+        // resurrect the undone value.
+        Assert.Contains("light", storage.Data["reflex:settings"]);
+    }
+
+    private sealed class CountingStorage(IReflexStorage inner, Action onWrite) : IReflexStorage
+    {
+        public ValueTask<string?> GetAsync(string key, CancellationToken ct = default) => inner.GetAsync(key, ct);
+
+        public ValueTask SetAsync(string key, string value, CancellationToken ct = default)
+        {
+            onWrite();
+            return inner.SetAsync(key, value, ct);
+        }
+
+        public ValueTask RemoveAsync(string key, CancellationToken ct = default) => inner.RemoveAsync(key, ct);
+    }
+}

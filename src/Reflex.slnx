@@ -9,9 +9,10 @@
     <Project Path="Reflex/Reflex.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="Reflex.Tests/Reflex.Tests.csproj" />
+    <Project Path="Tests/Reflex.Tests/Reflex.Tests.csproj" />
+    <Project Path="Tests/Reflex.Generators.Tests/Reflex.Generators.Tests.csproj" />
   </Folder>
   <Folder Name="/benchmarks/">
-    <Project Path="Reflex.Benchmarks/Reflex.Benchmarks.csproj" />
+    <Project Path="Tests/Reflex.Benchmarks/Reflex.Benchmarks.csproj" />
   </Folder>
 </Solution>
