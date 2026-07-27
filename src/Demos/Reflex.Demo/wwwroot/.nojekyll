@@ -1,0 +1,2 @@
+Prevents GitHub Pages from running Jekyll, which would strip the _framework directory
+Blazor WebAssembly needs (Jekyll ignores paths beginning with an underscore).

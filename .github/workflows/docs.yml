@@ -1,0 +1,69 @@
+name: Docs
+
+# Publishes the Reflex documentation site (src/Demos/Reflex.Demo) to GitHub Pages.
+#
+# One-time setup: repository Settings -> Pages -> Build and deployment -> Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deployment finish rather than cancelling it mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish the docs site
+        run: dotnet publish src/Demos/Reflex.Demo/Reflex.Demo.csproj -c Release -o publish
+
+      # A project page is served from https://<user>.github.io/<repo>/, so the base href
+      # has to match or every asset and route resolves against the domain root.
+      - name: Rewrite base href for the project subpath
+        run: |
+          sed -i 's|<base href="/" />|<base href="/${{ github.event.repository.name }}/" />|g' \
+            publish/wwwroot/index.html
+          grep -o '<base href="[^"]*"' publish/wwwroot/index.html
+
+      # GitHub Pages has no SPA fallback: serving index.html as the 404 page lets the
+      # Blazor router handle deep links such as /Reflex/effects on a cold load.
+      - name: Add the SPA fallback
+        run: cp publish/wwwroot/index.html publish/wwwroot/404.html
+
+      - name: Verify .nojekyll survived the publish
+        run: test -f publish/wwwroot/.nojekyll
+
+      - name: Upload the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: publish/wwwroot
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

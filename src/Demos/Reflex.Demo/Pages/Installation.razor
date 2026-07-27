@@ -1,0 +1,165 @@
+@page "/installation"
+
+<DocPage Href="installation" Title="Installation"
+         Lead="Two packages, one DI call per store, and one component wrapped around your router.">
+
+    <h2>Packages</h2>
+    <p>
+        Reference <code>Reflex</code> for the runtime and <code>Reflex.Blazor</code> for the Blazor
+        integration. The source generator is packed <em>inside</em> the core package (under
+        <code>analyzers/dotnet/cs</code>), so a single package reference lights up code generation —
+        you never reference <code>Reflex.Generators</code> yourself.
+    </p>
+
+    <CodeBlock Code="@Install" Language="bash" Title="Add the packages" />
+
+    <p>Or directly in the project file:</p>
+    <CodeBlock Code="@CsprojSample" Language="xml" FileName="MyApp.csproj" />
+
+    <Callout Kind="Callout.CalloutKind.Note" Title="Working inside this repository">
+        <p style="margin-bottom:0">
+            The sample and docs projects reference the generator as an analyzer
+            <em>project</em> reference instead, because the NuGet package has not been built yet:
+            <code>&lt;ProjectReference Include="..\..\Reflex.Generators\Reflex.Generators.csproj"
+            OutputItemType="Analyzer" ReferenceOutputAssembly="false" /&gt;</code>.
+        </p>
+    </Callout>
+
+    <h2>Register the services</h2>
+    <p>
+        <code>AddReflex</code> registers the manager and the middleware pipeline;
+        <code>AddReflexStore&lt;T&gt;</code> registers each store as a scoped service exposed both as
+        its concrete type and as <code>IStore</code>. A store is attached to the manager on first
+        resolution, so its actions are observed even in hosts without a provider component — console
+        apps, workers and tests included.
+    </p>
+
+    <CodeBlock Code="@ProgramSample" FileName="Program.cs" />
+
+    <ApiTable Title="Registration APIs" Rows="@RegistrationRows" MemberHeader="Call" />
+
+    <h2>Add the provider</h2>
+    <p>
+        <code>&lt;ReflexProvider&gt;</code> goes once, near the root of the app, wrapping the router.
+        On initialization it registers every <code>IStore</code> with the manager, restores
+        prerendered and persisted state, and starts undo/redo recording; on first render it connects
+        the Redux DevTools bridge.
+    </p>
+
+    <CodeBlock Code="@AppSample" Language="razor" FileName="App.razor" />
+
+    <ApiTable Title="&lt;ReflexProvider&gt; parameters" Rows="@ProviderRows" MemberHeader="Parameter" />
+
+    <Callout Kind="Callout.CalloutKind.Warning" Title="Turn DevTools off in production">
+        <p style="margin-bottom:0">
+            While enabled, the entire application state tree is serialized and handed to the Redux
+            DevTools browser extension on every action. Bind <code>EnableDevTools</code> to your host
+            environment so production builds never expose application state to an installed extension.
+            See <a href="devtools">DevTools &amp; time travel</a> for redaction options.
+        </p>
+    </Callout>
+
+    <h2>Without Blazor</h2>
+    <p>
+        The core package has no JS or Blazor dependency. In a console app, worker or test, resolve
+        the stores from DI (which registers them with the manager) and drive them directly. For
+        persistence, implement <code>IReflexStorage</code> over a file or database and call
+        <code>AddReflexPersistence()</code>.
+    </p>
+
+    <CodeBlock Code="@HeadlessSample" Title="Headless host" />
+
+    <h2>Requirements</h2>
+    <ul>
+        <li><strong>.NET 10</strong> for <code>Reflex</code>, <code>Reflex.Blazor</code> and <code>Reflex.Testing</code>.</li>
+        <li><strong>netstandard2.0</strong> for the generator, as Roslyn analyzers require.</li>
+        <li>Nullable reference types are supported and expected; generated code is annotated.</li>
+    </ul>
+
+</DocPage>
+
+@code {
+    private static readonly IReadOnlyList<ApiTable.Row> RegistrationRows =
+    [
+        new("AddReflex(Action&lt;ReflexOptions&gt;?)", "Registers <code>ReflexManager</code> (scoped) and the middleware pipeline. The options object configures the DevTools name, sanitizers, middleware and the error sink."),
+        new("AddReflexStore&lt;TStore&gt;()", "Registers a store as scoped, resolvable both as <code>TStore</code> and as <code>IStore</code>. Constructor dependencies are injected, so a store can take an <code>HttpClient</code> like any other service."),
+        new("AddReflexPersistence(Action&lt;ReflexPersistenceOptions&gt;?)", "Enables durable persistence for stores marked <code>Persist = true</code>. Requires an <code>IReflexStorage</code> registration."),
+        new("AddReflexLocalStoragePersistence(…)", "Blazor: registers <code>BrowserStorage</code> over <code>window.localStorage</code> and calls <code>AddReflexPersistence</code>."),
+        new("AddReflexSessionStoragePersistence(…)", "Blazor: the same, over <code>window.sessionStorage</code> — cleared when the tab closes."),
+        new("AddReflexHistory(int maxEntries = 100)", "Registers <code>ReflexHistory</code> for in-app undo/redo. <code>&lt;ReflexProvider&gt;</code> starts recording once rehydration completes."),
+    ];
+
+    private static readonly IReadOnlyList<ApiTable.Row> ProviderRows =
+    [
+        new("EnableDevTools", "<code>bool</code>, default <code>true</code>. Connects the Redux DevTools bridge on first render. Set to <code>false</code> in production."),
+        new("PersistComponentState", "<code>bool</code>, default <code>true</code>. Hands prerendered store state to the interactive render through Blazor's <code>PersistentComponentState</code>, avoiding the prerender \"double render\" flicker. No effect when the framework service is unavailable."),
+        new("ChildContent", "The application content rendered inside the provider."),
+    ];
+
+    private const string Install = """
+        dotnet add package Reflex
+        dotnet add package Reflex.Blazor
+
+        # optional, for unit tests
+        dotnet add package Reflex.Testing
+        """;
+
+    private const string CsprojSample = """
+        <ItemGroup>
+          <PackageReference Include="Reflex" Version="0.2.0" />
+          <PackageReference Include="Reflex.Blazor" Version="0.2.0" />
+        </ItemGroup>
+        """;
+
+    private const string ProgramSample = """
+        using Reflex;
+        using Reflex.Blazor;
+
+        var builder = WebAssemblyHostBuilder.CreateDefault(args);
+        builder.RootComponents.Add<App>("#app");
+
+        builder.Services.AddReflex(options =>
+        {
+            options.DevToolsName = "My App";
+            options.UseMiddleware(ctx => Console.WriteLine($"[reflex] {ctx.QualifiedName}"));
+        });
+
+        builder.Services.AddReflexStore<CounterStore>();
+        builder.Services.AddReflexStore<TodoStore>();
+
+        // Optional extras
+        builder.Services.AddReflexLocalStoragePersistence();
+        builder.Services.AddReflexHistory();
+
+        await builder.Build().RunAsync();
+        """;
+
+    private const string AppSample = """
+        <ReflexProvider EnableDevTools="@builder.HostEnvironment.IsDevelopment()">
+            <Router AppAssembly="@typeof(App).Assembly">
+                <Found Context="routeData">
+                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+                </Found>
+                <NotFound>
+                    <p>Not found.</p>
+                </NotFound>
+            </Router>
+        </ReflexProvider>
+        """;
+
+    private const string HeadlessSample = """
+        var services = new ServiceCollection();
+        services.AddReflex();
+        services.AddReflexStore<CounterStore>();
+
+        var provider = services.BuildServiceProvider();
+
+        // Resolving the store registers it with the manager.
+        var store = provider.GetRequiredService<CounterStore>();
+        var manager = provider.GetRequiredService<ReflexManager>();
+
+        store.Increment();
+        Console.WriteLine(manager.CaptureGlobalState().ToJsonString());
+        // {"counter":{"Count":1,"Step":1}}
+        """;
+}

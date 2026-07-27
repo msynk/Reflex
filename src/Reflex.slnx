@@ -1,6 +1,7 @@
 <Solution>
-  <Folder Name="/samples/">
-    <Project Path="Reflex.Sample/Reflex.Sample.csproj" />
+  <Folder Name="/demos/">
+    <Project Path="Demos/Reflex.Sample/Reflex.Sample.csproj" />
+    <Project Path="Demos/Reflex.Demo/Reflex.Demo.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="Reflex.Blazor/Reflex.Blazor.csproj" />

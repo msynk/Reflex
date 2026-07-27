@@ -353,7 +353,8 @@ builder.Services.AddReflex(options =>
 | `src/Reflex.Generators` | Roslyn incremental source generator. |
 | `src/Reflex.Blazor` | Blazor integration: `ReflexComponentBase`, `<ReflexProvider>`, browser-storage persistence, Redux DevTools bridge. |
 | `src/Reflex.Testing` | Test harness and assertions (`ReflexTestHarness`, `ActionLog`). |
-| `src/Reflex.Sample` | Blazor WebAssembly demo (Counter, Todos, Weather). |
+| `src/Demos/Reflex.Demo` | Documentation website: every feature explained with a live, runnable demo. |
+| `src/Demos/Reflex.Sample` | Blazor WebAssembly demo (Counter, Todos, Weather). |
 | `src/Tests/Reflex.Tests` | xUnit tests for the runtime and generated code. |
 | `src/Tests/Reflex.Generators.Tests` | Generator-driver tests: all REFLEX diagnostics + emission snapshots. |
 | `src/Tests/Reflex.Benchmarks` | BenchmarkDotNet suites (dispatch, fan-out, serialization, entity adapter). |
@@ -367,7 +368,8 @@ generator project directly as an analyzer.
 ```bash
 dotnet build src/Reflex.slnx
 dotnet test src/Reflex.slnx
-dotnet run --project src/Reflex.Sample
+dotnet run --project src/Demos/Reflex.Demo     # documentation site
+dotnet run --project src/Demos/Reflex.Sample   # minimal sample app
 ```
 
 ## License

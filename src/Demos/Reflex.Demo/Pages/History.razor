@@ -1,0 +1,210 @@
+@page "/history"
+@inherits ReflexComponentBase
+@inject ReflexHistory HistoryStack
+@inject CounterStore Counter
+@inject ContactsStore Contacts
+
+<DocPage Href="history" Title="Undo & redo"
+         Lead="In-app history over the entire application state, independent of the browser extension.">
+
+    <h2>Setup</h2>
+    <p>
+        Register it once. <code>&lt;ReflexProvider&gt;</code> calls <code>Start()</code> for you —
+        deliberately <em>after</em> rehydration, so the baseline that undo ultimately returns to is
+        the state the user actually loaded, not the pre-hydration defaults.
+    </p>
+
+    <CodeBlock Code="@Setup" FileName="Program.cs" />
+    <CodeBlock Code="@Usage" Language="razor" />
+
+    <DemoCard Title="Undo across every store at once"
+              Description="History snapshots the whole state tree, so a single Undo steps back through whichever store changed last — counter or contacts."
+              Source="@DemoSource" SourceLanguage="razor">
+        <div class="row">
+            <button class="btn btn-primary" @onclick="HistoryStack.Undo" disabled="@(!HistoryStack.CanUndo)">
+                ↶ Undo @HistoryStack.NextUndoLabel
+            </button>
+            <button class="btn btn-primary" @onclick="HistoryStack.Redo" disabled="@(!HistoryStack.CanRedo)">
+                ↷ Redo @HistoryStack.NextRedoLabel
+            </button>
+            <button class="btn btn-ghost" @onclick="HistoryStack.Clear">Clear history</button>
+        </div>
+
+        <div class="readout" style="margin-top:0.8rem">
+            <div class="readout__item">
+                <span class="readout__label">Undo depth</span>
+                <span class="readout__value readout__value--accent">@HistoryStack.UndoCount</span>
+            </div>
+            <div class="readout__item">
+                <span class="readout__label">Redo depth</span>
+                <span class="readout__value">@HistoryStack.RedoCount</span>
+            </div>
+            <div class="readout__item">
+                <span class="readout__label">Max entries</span>
+                <span class="readout__value">@HistoryStack.MaxEntries</span>
+            </div>
+        </div>
+
+        <div class="grid grid--2" style="margin-top:0.9rem">
+            <div class="card">
+                <p class="card__title">counter <span class="card__num">Count = @Counter.Count</span></p>
+                <div class="row">
+                    <button class="btn btn-sm" @onclick="Counter.Increment">Increment</button>
+                    <button class="btn btn-sm" @onclick="Counter.Decrement">Decrement</button>
+                </div>
+            </div>
+            <div class="card">
+                <p class="card__title">contacts <span class="card__num">@Contacts.Total contacts</span></p>
+                <div class="row">
+                    <button class="btn btn-sm" @onclick="AddContact">Add one</button>
+                    <button class="btn btn-sm" @onclick="Contacts.StarAll">Star all</button>
+                </div>
+            </div>
+        </div>
+
+        <p class="small muted" style="margin-top:0.8rem;margin-bottom:0">
+            Interleave the two: increment, add a contact, increment again — then undo three times and
+            watch each store roll back in turn.
+        </p>
+    </DemoCard>
+
+    <h2>API</h2>
+    <ApiTable Title="ReflexHistory" Rows="@HistoryRows" />
+
+    <h2>How it works</h2>
+    <ol>
+        <li><code>Start()</code> captures the current global state as the baseline and subscribes to the manager.</li>
+        <li>After each action, the previous snapshot is pushed onto the undo stack and the new one becomes the present. The redo stack is cleared, because you have branched away from it.</li>
+        <li><code>Undo()</code> pushes the present onto the redo stack, pops the undo stack and restores that snapshot through <code>RestoreGlobalState</code>.</li>
+        <li>Restoring does <strong>not</strong> record an action, so stepping backwards never pollutes the history you are stepping through.</li>
+    </ol>
+
+    <p>
+        Snapshots are whole state trees. <code>MaxEntries</code> caps how many are retained — older
+        ones are discarded from the bottom of the stack. The default is 100.
+    </p>
+
+    <h2>Labels</h2>
+    <p>
+        Each entry remembers the qualified name of the action that produced it, so a button can say
+        what it is about to undo rather than just "Undo".
+    </p>
+    <CodeBlock Code="@Labels" Language="razor" />
+
+    <Callout Kind="Callout.CalloutKind.Note" Title="External restores are absorbed">
+        <p style="margin-bottom:0">
+            If something else changes the state without an action — a DevTools time-travel jump, or a
+            manual <code>RestoreGlobalState</code> — history refreshes its present snapshot so the
+            next undo diffs from what the user can actually see, rather than from a stale pre-jump
+            state.
+        </p>
+    </Callout>
+
+    <Callout Kind="Callout.CalloutKind.Tip" Title="Undo/redo and persistence cooperate">
+        <p style="margin-bottom:0">
+            A restore raises <code>StateRestored</code>, and the persistor writes every persisted
+            slice back in response. So undoing and then reloading the page keeps the undone state —
+            the reload cannot resurrect what you just stepped away from.
+        </p>
+    </Callout>
+
+    <h2>Scoping history to one store</h2>
+    <p>
+        <code>ReflexHistory</code> is deliberately global: it snapshots the whole tree, which is what
+        makes cross-store undo coherent. For per-store history, keep your own stack of that store's
+        snapshots and restore them with <code>RestoreState</code>, which applies a snapshot without
+        recording an action.
+    </p>
+    <CodeBlock Code="@PerStore" />
+
+    <Callout Kind="Callout.CalloutKind.Warning" Title="Snapshots cost memory">
+        <p style="margin-bottom:0">
+            Every entry is a full serialized copy of every registered store. With large collections
+            in state, lower <code>maxEntries</code> — or scope history to the store that needs it.
+        </p>
+    </Callout>
+
+</DocPage>
+
+@code {
+    private int _added;
+
+    protected override void OnInitialized()
+    {
+        Subscribe(Counter, Contacts);
+        HistoryStack.Changed += OnHistoryChanged;
+    }
+
+    private void OnHistoryChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private void AddContact() => Contacts.Add($"New Person {++_added}", "Runtime");
+
+    protected override void Dispose(bool disposing) => HistoryStack.Changed -= OnHistoryChanged;
+
+    private static readonly IReadOnlyList<ApiTable.Row> HistoryRows =
+    [
+        new("void Start()", "Captures the baseline and begins recording. Idempotent. Called by <code>&lt;ReflexProvider&gt;</code> after rehydration."),
+        new("void Undo()", "Restores the previous state. No-op when <code>CanUndo</code> is false."),
+        new("void Redo()", "Re-applies the most recently undone state. No-op when <code>CanRedo</code> is false."),
+        new("void Clear()", "Drops both stacks and takes the current state as the new baseline."),
+        new("bool CanUndo / CanRedo", "Whether there is anything to step to. Bind to a button's <code>disabled</code>."),
+        new("int UndoCount / RedoCount", "Stack depths."),
+        new("string? NextUndoLabel", "Qualified name of the action <code>Undo()</code> would revert, or <code>null</code>."),
+        new("string? NextRedoLabel", "Qualified name of the action <code>Redo()</code> would re-apply, or <code>null</code>."),
+        new("int MaxEntries", "Retention cap, set at construction. Default 100."),
+        new("event Action? Changed", "Raised whenever availability changes — bind button state to it."),
+        new("void Dispose()", "Detaches from the manager and stops recording."),
+    ];
+
+    private const string Setup = """
+        builder.Services.AddReflexHistory();              // default: 100 entries
+        builder.Services.AddReflexHistory(maxEntries: 50);
+        """;
+
+    private const string Usage = """
+        @inject ReflexHistory History
+
+        <button @onclick="History.Undo" disabled="@(!History.CanUndo)">Undo</button>
+        <button @onclick="History.Redo" disabled="@(!History.CanRedo)">Redo</button>
+        """;
+
+    private const string DemoSource = """
+        @inject ReflexHistory History
+
+        <button @onclick="History.Undo" disabled="@(!History.CanUndo)">
+            Undo @History.NextUndoLabel
+        </button>
+        <button @onclick="History.Redo" disabled="@(!History.CanRedo)">
+            Redo @History.NextRedoLabel
+        </button>
+
+        @code {
+            // Changed fires whenever undo/redo availability moves, so button
+            // state stays correct without polling.
+            protected override void OnInitialized() => History.Changed += OnHistoryChanged;
+
+            private void OnHistoryChanged() => _ = InvokeAsync(StateHasChanged);
+
+            protected override void Dispose(bool disposing)
+                => History.Changed -= OnHistoryChanged;
+        }
+        """;
+
+    private const string Labels = """
+        <button @onclick="History.Undo" disabled="@(!History.CanUndo)">
+            Undo @History.NextUndoLabel      @* e.g. "Undo counter/Increment" *@
+        </button>
+        """;
+
+    private const string PerStore = """
+        private readonly Stack<JsonObject> _undo = new();
+
+        void Checkpoint() => _undo.Push(store.SerializeState());
+
+        void UndoOne()
+        {
+            if (_undo.TryPop(out var snapshot))
+                store.RestoreState(snapshot);   // applies it without recording an action
+        }
+        """;
+}

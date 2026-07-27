@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Reflex — reactive state management for Blazor</title>
+    <base href="/" />
+    <meta name="description" content="Reflex is lightweight, source-generator-powered reactive state management for Blazor, with Redux DevTools time-travel, effects, persistence and undo/redo built in." />
+    <meta name="color-scheme" content="dark light" />
+
+    <meta property="og:title" content="Reflex — reactive state management for Blazor" />
+    <meta property="og:description" content="One [State] field, one [Action] method. No reducers, no boilerplate — and Redux DevTools time-travel out of the box." />
+    <meta property="og:type" content="website" />
+
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="css/site.css" />
+
+    <script>
+        // Apply the stored theme before first paint so the page never flashes the wrong one.
+        (function () {
+            try {
+                var stored = localStorage.getItem('reflex-docs-theme');
+                if (!stored) {
+                    stored = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+                        ? 'light' : 'dark';
+                }
+                document.documentElement.setAttribute('data-theme', stored);
+            } catch (e) { /* private mode: keep the default */ }
+        })();
+    </script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="boot">
+            <div class="boot__mark">
+                <svg viewBox="0 0 32 32" width="40" height="40" aria-hidden="true">
+                    <path d="M6 25 L14 4 L18 4 L11 18 L20 18 L14 28 Z" fill="currentColor" />
+                </svg>
+            </div>
+            <p class="boot__text">Loading Reflex documentation…</p>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="js/site.js"></script>
+    <script src="_framework/blazor.webassembly.js"></script>
+</body>
+
+</html>

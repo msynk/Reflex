@@ -1,0 +1,379 @@
+@page "/testing"
+
+<DocPage Href="testing" Title="Testing"
+         Lead="Stores are plain objects, so they test like plain objects — and Reflex.Testing adds a harness for asserting on the dispatch pipeline itself.">
+
+    <h2>The simplest test</h2>
+    <p>
+        A store needs no host, no DI container and no Blazor. Construct it, call an action, assert on
+        a property.
+    </p>
+    <CodeBlock Code="@Plain" FileName="CounterTests.cs" />
+
+    <p>
+        That covers state. What it does not cover is whether the <em>right action</em> was dispatched,
+        with the right payload, exactly once. That is what the harness is for.
+    </p>
+
+    <h2>The harness</h2>
+    <p>
+        <code>ReflexTestHarness&lt;TStore&gt;</code> creates a fresh <code>ReflexManager</code>,
+        registers your store with it, and starts recording every action.
+    </p>
+    <CodeBlock Code="@Harness" />
+    <ApiTable Title="ReflexTestHarness&lt;TStore&gt;" Rows="@HarnessRows" />
+
+    <h2>The action log</h2>
+    <p>
+        <code>ActionLog</code> records each dispatch with its name, sequence, arguments and the global
+        state immediately afterwards.
+    </p>
+    <CodeBlock Code="@Log" />
+    <ApiTable Title="ActionLog" Rows="@LogRows" />
+    <ApiTable Title="RecordedAction" Rows="@RecordedRows" />
+
+    <h2>Asserting on payloads</h2>
+    <p>Action arguments are captured automatically, so you can assert on exactly what was dispatched.</p>
+    <CodeBlock Code="@Payload" />
+
+    <h2>Testing effects</h2>
+    <p>
+        Awaiting the effect wrapper is usually enough. When you need to observe an intermediate state
+        — a loading flag, say — <code>WaitForAsync</code> beats sprinkling <code>Task.Delay</code>
+        through the test: it re-evaluates the condition on every store change and throws
+        <code>TimeoutException</code> if it never becomes true.
+    </p>
+    <CodeBlock Code="@Effects" />
+
+    <h3>Errors and cancellation</h3>
+    <CodeBlock Code="@EffectErrors" />
+
+    <h2>Asserting on batching</h2>
+    <p>
+        <code>CountNotifications</code> counts how many times a store raised
+        <code>StateChanged</code> while an action ran — the direct way to prove that a multi-field
+        action really does render once.
+    </p>
+    <CodeBlock Code="@Notifications" />
+
+    <h2>Testing middleware</h2>
+    <p>
+        Middleware needs a manager, not a harness. Construct one with your middleware and register
+        the store yourself.
+    </p>
+    <CodeBlock Code="@MiddlewareTest" />
+
+    <h2>Testing persistence</h2>
+    <p>
+        <code>IReflexStorage</code> is a three-method interface, so an in-memory fake is trivial.
+        Remember to <code>FlushAsync</code> when the persistor is debounced.
+    </p>
+    <CodeBlock Code="@PersistenceTest" />
+
+    <h2>Testing undo/redo</h2>
+    <CodeBlock Code="@HistoryTest" />
+
+    <h2>Extension methods</h2>
+    <ApiTable Title="ReflexTestExtensions" Rows="@ExtensionRows" />
+
+    <Callout Kind="Callout.CalloutKind.Tip" Title="Snapshots make good assertions">
+        <p style="margin-bottom:0">
+            <code>harness.Snapshot()</code> and <code>harness.State</code> return the same JSON the
+            library uses for persistence and time-travel. Asserting against a snapshot checks the
+            whole store at once, and it fails loudly when a field you forgot about changes.
+        </p>
+    </Callout>
+
+    <Callout Kind="Callout.CalloutKind.Gotcha" Title="Dispose the harness">
+        <p style="margin-bottom:0">
+            The harness holds a live subscription on its manager. Use <code>using var</code> — or
+            <code>Dispose()</code> — so a long test class does not accumulate recorders. The
+            harness's manager is its own, so tests never interfere with each other.
+        </p>
+    </Callout>
+
+    <h2>Testing components</h2>
+    <p>
+        For component-level tests with bUnit, register the store the same way the app does and let
+        the component subscribe. There is nothing Reflex-specific to mock.
+    </p>
+    <CodeBlock Code="@Bunit" />
+
+</DocPage>
+
+@code {
+    private static readonly IReadOnlyList<ApiTable.Row> HarnessRows =
+    [
+        new("ReflexTestHarness.For&lt;TStore&gt;()", "Creates a harness for a store with a parameterless constructor."),
+        new("ReflexTestHarness.For(store)", "Creates a harness around an already-constructed store — use this when the store has dependencies."),
+        new("TStore Store", "The store under test."),
+        new("ReflexManager Manager", "The manager backing the harness. Use it to add middleware assertions or extra subscriptions."),
+        new("ActionLog Log", "Records every dispatch."),
+        new("JsonObject State", "The current global state tree."),
+        new("JsonObject Snapshot()", "The current snapshot of the store under test."),
+        new("void Dispose()", "Detaches the log."),
+    ];
+
+    private static readonly IReadOnlyList<ApiTable.Row> LogRows =
+    [
+        new("IReadOnlyList&lt;RecordedAction&gt; Actions", "Everything recorded, in dispatch order."),
+        new("RecordedAction? Last", "The most recent action, or <code>null</code>."),
+        new("int Count", "Number of recorded actions."),
+        new("IReadOnlyList&lt;string&gt; Names", "The bare action names in order."),
+        new("IReadOnlyList&lt;string&gt; QualifiedNames", "The qualified names in order."),
+        new("bool Contains(string)", "Whether an action with that bare or qualified name was recorded."),
+        new("int CountOf(string)", "How many times it was recorded."),
+        new("void Clear()", "Empties the log — handy between arrange and act."),
+    ];
+
+    private static readonly IReadOnlyList<ApiTable.Row> RecordedRows =
+    [
+        new("IStore Store", "The originating store."),
+        new("string ActionName / QualifiedName", "<code>\"Increment\"</code> and <code>\"counter/Increment\"</code>."),
+        new("int Sequence", "The monotonic dispatch number."),
+        new("JsonObject State", "The global state tree right after this action."),
+        new("IReadOnlyList&lt;ActionArg&gt; Args", "The captured arguments."),
+    ];
+
+    private static readonly IReadOnlyList<ApiTable.Row> ExtensionRows =
+    [
+        new("manager.RecordActions()", "Starts recording on any manager and returns the <code>ActionLog</code>. Dispose to stop."),
+        new("store.Snapshot()", "Alias for <code>SerializeState()</code>."),
+        new("store.WaitForAsync(Func&lt;bool&gt;, TimeSpan?)", "Waits until the condition holds, re-checking on every store change. Throws <code>TimeoutException</code> after the timeout (default 5 s)."),
+        new("store.CountNotifications(Action)", "Counts <code>StateChanged</code> notifications raised while the delegate runs."),
+    ];
+
+    private const string Plain = """
+        [Fact]
+        public void Increment_adds_the_step()
+        {
+            var store = new CounterStore();
+
+            store.SetStep(5);
+            store.Increment();
+
+            Assert.Equal(5, store.Count);
+            Assert.Equal(10, store.DoubleCount);
+        }
+        """;
+
+    private const string Harness = """
+        using Reflex.Testing;
+
+        [Fact]
+        public void Increment_dispatches_one_action()
+        {
+            using var harness = ReflexTestHarness.For<CounterStore>();
+
+            harness.Store.Increment();
+
+            Assert.Equal(["Increment"], harness.Log.Names);
+            Assert.Equal(1, harness.Snapshot()["Count"]!.GetValue<int>());
+        }
+
+        // For a store with dependencies, construct it yourself:
+        using var harness = ReflexTestHarness.For(new WeatherStore(httpClient));
+        """;
+
+    private const string Log = """
+        using var harness = ReflexTestHarness.For<CounterStore>();
+
+        harness.Store.Increment();
+        harness.Store.Increment();
+        harness.Store.SetStep(3);
+
+        Assert.Equal(3, harness.Log.Count);
+        Assert.Equal(2, harness.Log.CountOf("Increment"));
+        Assert.True(harness.Log.Contains("counter/SetStep"));
+        Assert.Equal("SetStep", harness.Log.Last!.ActionName);
+
+        // The state captured immediately after a specific action:
+        var afterFirst = harness.Log.Actions[0].State;
+        Assert.Equal(1, afterFirst["counter"]!["Count"]!.GetValue<int>());
+        """;
+
+    private const string Payload = """
+        harness.Store.SetStep(5);
+
+        var action = harness.Log.Last!;
+        Assert.Equal("SetStep", action.ActionName);
+        Assert.Single(action.Args);
+        Assert.Equal("step", action.Args[0].Name);
+        Assert.Equal(5, action.Args[0].Value);
+
+        // A direct assignment records as "Set X", carrying the assigned value.
+        harness.Store.Count = 42;
+        Assert.Equal("Set Count", harness.Log.Last!.ActionName);
+        Assert.Equal(42, harness.Log.Last!.Args[0].Value);
+        """;
+
+    private const string Effects = """
+        [Fact]
+        public async Task LoadUser_populates_the_user()
+        {
+            using var harness = ReflexTestHarness.For(new UserStore(new FakeApi()));
+
+            await harness.Store.LoadUser(42);
+
+            Assert.False(harness.Store.LoadUserIsLoading);
+            Assert.Null(harness.Store.LoadUserError);
+            Assert.Equal("Ada", harness.Store.User!.Name);
+        }
+
+        [Fact]
+        public async Task LoadUser_reports_loading_while_in_flight()
+        {
+            using var harness = ReflexTestHarness.For(new UserStore(new SlowApi()));
+
+            var pending = harness.Store.LoadUser(42);          // do not await yet
+            Assert.True(harness.Store.LoadUserIsLoading);
+
+            await pending;
+            await harness.Store.WaitForAsync(() => !harness.Store.LoadUserIsLoading);
+        }
+        """;
+
+    private const string EffectErrors = """
+        [Fact]
+        public async Task A_failing_effect_captures_the_exception()
+        {
+            using var harness = ReflexTestHarness.For(new UserStore(new ThrowingApi()));
+
+            await harness.Store.LoadUser(42);   // never throws
+
+            Assert.IsType<HttpRequestException>(harness.Store.LoadUserError);
+        }
+
+        [Fact]
+        public async Task Cancelling_is_not_an_error()
+        {
+            using var harness = ReflexTestHarness.For(new UserStore(new SlowApi()));
+
+            var pending = harness.Store.LoadUser(42);
+            harness.Store.CancelLoadUser();
+            await pending;
+
+            Assert.Null(harness.Store.LoadUserError);   // our own cancellation is a normal outcome
+        }
+        """;
+
+    private const string Notifications = """
+        [Fact]
+        public void An_action_notifies_once_however_many_fields_it_touches()
+        {
+            var store = new CounterStore();
+
+            // OnApplyPreset assigns both Count and Step.
+            var notifications = store.CountNotifications(() => store.ApplyPreset(10, 5));
+
+            Assert.Equal(1, notifications);
+        }
+        """;
+
+    private const string MiddlewareTest = """
+        [Fact]
+        public void A_filter_vetoes_the_action()
+        {
+            var readOnly = true;
+            var manager = new ReflexManager([new FilterMiddleware(_ => !readOnly)]);
+            var store = new CounterStore();
+            manager.Register(store);
+            using var log = manager.RecordActions();
+
+            store.Increment();
+
+            Assert.Equal(0, store.Count);   // the mutation never ran
+            Assert.Empty(log.Actions);      // and nothing was recorded
+        }
+        """;
+
+    private const string PersistenceTest = """
+        private sealed class MemoryStorage : IReflexStorage
+        {
+            public Dictionary<string, string> Values { get; } = [];
+
+            public ValueTask<string?> GetAsync(string key, CancellationToken ct = default)
+                => new(Values.TryGetValue(key, out var v) ? v : null);
+
+            public ValueTask SetAsync(string key, string value, CancellationToken ct = default)
+            {
+                Values[key] = value;
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask RemoveAsync(string key, CancellationToken ct = default)
+            {
+                Values.Remove(key);
+                return ValueTask.CompletedTask;
+            }
+        }
+
+        [Fact]
+        public async Task State_round_trips_through_storage()
+        {
+            var storage = new MemoryStorage();
+            var manager = new ReflexManager();
+            var store = new SettingsStore();
+            manager.Register(store);
+
+            await using var persistor = new StatePersistor(manager, storage);
+            await persistor.StartAsync();
+
+            store.SetAccent("teal");
+            await persistor.FlushAsync();
+
+            Assert.Contains("teal", storage.Values["reflex:settings"]);
+
+            // A fresh store rehydrates from the same storage.
+            var manager2 = new ReflexManager();
+            var store2 = new SettingsStore();
+            manager2.Register(store2);
+            await using var persistor2 = new StatePersistor(manager2, storage);
+            await persistor2.StartAsync();
+
+            Assert.Equal("teal", store2.Accent);
+        }
+        """;
+
+    private const string HistoryTest = """
+        [Fact]
+        public void Undo_restores_the_previous_state()
+        {
+            var manager = new ReflexManager();
+            var store = new CounterStore();
+            manager.Register(store);
+
+            using var history = new ReflexHistory(manager);
+            history.Start();
+
+            store.Increment();
+            store.Increment();
+            Assert.Equal(2, store.Count);
+
+            history.Undo();
+            Assert.Equal(1, store.Count);
+            Assert.True(history.CanRedo);
+
+            history.Redo();
+            Assert.Equal(2, store.Count);
+        }
+        """;
+
+    private const string Bunit = """
+        [Fact]
+        public void The_component_renders_the_current_count()
+        {
+            using var ctx = new Bunit.TestContext();
+            ctx.Services.AddReflex();
+            ctx.Services.AddReflexStore<CounterStore>();
+
+            var component = ctx.RenderComponent<Counter>();
+            var store = ctx.Services.GetRequiredService<CounterStore>();
+
+            component.Find("button.increment").Click();
+
+            Assert.Equal(1, store.Count);
+            component.MarkupMatches("<p>Count: 1</p>*");
+        }
+        """;
+}
