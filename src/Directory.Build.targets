@@ -1,0 +1,12 @@
+<Project>
+
+  <!--
+    Imported after each project body, so $(IsPackable) already reflects the per-project opt-in.
+    The readme and icon live at the repository root and are shared by every package.
+  -->
+  <ItemGroup Condition="'$(IsPackable)' == 'true'">
+    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="\" Visible="false" />
+    <None Include="$(MSBuildThisFileDirectory)..\assets\icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+</Project>

@@ -1,14 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>$(ReflexTargetFrameworks)</TargetFrameworks>
+    <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Reflex.Testing</PackageId>
+    <Title>Reflex.Testing</Title>
     <Description>Testing helpers for Reflex: an action-recording harness and assertions for stores and the manager.</Description>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Reflex\Reflex.csproj" />
+    <!-- See Reflex.Blazor.csproj: keeps the bundled source generator flowing transitively. -->
+    <ProjectReference Include="..\Reflex\Reflex.csproj" PrivateAssets="none" />
   </ItemGroup>
 
 </Project>

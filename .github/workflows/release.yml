@@ -1,0 +1,88 @@
+name: Release
+
+# Publishes Reflex, Reflex.Blazor and Reflex.Testing to nuget.org.
+#
+# One-time setup:
+#   1. Repository Settings -> Secrets and variables -> Actions -> New repository secret named
+#      NUGET_API_KEY, holding a nuget.org API key scoped to the Reflex* package IDs.
+#   2. The `Reflex` ID is currently held by an unrelated, dormant package (owner `mycroes`,
+#      last published 2023-01-19). Until that ID is transferred through the NuGet package ID
+#      dispute process (https://learn.microsoft.com/nuget/nuget-org/policies/id-prefix-reservation
+#      and support@nuget.org), pushing Reflex.0.x.nupkg fails with 403 while Reflex.Blazor and
+#      Reflex.Testing publish fine.
+#
+# To ship: bump <Version> in src/Directory.Build.props, update CHANGELOG.md, commit, then
+#   git tag v0.3.0 && git push origin v0.3.0
+# The tag must match the version in Directory.Build.props or the job fails before publishing.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Build and validate the packages without pushing them'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Source Link embeds the commit; a shallow clone is enough but the full history
+          # keeps `git describe`-style diagnostics usable if a release ever needs debugging.
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Verify the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(grep -oPm1 '(?<=<Version>)[^<]+' src/Directory.Build.props)
+          echo "tag=$tag  Directory.Build.props=$version"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match <Version>$version</Version> in src/Directory.Build.props"
+            exit 1
+          fi
+
+      - name: Restore
+        run: dotnet restore src/Reflex.slnx
+
+      - name: Build (warnings as errors)
+        run: dotnet build src/Reflex.slnx --no-restore --configuration Release
+
+      - name: Test
+        run: dotnet test src/Reflex.slnx --no-build --configuration Release
+
+      - name: Pack
+        run: dotnet pack src/Reflex.slnx --no-build --configuration Release
+
+      - name: Upload packages as a build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/packages/*
+
+      - name: Push to nuget.org
+        if: startsWith(github.ref, 'refs/tags/v') && inputs.dry-run != true
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::NUGET_API_KEY secret is not set"
+            exit 1
+          fi
+          # --skip-duplicate keeps a re-run of the workflow from failing on already-pushed packages.
+          dotnet nuget push 'artifacts/packages/*.nupkg' \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "$NUGET_API_KEY" \
+            --skip-duplicate

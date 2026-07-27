@@ -1,19 +1,32 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>$(ReflexTargetFrameworks)</TargetFrameworks>
+    <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Reflex.Blazor</PackageId>
-    <Description>Blazor integration for Reflex: component base, &lt;ReflexProvider&gt;, and Redux DevTools time-travel bridge.</Description>
+    <Title>Reflex.Blazor</Title>
+    <Description>Blazor integration for Reflex: the ReflexComponentBase base class, &lt;ReflexProvider&gt;, browser-storage persistence, and the Redux DevTools time-travel bridge.</Description>
     <AddRazorSupportForMvc>true</AddRazorSupportForMvc>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <ComponentsWebVersion Condition="'$(TargetFramework)' == 'net8.0'">8.0.11</ComponentsWebVersion>
+    <ComponentsWebVersion Condition="'$(TargetFramework)' == 'net9.0'">9.0.0</ComponentsWebVersion>
+    <ComponentsWebVersion Condition="'$(TargetFramework)' == 'net10.0'">10.0.0</ComponentsWebVersion>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="10.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="$(ComponentsWebVersion)" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Reflex\Reflex.csproj" />
+    <!--
+      PrivateAssets="none" keeps NuGet from stamping exclude="Build,Analyzers" on the Reflex
+      dependency, so the bundled source generator still reaches a project that references only
+      Reflex.Blazor. Without it those consumers get the runtime but no codegen.
+    -->
+    <ProjectReference Include="..\Reflex\Reflex.csproj" PrivateAssets="none" />
   </ItemGroup>
 
 </Project>

@@ -36,3 +36,15 @@ jobs:
         with:
           name: test-results-${{ matrix.os }}
           path: TestResults
+
+      # Packing on every run means a broken nuspec, a missing analyzer or a stale
+      # readme/icon path is caught here rather than at release time.
+      - name: Pack
+        run: dotnet pack src/Reflex.slnx --no-build --configuration Release
+
+      - name: Upload packages
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts/packages/*

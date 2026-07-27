@@ -1,14 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>$(ReflexTargetFrameworks)</TargetFrameworks>
+    <IsPackable>true</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageId>Reflex</PackageId>
-    <Description>Lightweight, source-generator-powered reactive state management for Blazor with computed state, middleware, and Redux DevTools time-travel.</Description>
+    <Title>Reflex</Title>
+    <Description>Lightweight, source-generator-powered reactive state management for Blazor with computed state, middleware, and Redux DevTools time-travel. The source generator ships inside this package, so a single reference lights up codegen.</Description>
+  </PropertyGroup>
+
+  <!-- Match each TFM's own framework band; consumers still resolve their own newer patches. -->
+  <PropertyGroup>
+    <DependencyInjectionVersion Condition="'$(TargetFramework)' == 'net8.0'">8.0.2</DependencyInjectionVersion>
+    <DependencyInjectionVersion Condition="'$(TargetFramework)' == 'net9.0'">9.0.0</DependencyInjectionVersion>
+    <DependencyInjectionVersion Condition="'$(TargetFramework)' == 'net10.0'">10.0.0</DependencyInjectionVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="$(DependencyInjectionVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -20,16 +29,28 @@
     <!-- Ship the source generator inside the core package so a single reference lights up codegen. -->
     <ProjectReference Include="..\Reflex.Generators\Reflex.Generators.csproj"
                       OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+                      ReferenceOutputAssembly="false"
+                      SetTargetFramework="TargetFramework=netstandard2.0" />
   </ItemGroup>
 
-  <!-- Bundle the generator DLL into analyzers/dotnet/cs so consumers get codegen transitively. -->
-  <Target Name="PackReflexGenerator"
-          BeforeTargets="$(GenerateNuspecDependsOn)"
-          DependsOnTargets="ResolveProjectReferences">
+  <!--
+    Bundle the generator DLL into analyzers/dotnet/cs so consumers get codegen transitively.
+    Pack runs in the outer, TFM-agnostic build (hence the empty-TargetFramework condition) where
+    @(Analyzer) is never populated, so the generator's own output path is asked for directly.
+    GetTargetPath (rather than Build) keeps a no-build `dotnet pack` working; the analyzer project
+    reference above has already produced the DLL. TargetFramework has to be pinned on the child
+    call because the MSBuild task otherwise forwards the parent's, which the netstandard2.0-only
+    generator cannot resolve assets for.
+  -->
+  <Target Name="PackReflexGenerator" BeforeTargets="_GetPackageFiles" Condition="'$(TargetFramework)' == ''">
+    <MSBuild Projects="..\Reflex.Generators\Reflex.Generators.csproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);TargetFramework=netstandard2.0">
+      <Output TaskParameter="TargetOutputs" ItemName="_ReflexGeneratorBuildOutput" />
+    </MSBuild>
     <ItemGroup>
-      <None Include="@(Analyzer)"
-            Condition="'%(Filename)' == 'Reflex.Generators'"
+      <None Include="@(_ReflexGeneratorBuildOutput)"
+            Condition="'%(Extension)' == '.dll'"
             Pack="true"
             PackagePath="analyzers/dotnet/cs"
             Visible="false" />

@@ -1,5 +1,11 @@
 # Reflex
 
+[![NuGet](https://img.shields.io/nuget/v/Reflex.svg?label=Reflex)](https://www.nuget.org/packages/Reflex)
+[![NuGet](https://img.shields.io/nuget/v/Reflex.Blazor.svg?label=Reflex.Blazor)](https://www.nuget.org/packages/Reflex.Blazor)
+[![NuGet](https://img.shields.io/nuget/v/Reflex.Testing.svg?label=Reflex.Testing)](https://www.nuget.org/packages/Reflex.Testing)
+[![CI](https://github.com/msynk/Reflex/actions/workflows/ci.yml/badge.svg)](https://github.com/msynk/Reflex/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/msynk/Reflex/blob/main/LICENSE)
+
 Lightweight, source-generator-powered **reactive state management for Blazor** - with **Redux DevTools time-travel** built in.
 
 Reflex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux library but is widely criticized for boilerplate (separate Action / Reducer / Effect / Feature classes per operation) and for having no first-class DevTools time-travel. Reflex keeps the good parts of the Flux model - a single observable state tree, named actions, middleware - while a Roslyn source generator removes the ceremony and a tiny JS bridge wires you straight into the Redux DevTools browser extension.
@@ -25,6 +31,18 @@ Reflex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux li
 | Error isolation hook | ✗ | `options.OnError` |
 | Test helpers | ✗ | `Reflex.Testing` harness (+ `WaitForAsync`) |
 | Boilerplate | high | minimal (generated) |
+
+## Install
+
+```bash
+dotnet add package Reflex          # runtime + source generator
+dotnet add package Reflex.Blazor   # Blazor integration (ReflexProvider, DevTools bridge)
+dotnet add package Reflex.Testing  # optional, for unit tests
+```
+
+The packages target **net8.0, net9.0 and net10.0**. The Roslyn generator is packed *inside*
+`Reflex` (under `analyzers/dotnet/cs`), so a package reference is all it takes to light up
+codegen - there is no `Reflex.Generators` package to install.
 
 ## The whole store
 
@@ -370,7 +388,25 @@ dotnet build src/Reflex.slnx
 dotnet test src/Reflex.slnx
 dotnet run --project src/Demos/Reflex.Demo     # documentation site
 dotnet run --project src/Demos/Reflex.Sample   # minimal sample app
+dotnet pack src/Reflex.slnx -c Release         # nupkg + snupkg into artifacts/packages
 ```
+
+## Releasing
+
+Package metadata (version, authors, tags, readme, icon, Source Link) is centralised in
+[`src/Directory.Build.props`](https://github.com/msynk/Reflex/blob/main/src/Directory.Build.props).
+To publish:
+
+1. Bump `<Version>` there and move the `[Unreleased]` section of
+   [CHANGELOG.md](https://github.com/msynk/Reflex/blob/main/CHANGELOG.md) under the new version heading.
+2. Commit, then tag and push: `git tag v0.3.0 && git push origin v0.3.0`.
+3. The [Release workflow](https://github.com/msynk/Reflex/blob/main/.github/workflows/release.yml)
+   verifies that the tag matches
+   `<Version>`, builds, tests, packs, and pushes every package plus its symbol package to
+   nuget.org using the `NUGET_API_KEY` repository secret.
+
+`workflow_dispatch` runs the same pipeline in dry-run mode and uploads the packages as build
+artifacts without publishing them.
 
 ## License
 

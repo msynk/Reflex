@@ -8,7 +8,8 @@
         Reference <code>Reflex</code> for the runtime and <code>Reflex.Blazor</code> for the Blazor
         integration. The source generator is packed <em>inside</em> the core package (under
         <code>analyzers/dotnet/cs</code>), so a single package reference lights up code generation —
-        you never reference <code>Reflex.Generators</code> yourself.
+        you never reference <code>Reflex.Generators</code> yourself. Every package targets
+        <code>net8.0</code>, <code>net9.0</code> and <code>net10.0</code>.
     </p>
 
     <CodeBlock Code="@Install" Language="bash" Title="Add the packages" />
@@ -18,8 +19,8 @@
 
     <Callout Kind="Callout.CalloutKind.Note" Title="Working inside this repository">
         <p style="margin-bottom:0">
-            The sample and docs projects reference the generator as an analyzer
-            <em>project</em> reference instead, because the NuGet package has not been built yet:
+            The sample and docs projects live next to the sources, so they reference the generator
+            as an analyzer <em>project</em> reference instead of consuming the published package:
             <code>&lt;ProjectReference Include="..\..\Reflex.Generators\Reflex.Generators.csproj"
             OutputItemType="Analyzer" ReferenceOutputAssembly="false" /&gt;</code>.
         </p>
@@ -106,8 +107,8 @@
 
     private const string CsprojSample = """
         <ItemGroup>
-          <PackageReference Include="Reflex" Version="0.2.0" />
-          <PackageReference Include="Reflex.Blazor" Version="0.2.0" />
+          <PackageReference Include="Reflex" Version="0.3.0" />
+          <PackageReference Include="Reflex.Blazor" Version="0.3.0" />
         </ItemGroup>
         """;
 

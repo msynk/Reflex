@@ -4,6 +4,27 @@ All notable changes to Reflex are documented here.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-27
+
+First release published to NuGet.
+
+### Packaging
+
+- **Multi-targeting**: `Reflex`, `Reflex.Blazor` and `Reflex.Testing` now build and ship for
+  **net8.0, net9.0 and net10.0**, each with framework dependencies matched to its own band. The
+  full runtime test suite runs against all three.
+- `System.Threading.Lock` (net9+) is aliased to the classic monitor object on net8.0, so lock
+  sites compile unchanged on the older framework.
+- Packages carry a readme, icon, MIT license expression, repository metadata, tags, symbol
+  packages (`.snupkg`) and Source Link, and are produced deterministically. Metadata lives in
+  `src/Directory.Build.props`; `dotnet pack src/Reflex.slnx -c Release` writes to
+  `artifacts/packages`.
+- `Reflex.Generators` is no longer a separate package. It is bundled into `Reflex` under
+  `analyzers/dotnet/cs`, and `Reflex.Blazor`/`Reflex.Testing` depend on `Reflex` with
+  `PrivateAssets="none"` so the generator reaches consumers that reference only those packages.
+- CI packs on every run; a `Release` workflow publishes to nuget.org from a `v*` tag after
+  checking that the tag matches `<Version>`.
+
 ### Added
 
 - **Action payloads**: generated action/effect wrappers capture their arguments as `ActionArg`s,
