@@ -4,6 +4,7 @@
 // Time-travel is driven by the extension sending DISPATCH messages back to us.
 
 let connection = null;
+let unsubscribe = null;
 
 export function connect(dotNetRef, name) {
     const ext = window.__REDUX_DEVTOOLS_EXTENSION__;
@@ -14,19 +15,20 @@ export function connect(dotNetRef, name) {
 
     connection = ext.connect({
         name: name || "Reflex",
+        // Only advertise what the .NET side actually implements.
         features: {
-            pause: true,
+            pause: false,
             export: true,
             import: "custom",
             jump: true,
             skip: false,
             reorder: false,
-            dispatch: true,
+            dispatch: false,
             test: false
         }
     });
 
-    connection.subscribe(message => {
+    unsubscribe = connection.subscribe(message => {
         // Forward every extension message to .NET, which decides how to time-travel.
         dotNetRef.invokeMethodAsync("HandleMessage", JSON.stringify(message));
     });
@@ -39,16 +41,22 @@ export function init(stateJson) {
     connection.init(safeParse(stateJson));
 }
 
-export function send(actionType, stateJson) {
+export function send(actionType, stateJson, payloadJson) {
     if (!connection) return;
-    connection.send({ type: actionType }, safeParse(stateJson));
+    const action = { type: actionType };
+    if (payloadJson) {
+        action.payload = safeParse(payloadJson);
+    }
+    connection.send(action, safeParse(stateJson));
 }
 
 export function disconnect() {
-    const ext = window.__REDUX_DEVTOOLS_EXTENSION__;
-    if (ext && typeof ext.disconnect === "function") {
-        ext.disconnect();
+    // Detach only this connection; ext.disconnect() would kill every DevTools
+    // instance on the page (including other libraries').
+    if (typeof unsubscribe === "function") {
+        try { unsubscribe(); } catch { /* extension already gone */ }
     }
+    unsubscribe = null;
     connection = null;
 }
 

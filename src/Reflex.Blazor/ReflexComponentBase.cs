@@ -34,10 +34,26 @@ public abstract class ReflexComponentBase : ComponentBase, IDisposable
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(selector);
-        _selectorSubscriptions.Add(store.Subscribe(selector, _ => OnStoreChanged(), comparer));
+        _selectorSubscriptions.Add(store.Subscribe(selector, (Action<T>)(_ => OnStoreChanged()), comparer));
     }
 
-    private void OnStoreChanged() => InvokeAsync(StateHasChanged);
+    /// <summary>
+    /// Registers an arbitrary subscription token to be disposed with the component (e.g. a
+    /// cross-store <c>manager.SubscribeTo&lt;T&gt;(...)</c> token or a selector subscription
+    /// created manually).
+    /// </summary>
+    protected void OwnsSubscription(IDisposable subscription)
+    {
+        ArgumentNullException.ThrowIfNull(subscription);
+        _selectorSubscriptions.Add(subscription);
+    }
+
+    private void OnStoreChanged()
+    {
+        if (_disposed)
+            return;
+        _ = InvokeAsync(StateHasChanged);
+    }
 
     /// <inheritdoc />
     public void Dispose()
@@ -51,6 +67,15 @@ public abstract class ReflexComponentBase : ComponentBase, IDisposable
         foreach (var sub in _selectorSubscriptions)
             sub.Dispose();
         _selectorSubscriptions.Clear();
+        Dispose(disposing: true);
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Override to release additional resources when the component is disposed (the store
+    /// subscriptions are already detached when this runs).
+    /// </summary>
+    protected virtual void Dispose(bool disposing)
+    {
     }
 }

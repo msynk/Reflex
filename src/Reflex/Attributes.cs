@@ -62,12 +62,50 @@ public sealed class ActionAttribute : Attribute
 }
 
 /// <summary>
+/// How overlapping invocations of the same <see cref="EffectAttribute">effect</see> are handled,
+/// mirroring the RxJS flattening operators used by NgRx effects.
+/// </summary>
+public enum EffectConcurrency
+{
+    /// <summary>All invocations run concurrently (<c>mergeMap</c>). The default.</summary>
+    Parallel = 0,
+
+    /// <summary>
+    /// A new invocation cancels the previous one (<c>switchMap</c> / "take latest"). Ideal for
+    /// type-ahead search. Requires a <see cref="System.Threading.CancellationToken"/> parameter on
+    /// the effect method for the running body to actually observe the cancellation. A superseded
+    /// run can never overwrite the newest run's error state. Note that the previous run is
+    /// cancelled as soon as the new invocation starts -- even if middleware later vetoes it.
+    /// </summary>
+    Latest = 1,
+
+    /// <summary>
+    /// New invocations are ignored while one is running (<c>exhaustMap</c> / "take leading").
+    /// Ideal for guarding against double-clicked submit buttons.
+    /// </summary>
+    Drop = 2,
+
+    /// <summary>
+    /// Invocations run one at a time in arrival order (<c>concatMap</c>). Ideal for writes where
+    /// ordering matters. A Queue effect must never invoke itself (directly or via a subscriber
+    /// its body triggers) -- the nested call would wait on its own queue slot and deadlock.
+    /// </summary>
+    Queue = 3,
+}
+
+/// <summary>
 /// Marks an asynchronous method (returning <c>Task</c> or <c>ValueTask</c>, named <c>OnXxx</c>) as an
 /// effect: an async action whose loading/error lifecycle is managed for you. The generator emits the
 /// public <c>Xxx(...)</c> wrapper plus reactive <c>XxxIsLoading</c> (bool) and <c>XxxError</c>
-/// (<see cref="Exception"/>) properties. The wrapper sets <c>IsLoading</c> while running, captures any
-/// thrown exception into <c>Error</c> instead of propagating it, and records the body as one action.
+/// (<see cref="Exception"/>) properties. The wrapper keeps <c>IsLoading</c> <c>true</c> while any
+/// run is in flight, captures any thrown exception into <c>Error</c> instead of propagating it
+/// (cancellations are not treated as errors), and records the body as one action.
 /// </summary>
+/// <remarks>
+/// When the effect method's last parameter is a <see cref="System.Threading.CancellationToken"/>,
+/// the token is provided by the generated wrapper (it does not appear on the public method) and a
+/// <c>CancelXxx()</c> method is emitted to cancel in-flight runs.
+/// </remarks>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
 public sealed class EffectAttribute : Attribute
 {
@@ -76,4 +114,7 @@ public sealed class EffectAttribute : Attribute
     /// label; a value with spaces is treated as the display label only (wrapper derived from <c>On</c>).
     /// </summary>
     public string? Name { get; set; }
+
+    /// <summary>How overlapping invocations of this effect are handled. Defaults to <see cref="EffectConcurrency.Parallel"/>.</summary>
+    public EffectConcurrency Concurrency { get; set; }
 }

@@ -15,6 +15,8 @@ public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
 {
     private ReduxDevToolsConnector? _connector;
     private ComponentStatePersistence? _componentState;
+    private Task? _durableStartTask;
+    private bool _durableStateReady;
 
     [Inject] private ReflexManager Manager { get; set; } = default!;
     [Inject] private IEnumerable<IStore> Stores { get; set; } = default!;
@@ -60,23 +62,58 @@ public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
             }
         }
 
-        // Durable persistence (localStorage/sessionStorage), if configured.
-        var persistor = Services.GetService<StatePersistor>();
-        if (persistor is not null)
-            await persistor.StartAsync();
-
-        // In-app undo/redo, if configured.
-        Services.GetService<ReflexHistory>()?.Start();
+        // Durable persistence + history. During Blazor Server prerendering, browser storage is
+        // unreachable (JS interop is not available yet); in that case this is retried on first
+        // render so the app still starts and hydrates as soon as the circuit is interactive.
+        _durableStartTask = StartDurableStateAsync(rethrowInteropUnavailable: false);
+        await _durableStartTask;
     }
 
     /// <inheritdoc />
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && EnableDevTools)
+        if (!firstRender)
+            return;
+
+        // Blazor renders at the first await inside OnInitializedAsync, so this can run while the
+        // initial start is still in flight; await it rather than starting a concurrent one.
+        if (_durableStartTask is not null)
+            await _durableStartTask;
+
+        if (!_durableStateReady)
+            await StartDurableStateAsync(rethrowInteropUnavailable: true);
+
+        if (EnableDevTools)
         {
             _connector = new ReduxDevToolsConnector(Js);
             await _connector.ConnectAsync(Manager, Options.DevToolsName);
         }
+    }
+
+    private async Task StartDurableStateAsync(bool rethrowInteropUnavailable)
+    {
+        try
+        {
+            var persistor = Services.GetService<StatePersistor>();
+            if (persistor is not null)
+                await persistor.StartAsync();
+        }
+        catch (InvalidOperationException) when (!rethrowInteropUnavailable)
+        {
+            // JS interop is unavailable during prerendering; retry after the first render.
+            return;
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit torn down mid-start; nothing to do.
+            return;
+        }
+
+        _durableStateReady = true;
+
+        // Start recording history only after rehydration so the baseline (the state Undo
+        // ultimately returns to) is the hydrated state, not the pre-hydration defaults.
+        Services.GetService<ReflexHistory>()?.Start();
     }
 
     /// <inheritdoc />
@@ -89,6 +126,9 @@ public sealed class ReflexProvider : ComponentBase, IAsyncDisposable
         _componentState?.Dispose();
 
         if (_connector is not null)
+        {
+            Manager.DisconnectDevTools();
             await _connector.DisposeAsync();
+        }
     }
 }

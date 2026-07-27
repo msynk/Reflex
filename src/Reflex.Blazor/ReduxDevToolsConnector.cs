@@ -14,26 +14,47 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
     private DotNetObjectReference<ReduxDevToolsConnector>? _selfRef;
     private ReflexManager? _manager;
     private bool _ready;
+    private bool _disposed;
 
     /// <summary>Creates a connector over the supplied JS runtime.</summary>
     public ReduxDevToolsConnector(IJSRuntime js) => _js = js;
 
     /// <summary>
     /// Loads the JS bridge, connects to the extension and wires the manager. Safe to call when the
-    /// extension is absent - it simply becomes a no-op.
+    /// extension is absent or the bridge fails to load - it simply becomes a no-op.
     /// </summary>
     public async Task ConnectAsync(ReflexManager manager, string name)
     {
         _manager = manager;
-        _module = await _js.InvokeAsync<IJSObjectReference>(
-            "import", "./_content/Reflex.Blazor/reflex-devtools.js");
-        _selfRef = DotNetObjectReference.Create(this);
-
-        var connected = await _module.InvokeAsync<bool>("connect", _selfRef, name);
-        if (connected)
+        try
         {
-            _ready = true;
-            manager.ConnectDevTools(this);
+            var module = await _js.InvokeAsync<IJSObjectReference>(
+                "import", "./_content/Reflex.Blazor/reflex-devtools.js");
+            if (_disposed)
+            {
+                // Disposed while the import was in flight (fast navigation); don't connect.
+                await module.DisposeAsync();
+                return;
+            }
+
+            _module = module;
+            _selfRef = DotNetObjectReference.Create(this);
+
+            var connected = await _module.InvokeAsync<bool>("connect", _selfRef, name);
+            if (connected && !_disposed)
+            {
+                _ready = true;
+                manager.ConnectDevTools(this);
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit gone before the bridge loaded.
+        }
+        catch (JSException ex)
+        {
+            // A missing static asset or an extension quirk must not break app startup.
+            Console.Error.WriteLine($"[Reflex] DevTools bridge unavailable: {ex.Message}");
         }
     }
 
@@ -46,9 +67,13 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
 
     /// <inheritdoc />
     public void Send(string actionName, JsonObject globalState)
+        => Send(actionName, globalState, null);
+
+    /// <inheritdoc />
+    public void Send(string actionName, JsonObject globalState, JsonObject? payload)
     {
         if (_ready && _module is not null)
-            FireAndForget(_module.InvokeVoidAsync("send", actionName, globalState.ToJsonString()));
+            FireAndForget(_module.InvokeVoidAsync("send", actionName, globalState.ToJsonString(), payload?.ToJsonString()));
     }
 
     // DevTools is a non-critical sink, so interop is dispatched without blocking the dispatch
@@ -89,6 +114,8 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {
+        _disposed = true;
+        _ready = false;
         try
         {
             if (_module is not null)
@@ -97,9 +124,9 @@ public sealed class ReduxDevToolsConnector : IReflexDevTools, IAsyncDisposable
                 await _module.DisposeAsync();
             }
         }
-        catch (JSDisconnectedException)
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException or ObjectDisposedException)
         {
-            // Circuit already gone; nothing to clean up.
+            // Circuit teardown can surface any of these from JS interop; nothing to clean up.
         }
 
         _selfRef?.Dispose();

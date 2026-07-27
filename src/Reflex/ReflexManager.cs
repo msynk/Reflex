@@ -46,6 +46,40 @@ public sealed class ReflexManager
     /// <summary>Optional sanitizer applied to the action label sent to the DevTools extension.</summary>
     public Func<string, string>? DevToolsActionSanitizer { get; set; }
 
+    /// <summary>
+    /// Optional sink for non-fatal errors that Reflex isolates from the dispatch pipeline
+    /// (throwing subscribers, middleware, persistence writes, restores, sanitizers, ...).
+    /// When unset, errors are written to <see cref="Console.Error"/>. Handlers must not throw;
+    /// a throwing handler is itself swallowed to keep dispatch alive.
+    /// </summary>
+    public Action<ReflexError>? OnError { get; set; }
+
+    /// <summary>
+    /// Whether anything observes dispatched actions (middleware, DevTools or subscribers).
+    /// Lets hot paths skip payload capture when nobody is listening.
+    /// </summary>
+    internal bool HasObservers => _middleware.Count > 0 || _connected || ActionDispatched is not null;
+
+    /// <summary>Routes an isolated error to <see cref="OnError"/>, or <see cref="Console.Error"/> when unset.</summary>
+    internal void ReportError(string source, Exception exception, string? detail = null)
+    {
+        var handler = OnError;
+        if (handler is null)
+        {
+            Console.Error.WriteLine($"[Reflex] {source} failed{(detail is null ? "" : $" ({detail})")}: {exception.Message}");
+            return;
+        }
+
+        try
+        {
+            handler(new ReflexError(source, exception, detail));
+        }
+        catch
+        {
+            // The error handler is the last line of defense; nothing left to do.
+        }
+    }
+
     /// <summary>Returns the first registered store of type <typeparamref name="TStore"/>, or <c>null</c>.</summary>
     public TStore? GetStore<TStore>() where TStore : class, IStore
     {
@@ -82,7 +116,7 @@ public sealed class ReflexManager
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[Reflex] action subscriber failed: {ex.Message}");
+                ReportError("subscriber", ex, ctx.QualifiedName);
             }
         }
 
@@ -114,14 +148,14 @@ public sealed class ReflexManager
         return Subscribe(ctx => ObserveAsync(handler(ctx)), filter);
     }
 
-    private static void ObserveAsync(Task task)
+    private void ObserveAsync(Task task)
     {
         if (task.IsCompletedSuccessfully)
             return;
 
-        _ = Awaited(task);
+        _ = Awaited(this, task);
 
-        static async Task Awaited(Task t)
+        static async Task Awaited(ReflexManager manager, Task t)
         {
             try
             {
@@ -129,7 +163,7 @@ public sealed class ReflexManager
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine($"[Reflex] async reactor failed: {ex.Message}");
+                manager.ReportError("async reactor", ex);
             }
         }
     }
@@ -159,6 +193,20 @@ public sealed class ReflexManager
         }
     }
 
+    /// <summary>
+    /// Removes a store from the manager (e.g. when a lazily-loaded feature is torn down).
+    /// The store keeps working standalone; its actions are simply no longer observed.
+    /// </summary>
+    public void Unregister(IStore store)
+    {
+        ArgumentNullException.ThrowIfNull(store);
+        lock (_gate)
+        {
+            if (_stores.Remove(store) && store is StoreBase sb)
+                sb.Detach();
+        }
+    }
+
     /// <summary>Attaches a DevTools sink and sends the current state as the initial snapshot.</summary>
     public void ConnectDevTools(IReflexDevTools devTools)
     {
@@ -169,6 +217,13 @@ public sealed class ReflexManager
         _committedState = state;
         _connected = true;
         devTools.Init(SanitizeState(state));
+    }
+
+    /// <summary>Detaches the DevTools sink (e.g. when the bridge is disposed).</summary>
+    public void DisconnectDevTools()
+    {
+        _devTools = null;
+        _connected = false;
     }
 
     /// <summary>Builds the global state tree: <c>{ "&lt;StoreName&gt;": &lt;state&gt;, ... }</c>.</summary>
@@ -188,21 +243,41 @@ public sealed class ReflexManager
     /// Runs the before-action pipeline. Returns <c>false</c> if any middleware vetoed the action,
     /// in which case the caller must skip the mutation. Cheap no-op when no middleware is registered.
     /// </summary>
-    internal bool BeforeAction(IStore source, string actionName)
+    /// <summary>
+    /// Actions whose observers are currently being notified. A reactor that dispatches a
+    /// follow-up action would otherwise change state before a later observer of the *original*
+    /// action lazily captures its snapshot; freezing in-flight snapshots first keeps attribution
+    /// correct.
+    /// </summary>
+    private readonly List<ReflexActionContext> _inFlight = [];
+
+    private void FreezeInFlightSnapshots()
     {
+        for (var i = 0; i < _inFlight.Count; i++)
+            _ = _inFlight[i].GlobalState;
+    }
+
+    internal bool BeforeAction(IStore source, string actionName, IReadOnlyList<ActionArg>? args = null)
+    {
+        // This runs just before a new mutation; pin the snapshots of any actions still being
+        // observed so their lazily-captured GlobalState reflects *their* state, not this one's.
+        if (_inFlight.Count > 0)
+            FreezeInFlightSnapshots();
+
         if (_middleware.Count == 0)
             return true;
 
-        var context = new ReflexPreActionContext(source, actionName);
+        var context = new ReflexPreActionContext(source, actionName, args);
         foreach (var mw in _middleware)
         {
             try
             {
                 mw.BeforeAction(context);
             }
-            catch
+            catch (Exception ex)
             {
                 // A misbehaving filter must not break dispatch.
+                ReportError("middleware", ex, context.QualifiedName);
             }
 
             if (context.IsCancelled)
@@ -212,33 +287,74 @@ public sealed class ReflexManager
         return !context.IsCancelled;
     }
 
-    internal void RecordAction(IStore source, string actionName)
+    internal void RecordAction(IStore source, string actionName, IReadOnlyList<ActionArg>? args = null)
     {
-        // Building and serializing the global state on every action is expensive, so skip the
-        // whole pipeline when nothing is listening (no middleware, no DevTools, no subscribers).
-        if (_middleware.Count == 0 && !_connected && ActionDispatched is null)
+        // Skip the whole pipeline when nothing is listening (no middleware, no DevTools, no
+        // subscribers). The global state itself is captured lazily by the context, so observers
+        // that never read it (e.g. persistence) don't pay for full-tree serialization either.
+        if (!HasObservers)
             return;
 
-        var global = CaptureGlobalState();
-        _initialState ??= global;
-        var context = new ReflexActionContext(source, actionName, global, ++_sequence);
+        var context = new ReflexActionContext(source, actionName, CaptureGlobalState, ++_sequence, args);
 
-        foreach (var mw in _middleware)
+        _inFlight.Add(context);
+        try
         {
+            foreach (var mw in _middleware)
+            {
+                try
+                {
+                    mw.OnAction(context);
+                }
+                catch (Exception ex)
+                {
+                    // Middleware must not break dispatch. Errors are isolated and reported.
+                    ReportError("middleware", ex, context.QualifiedName);
+                }
+            }
+
+            // DevTools must see this action before any subscriber reacts: a reactor that
+            // dispatches a follow-up action re-enters RecordAction, and sending that first would
+            // invert the extension's timeline (breaking time-travel ordering).
+            if (_connected && _devTools is not null)
+            {
+                var global = context.GlobalState;
+                _initialState ??= global;
+                _devTools.Send(SanitizeAction(context.QualifiedName), SanitizeState(global), BuildDevToolsPayload(context.Args));
+            }
+
+            ActionDispatched?.Invoke(context);
+        }
+        finally
+        {
+            _inFlight.RemoveAt(_inFlight.Count - 1);
+        }
+    }
+
+    private JsonObject? BuildDevToolsPayload(IReadOnlyList<ActionArg> args)
+    {
+        if (args.Count == 0)
+            return null;
+
+        var payload = new JsonObject();
+        foreach (var arg in args)
+        {
+            JsonNode? node;
             try
             {
-                mw.OnAction(context);
+                node = JsonSerializer.SerializeToNode(arg.Value, ReflexJson.Options);
             }
             catch
             {
-                // Middleware must not break dispatch. Errors are intentionally isolated.
+                node = "<unserializable>";
             }
+
+            payload[arg.Name] = node;
         }
 
-        ActionDispatched?.Invoke(context);
-
-        if (_connected)
-            _devTools?.Send(SanitizeAction(context.QualifiedName), SanitizeState(global));
+        // Run the payload through the state sanitizer as well so key-based redaction
+        // (RedactDevToolsKeys) covers action arguments too.
+        return SanitizeState(payload);
     }
 
     private JsonObject SanitizeState(JsonObject state)
@@ -249,9 +365,12 @@ public sealed class ReflexManager
         {
             return DevToolsStateSanitizer(state) ?? state;
         }
-        catch
+        catch (Exception ex)
         {
-            return state;
+            // Fail closed: a broken redaction sanitizer must not leak the data it was meant to
+            // hide, so an empty tree is sent instead of the unsanitized one.
+            ReportError("devtools", ex, "state sanitizer failed; state withheld from DevTools");
+            return new JsonObject();
         }
     }
 
@@ -263,9 +382,11 @@ public sealed class ReflexManager
         {
             return DevToolsActionSanitizer(label) ?? label;
         }
-        catch
+        catch (Exception ex)
         {
-            return label;
+            // Fail closed, mirroring SanitizeState.
+            ReportError("devtools", ex, "action sanitizer failed; label withheld from DevTools");
+            return "<sanitizer-error>";
         }
     }
 
@@ -334,25 +455,66 @@ public sealed class ReflexManager
         if (string.IsNullOrEmpty(stateJson))
             return;
 
-        if (JsonNode.Parse(stateJson) is JsonObject obj)
-            RestoreGlobalState(obj);
+        try
+        {
+            if (JsonNode.Parse(stateJson) is JsonObject obj)
+                RestoreGlobalState(obj);
+        }
+        catch (Exception ex)
+        {
+            // A malformed or schema-drifted DevTools snapshot must not crash the interop callback.
+            ReportError("devtools", ex, "time-travel restore");
+        }
     }
 
-    /// <summary>Applies a global state tree to every store without recording new actions.</summary>
+    /// <summary>
+    /// Raised after <see cref="RestoreGlobalState"/> applies a snapshot (time-travel, undo/redo).
+    /// Persistence uses this to write the restored state back to storage so a reload does not
+    /// resurrect the pre-restore state.
+    /// </summary>
+    public event Action? StateRestored;
+
+    /// <summary>
+    /// Applies a global state tree to every store without recording new actions. A store whose
+    /// slice fails to deserialize is reported via <see cref="OnError"/> and skipped; the other
+    /// stores still restore.
+    /// </summary>
     public void RestoreGlobalState(JsonObject global)
     {
         ArgumentNullException.ThrowIfNull(global);
+
+        // A restore triggered from inside an observer (e.g. a reactor calling history.Undo())
+        // mutates state just like a new action would; pin in-flight snapshots first so they
+        // keep the state that belonged to their own actions.
+        if (_inFlight.Count > 0)
+            FreezeInFlightSnapshots();
+
+        // Snapshot the registry, then apply outside the lock: ApplyRestoredState raises
+        // StateChanged, and a handler that registers/unregisters a store must not deadlock or
+        // invalidate the enumeration.
+        IStore[] stores;
         lock (_gate)
         {
-            foreach (var store in _stores)
+            stores = [.. _stores];
+        }
+
+        foreach (var store in stores)
+        {
+            if (global[store.Name] is JsonObject slice && store is StoreBase sb)
             {
-                if (global[store.Name] is JsonObject slice && store is StoreBase sb)
+                try
                 {
                     // Clone so the store owns its node (a JsonNode can't be parented twice).
                     var clone = (JsonObject)slice.DeepClone();
                     sb.ApplyRestoredState(clone);
                 }
+                catch (Exception ex)
+                {
+                    ReportError("restore", ex, store.Name);
+                }
             }
         }
+
+        StateRestored?.Invoke();
     }
 }

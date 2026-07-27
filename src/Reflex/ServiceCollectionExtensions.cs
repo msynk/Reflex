@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
             {
                 DevToolsStateSanitizer = opts.DevToolsStateSanitizer,
                 DevToolsActionSanitizer = opts.DevToolsActionSanitizer,
+                OnError = opts.OnError,
             };
         });
 
@@ -34,11 +35,18 @@ public static class ServiceCollectionExtensions
 
     /// <summary>
     /// Registers a store as a scoped service exposed both as its concrete type and as <see cref="IStore"/>.
+    /// The store is attached to the <see cref="ReflexManager"/> on first resolution, so actions are
+    /// observed even in hosts without a <c>&lt;ReflexProvider&gt;</c> (console apps, workers, tests).
     /// </summary>
     public static IServiceCollection AddReflexStore<TStore>(this IServiceCollection services)
         where TStore : StoreBase
     {
-        services.AddScoped<TStore>();
+        services.AddScoped(sp =>
+        {
+            var store = ActivatorUtilities.CreateInstance<TStore>(sp);
+            sp.GetRequiredService<ReflexManager>().Register(store);
+            return store;
+        });
         services.AddScoped<IStore>(sp => sp.GetRequiredService<TStore>());
         return services;
     }

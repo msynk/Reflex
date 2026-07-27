@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 
 namespace Reflex;
@@ -22,6 +21,7 @@ public abstract class StoreBase : IStore
     private int _notifyDepth;
     private bool _dirty;
     private ReflexManager? _manager;
+    private JsonObject? _initialState;
 
     /// <inheritdoc />
     public abstract string Name { get; }
@@ -41,49 +41,85 @@ public abstract class StoreBase : IStore
     /// <summary>True while the manager is applying a time-travel/restore snapshot.</summary>
     protected bool IsRestoring { get; private set; }
 
+    /// <summary>
+    /// Whether anything (middleware, DevTools, subscribers) observes dispatched actions.
+    /// Generated wrappers use this to skip argument capture when nobody is listening.
+    /// </summary>
+    protected bool IsObserved => _manager?.HasObservers ?? false;
+
     /// <summary>Called by the generator to invalidate memoized computed values.</summary>
     protected virtual void InvalidateComputed()
     {
     }
 
-    /// <summary>Called by the generator's deserialize implementation to set a backing field directly.</summary>
+    /// <summary>
+    /// Invalidates computed values and raises <see cref="StateChanged"/>. Useful for manual
+    /// (non-generated) store implementations after restoring state out-of-band.
+    /// </summary>
     protected void NotifyRestored()
     {
         InvalidateComputed();
         StateChanged?.Invoke();
     }
 
-    internal void Attach(ReflexManager manager) => _manager = manager;
+    internal void Attach(ReflexManager manager)
+    {
+        _manager = manager;
+        // First registration captures the store's initial state so ResetState can return to it.
+        _initialState ??= SerializeState();
+    }
+
+    /// <summary>Detaches from the manager so actions are no longer observed (see <see cref="ReflexManager.Unregister"/>).</summary>
+    internal void Detach() => _manager = null;
 
     /// <summary>
     /// Assigns a state backing field. Raises change notification immediately unless inside a
     /// synchronous <see cref="Dispatch(string, Action)"/> batch, and records a standalone
     /// "Set X" action when not inside any dispatch. Used by generated setters.
     /// </summary>
-    protected void SetState<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    protected void SetState<T>(ref T field, T value, [System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))
             return;
 
-        // A standalone set is its own action; give middleware a chance to veto it before applying.
-        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, $"Set {propertyName}"))
+        if (_recordDepth == 0 && _manager is { HasObservers: true } manager)
+        {
+            // A standalone set is its own action; give middleware a chance to veto it before
+            // applying. The label/args are only materialized when something is listening.
+            // (_notifyDepth is always 0 here: a non-zero notify depth implies a record depth.)
+            var label = "Set " + propertyName;
+            var args = new[] { new ActionArg(propertyName ?? "value", (object?)value) };
+            if (!manager.BeforeAction(this, label, args))
+                return;
+
+            field = value;
+            InvalidateComputed();
+            try
+            {
+                StateChanged?.Invoke();
+            }
+            finally
+            {
+                // Record even when a subscriber throws: the mutation *was* applied, and skipping
+                // the record would leave persistence/history/DevTools out of sync.
+                manager.RecordAction(this, label, args);
+            }
+
             return;
+        }
 
         field = value;
-        _dirty = true;
 
         // Inside a sync batch we defer the render until the action completes (single re-render).
+        // The dirty flag only matters inside a dispatch; a standalone set with nothing listening
+        // records nothing, and must not leak the flag into a later dispatch.
+        if (_recordDepth > 0)
+            _dirty = true;
+
         if (_notifyDepth == 0)
         {
             InvalidateComputed();
             StateChanged?.Invoke();
-        }
-
-        // Outside any dispatch this is a standalone action; record it now.
-        if (_recordDepth == 0)
-        {
-            _dirty = false;
-            _manager?.RecordAction(this, $"Set {propertyName}");
         }
     }
 
@@ -102,13 +138,45 @@ public abstract class StoreBase : IStore
     }
 
     /// <summary>
+    /// Increments an effect's pending-run counter and notifies. With overlapping runs of the same
+    /// effect, the generated <c>IsLoading</c> property stays <c>true</c> until the last run ends.
+    /// </summary>
+    protected void BeginEffect(ref int pending)
+    {
+        pending++;
+        if (pending == 1)
+        {
+            InvalidateComputed();
+            StateChanged?.Invoke();
+        }
+    }
+
+    /// <summary>Decrements an effect's pending-run counter and notifies when it reaches zero.</summary>
+    protected void EndEffect(ref int pending)
+    {
+        pending--;
+        if (pending == 0)
+        {
+            InvalidateComputed();
+            StateChanged?.Invoke();
+        }
+    }
+
+    /// <summary>
     /// Runs <paramref name="mutation"/> as a single named action: synchronous state changes inside
     /// it are batched into one notification and one time-travel entry.
     /// </summary>
     protected void Dispatch(string actionName, Action mutation)
+        => Dispatch(actionName, mutation, null);
+
+    /// <summary>
+    /// Runs <paramref name="mutation"/> as a single named action carrying the given arguments
+    /// (surfaced to middleware, subscribers and DevTools). Used by generated wrappers.
+    /// </summary>
+    protected void Dispatch(string actionName, Action mutation, ActionArg[]? args)
     {
         ArgumentNullException.ThrowIfNull(mutation);
-        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName))
+        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName, args))
             return;
 
         _recordDepth++;
@@ -121,14 +189,59 @@ public abstract class StoreBase : IStore
         {
             _notifyDepth--;
             _recordDepth--;
-            if (_recordDepth == 0 && _dirty)
+
+            // Flush the deferred notification when this was the outermost *sync* batch, even if
+            // an async action is still in flight above us (it keeps _recordDepth > 0 but does not
+            // hold _notifyDepth, so its nested sync actions must render on completion).
+            // A non-zero notify depth implies a record depth, so the notify-flush check covers
+            // every dirty case here.
+            if (_dirty && _notifyDepth == 0)
             {
-                _dirty = false;
                 InvalidateComputed();
-                StateChanged?.Invoke();
-                _manager?.RecordAction(this, actionName);
+                var record = _recordDepth == 0;
+                if (record)
+                    _dirty = false; // reset before notifying so a throwing subscriber can't leak it
+
+                try
+                {
+                    StateChanged?.Invoke();
+                }
+                finally
+                {
+                    if (record)
+                        _manager?.RecordAction(this, actionName, args);
+                }
             }
         }
+    }
+
+    /// <summary>
+    /// Groups ad-hoc mutations into a single named action from outside the store's own
+    /// <c>[Action]</c> methods -- one notification, one time-travel entry, one middleware pass.
+    /// The equivalent of Pinia's <c>$patch</c> / MobX's <c>runInAction</c>.
+    /// </summary>
+    /// <example><code>store.Batch("Apply preset", () => { store.Count = 10; store.Step = 5; });</code></example>
+    public void Batch(string actionName, Action mutations)
+    {
+        ArgumentNullException.ThrowIfNull(actionName);
+        Dispatch(actionName, mutations, null);
+    }
+
+    /// <summary>
+    /// Restores the store to the state it had when it was first registered with the manager,
+    /// recorded as a normal <c>"ResetState"</c> action (so it is vetoable, observable, persisted
+    /// and time-travelable). No-op when the store has never been registered.
+    /// </summary>
+    public void ResetState()
+    {
+        if (_initialState is null)
+            return;
+
+        Dispatch("ResetState", () =>
+        {
+            DeserializeState((JsonObject)_initialState.DeepClone());
+            _dirty = true;
+        }, null);
     }
 
     /// <summary>
@@ -140,10 +253,16 @@ public abstract class StoreBase : IStore
     /// outside this store while the action is awaiting is attributed to this action. Treat a
     /// store as owned by its in-flight async action until it completes.
     /// </remarks>
-    protected async Task DispatchAsync(string actionName, Func<Task> mutation)
+    protected Task DispatchAsync(string actionName, Func<Task> mutation)
+        => DispatchAsync(actionName, mutation, null);
+
+    /// <summary>
+    /// Async variant carrying action arguments (surfaced to middleware, subscribers and DevTools).
+    /// </summary>
+    protected async Task DispatchAsync(string actionName, Func<Task> mutation, ActionArg[]? args)
     {
         ArgumentNullException.ThrowIfNull(mutation);
-        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName))
+        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName, args))
             return;
 
         _recordDepth++;
@@ -157,10 +276,23 @@ public abstract class StoreBase : IStore
             if (_recordDepth == 0 && _dirty)
             {
                 _dirty = false;
-                _manager?.RecordAction(this, actionName);
+                _manager?.RecordAction(this, actionName, args);
             }
         }
     }
+
+    /// <summary>
+    /// Applies a snapshot produced by <see cref="SerializeState"/> without recording an action,
+    /// then invalidates computed values and raises <see cref="StateChanged"/> exactly once.
+    /// This is the safe public entry point for hydrating a store manually (prefer it over
+    /// calling <see cref="DeserializeState"/> directly, which performs the raw field writes only).
+    /// </summary>
+    public void RestoreState(JsonObject state)
+    {
+        ArgumentNullException.ThrowIfNull(state);
+        ApplyRestoredState(state);
+    }
+
     /// <summary>
     /// Applies a restored snapshot without recording a new action. Invoked by the manager during
     /// time-travel. Raises <see cref="StateChanged"/> exactly once.

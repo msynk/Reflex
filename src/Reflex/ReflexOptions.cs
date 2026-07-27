@@ -21,6 +21,13 @@ public sealed class ReflexOptions
     public Func<string, string>? DevToolsActionSanitizer { get; set; }
 
     /// <summary>
+    /// Sink for non-fatal errors Reflex isolates from the dispatch pipeline (throwing
+    /// subscribers, middleware, persistence writes, restores, ...). Wired onto
+    /// <see cref="ReflexManager.OnError"/>. When unset, errors go to <see cref="Console.Error"/>.
+    /// </summary>
+    public Action<ReflexError>? OnError { get; set; }
+
+    /// <summary>
     /// Convenience: redacts the named top-level keys (recursively, anywhere in the tree) from the
     /// state sent to DevTools, replacing their values with <c>"&lt;redacted&gt;"</c>.
     /// </summary>
@@ -43,8 +50,24 @@ public sealed class ReflexOptions
             {
                 if (keys.Contains(key))
                     obj[key] = "<redacted>";
-                else if (obj[key] is JsonObject child)
+                else
+                    WalkNode(obj[key]);
+            }
+        }
+
+        // Arrays must be descended too: collection state (entity lists, action args) commonly
+        // nests objects inside arrays, and a redaction feature must not leak through them.
+        void WalkNode(System.Text.Json.Nodes.JsonNode? node)
+        {
+            switch (node)
+            {
+                case JsonObject child:
                     Walk(child);
+                    break;
+                case System.Text.Json.Nodes.JsonArray array:
+                    foreach (var element in array)
+                        WalkNode(element);
+                    break;
             }
         }
     }
@@ -61,7 +84,8 @@ public sealed class ReflexOptions
     /// The instance is stored on the (singleton) options and therefore shared across every DI
     /// scope. Under Blazor Server that means it is shared across all circuits, so avoid holding
     /// per-user state in it. Use <see cref="UseMiddleware{TMiddleware}"/> for scoped, per-circuit
-    /// middleware.
+    /// middleware. Ordering note: all DI-registered middleware (<see cref="UseMiddleware{TMiddleware}"/>)
+    /// run before instance/delegate middleware, regardless of registration interleaving.
     /// </remarks>
     public ReflexOptions UseMiddleware(IReflexMiddleware middleware)
     {

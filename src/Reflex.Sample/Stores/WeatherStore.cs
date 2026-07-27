@@ -1,0 +1,55 @@
+using System.Net.Http.Json;
+using Reflex;
+
+namespace Reflex.Sample.Stores;
+
+/// <summary>A forecast row loaded from <c>sample-data/weather.json</c>.</summary>
+public sealed record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
+{
+    /// <summary>Fahrenheit projection of <see cref="TemperatureC"/>.</summary>
+    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
+}
+
+/// <summary>
+/// Demonstrates cancellable effects: <c>[Effect(Concurrency = Latest)]</c> gives type-ahead
+/// ("switchMap") semantics -- a new <c>Load</c> cancels the previous one -- and the trailing
+/// <see cref="CancellationToken"/> parameter makes the generator emit a <c>CancelLoad()</c> method.
+/// Loading and error state (<c>LoadIsLoading</c>/<c>LoadError</c>) are generated; cancellations
+/// are never surfaced as errors. Stores are plain DI services, so injecting HttpClient just works.
+/// </summary>
+[Store(Name = "weather")]
+public partial class WeatherStore
+{
+    private readonly HttpClient _http;
+
+    public WeatherStore(HttpClient http) => _http = http;
+
+    [State] private WeatherForecast[]? _forecasts;
+    [State] private DateTimeOffset? _loadedAt;
+
+    [Computed]
+    private int ComputeCount() => Forecasts?.Length ?? 0;
+
+    [Effect(Concurrency = EffectConcurrency.Latest)]
+    private async Task OnLoad(bool simulateFailure, CancellationToken ct)
+    {
+        Forecasts = null;
+        LoadedAt = null;
+
+        // Pretend the network is slow so cancellation and "latest wins" are observable.
+        await Task.Delay(1500, ct);
+
+        if (simulateFailure)
+            throw new HttpRequestException("The weather service is unavailable (simulated).");
+
+        Forecasts = await _http.GetFromJsonAsync<WeatherForecast[]>("sample-data/weather.json", ReflexJson.Options, ct);
+        LoadedAt = DateTimeOffset.Now;
+    }
+
+    [Action]
+    private void OnClear()
+    {
+        Forecasts = null;
+        LoadedAt = null;
+    }
+}

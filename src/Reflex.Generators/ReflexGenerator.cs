@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
@@ -9,8 +10,9 @@ namespace Reflex.Generators;
 
 /// <summary>
 /// Generates the reactive plumbing for classes annotated with <c>[Reflex.Store]</c>:
-/// reactive properties, memoized computed accessors, named action wrappers, JSON snapshot
-/// support and the <c>StoreBase</c> base type.
+/// reactive properties, memoized computed accessors, named action wrappers, effect wrappers
+/// (loading/error lifecycle, cancellation, concurrency modes), JSON snapshot support and the
+/// <c>StoreBase</c> base type.
 /// </summary>
 [Generator(LanguageNames.CSharp)]
 public sealed class ReflexGenerator : IIncrementalGenerator
@@ -20,6 +22,24 @@ public sealed class ReflexGenerator : IIncrementalGenerator
     private const string ComputedAttribute = "Reflex.ComputedAttribute";
     private const string ActionAttribute = "Reflex.ActionAttribute";
     private const string EffectAttribute = "Reflex.EffectAttribute";
+    private const string CancellationTokenType = "System.Threading.CancellationToken";
+
+    /// <summary>Fully-qualified display that keeps nullable reference annotations (e.g. <c>string?</c>).</summary>
+    private static readonly SymbolDisplayFormat TypeFormat =
+        SymbolDisplayFormat.FullyQualifiedFormat.AddMiscellaneousOptions(
+            SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+
+    /// <summary>
+    /// Member names the generator itself emits or inherits from <c>StoreBase</c>; a state,
+    /// computed, action or effect must not generate one of these.
+    /// </summary>
+    private static readonly string[] ReservedNames =
+    [
+        "Name", "Persist", "StateChanged", "SerializeState", "DeserializeState",
+        "InvalidateComputed", "NotifyRestored", "SetState", "SetEffectState",
+        "BeginEffect", "EndEffect", "Dispatch", "DispatchAsync",
+        "Batch", "ResetState", "RestoreState", "IsRestoring", "IsObserved",
+    ];
 
     private static readonly DiagnosticDescriptor NotPartial = new(
         "REFLEX001",
@@ -56,7 +76,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor DuplicateMember = new(
         "REFLEX005",
         "Generated member name collides",
-        "Reflex store '{0}' generates more than one member named '{1}'. Rename the conflicting state, computed or action.",
+        "Reflex store '{0}' would generate more than one member named '{1}' (or collide with an existing/reserved member). Rename the conflicting state, computed, action or effect.",
         "Reflex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -77,48 +97,144 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor MustBeInstanceMember = new(
+        "REFLEX008",
+        "Reflex member must be a writable instance member",
+        "'{0}' cannot be static, const or readonly; [State]/[Computed]/[Action]/[Effect] members must be writable instance members",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor LatestWithoutToken = new(
+        "REFLEX009",
+        "Latest effect cannot cancel without a CancellationToken",
+        "Effect '{0}' uses EffectConcurrency.Latest but has no CancellationToken parameter; superseded runs will keep executing, so add a trailing CancellationToken parameter to make cancellation effective",
+        "Reflex",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor AsyncVoidAction = new(
+        "REFLEX010",
+        "Action must not be 'async void'",
+        "Action method '{0}' is 'async void'; return Task or ValueTask so the dispatch pipeline can await and record it correctly",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor ActionReturnsValue = new(
+        "REFLEX011",
+        "Action return value is discarded",
+        "Action method '{0}' returns a value that the generated wrapper discards; use void, Task or ValueTask (store results in [State] fields instead)",
+        "Reflex",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor StateFieldNameConflict = new(
+        "REFLEX012",
+        "State field name equals generated property name",
+        "State field '{0}' would generate a property with the same name; use camelCase or an underscore prefix such as '_{0}'",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor UnsupportedParameterModifier = new(
+        "REFLEX013",
+        "Unsupported parameter modifier",
+        "Method '{0}' has a ref/out/in parameter; action and effect parameters must be passed by value so the generated wrapper can capture them",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor GenericMethodNotSupported = new(
+        "REFLEX014",
+        "Generic action/effect methods are not supported",
+        "Method '{0}' is generic; the generated wrapper cannot carry type parameters, so make the method non-generic",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor RecordStoreNotSupported = new(
+        "REFLEX015",
+        "Store must be a plain class",
+        "Reflex store '{0}' is declared as a record; stores are mutable reactive containers and must be plain (non-record) classes",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    private static readonly DiagnosticDescriptor ConflictingBaseType = new(
+        "REFLEX016",
+        "Store cannot have another base class",
+        "Reflex store '{0}' derives from '{1}', but the generator needs to make it derive from Reflex.StoreBase; remove the base class or compose it instead",
+        "Reflex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var stores = context.SyntaxProvider.ForAttributeWithMetadataName(
             StoreAttribute,
-            predicate: static (node, _) => node is ClassDeclarationSyntax,
-            transform: static (ctx, _) => Transform(ctx))
-            .Where(static x => x is not null);
+            // Accept any type declaration so misuse (e.g. records) gets a diagnostic instead of
+            // being silently ignored; Transform validates the actual shape.
+            predicate: static (node, _) => node is TypeDeclarationSyntax,
+            transform: static (ctx, _) => Transform(ctx));
 
         context.RegisterSourceOutput(stores, static (spc, result) =>
         {
-            foreach (var diagnostic in result!.Diagnostics)
-                spc.ReportDiagnostic(diagnostic);
+            foreach (var diagnostic in result.Diagnostics)
+                spc.ReportDiagnostic(diagnostic.ToDiagnostic());
 
             if (result.Model is { } model)
-                spc.AddSource($"{model.ClassName}.Reflex.g.cs", SourceText.From(Emit(model), Encoding.UTF8));
+            {
+                // Include the namespace in the hint name so equally-named stores in different
+                // namespaces don't collide.
+                var hint = model.Namespace is null
+                    ? $"{model.ClassName}.Reflex.g.cs"
+                    : $"{model.Namespace}.{model.ClassName}.Reflex.g.cs";
+                spc.AddSource(hint, SourceText.From(Emit(model), Encoding.UTF8));
+            }
         });
     }
 
-    private sealed class TransformResult
+    private static TransformOutput Transform(GeneratorAttributeSyntaxContext ctx)
     {
-        public StoreModel? Model { get; set; }
-        public List<Diagnostic> Diagnostics { get; } = [];
-    }
-
-    private static TransformResult Transform(GeneratorAttributeSyntaxContext ctx)
-    {
-        var result = new TransformResult();
+        var diagnostics = new List<DiagnosticInfo>();
         var symbol = (INamedTypeSymbol)ctx.TargetSymbol;
-        var classDecl = (ClassDeclarationSyntax)ctx.TargetNode;
+        var classDecl = (TypeDeclarationSyntax)ctx.TargetNode;
 
-        if (!classDecl.Modifiers.Any(m => m.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.PartialKeyword)))
+        void Report(DiagnosticDescriptor descriptor, Location? location, params string[] args)
+            => diagnostics.Add(new DiagnosticInfo(descriptor, LocationInfo.From(location), new EquatableArray<string>(args)));
+
+        TransformOutput Fail() => new(null, new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
+
+        // Records get value-equality members and a synthesized clone that fight the mutable
+        // reactive container model; require a plain class.
+        if (symbol.IsRecord || classDecl is not ClassDeclarationSyntax)
         {
-            result.Diagnostics.Add(Diagnostic.Create(NotPartial, classDecl.Identifier.GetLocation(), symbol.Name));
-            return result;
+            Report(RecordStoreNotSupported, classDecl.Identifier.GetLocation(), symbol.Name);
+            return Fail();
+        }
+
+        if (!classDecl.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
+        {
+            Report(NotPartial, classDecl.Identifier.GetLocation(), symbol.Name);
+            return Fail();
         }
 
         // The emitter writes a flat, top-level partial declaration, so nested and generic
         // stores would produce broken output. Fail with a clear diagnostic instead.
         if (symbol.ContainingType is not null || symbol.IsGenericType)
         {
-            result.Diagnostics.Add(Diagnostic.Create(UnsupportedClassShape, classDecl.Identifier.GetLocation(), symbol.Name));
-            return result;
+            Report(UnsupportedClassShape, classDecl.Identifier.GetLocation(), symbol.Name);
+            return Fail();
+        }
+
+        // The generated partial adds ": Reflex.StoreBase"; an existing different base class would
+        // produce an uncompilable "inherits from two classes" error deep in generated code.
+        if (symbol.BaseType is { SpecialType: not SpecialType.System_Object } baseType
+            && baseType.ToDisplayString() != "Reflex.StoreBase")
+        {
+            Report(ConflictingBaseType, classDecl.Identifier.GetLocation(), symbol.Name, baseType.Name);
+            return Fail();
         }
 
         var ns = symbol.ContainingNamespace.IsGlobalNamespace
@@ -149,36 +265,75 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             switch (member)
             {
                 case IFieldSymbol field when HasAttribute(field, StateAttribute):
+                {
+                    if (field.IsStatic || field.IsConst || field.IsReadOnly)
+                    {
+                        Report(MustBeInstanceMember, field.Locations.FirstOrDefault(), field.Name);
+                        break;
+                    }
+
+                    var propertyName = ToPropertyName(field.Name);
+                    if (propertyName == field.Name)
+                    {
+                        Report(StateFieldNameConflict, field.Locations.FirstOrDefault(), field.Name);
+                        break;
+                    }
+
                     states.Add(new StateModel(
                         field.Name,
-                        ToPropertyName(field.Name),
-                        field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+                        propertyName,
+                        field.Type.ToDisplayString(TypeFormat)));
                     break;
+                }
 
                 case IMethodSymbol cm when cm.MethodKind == MethodKind.Ordinary && HasAttribute(cm, ComputedAttribute):
                 {
+                    if (cm.IsStatic)
+                    {
+                        Report(MustBeInstanceMember, cm.Locations.FirstOrDefault(), cm.Name);
+                        break;
+                    }
+
                     if (cm.Parameters.Length > 0)
                     {
-                        result.Diagnostics.Add(Diagnostic.Create(ComputedHasParameters, cm.Locations.FirstOrDefault(), cm.Name));
+                        Report(ComputedHasParameters, cm.Locations.FirstOrDefault(), cm.Name);
                         break;
                     }
 
                     var propName = ToComputedName(cm.Name);
                     if (propName is null)
                     {
-                        result.Diagnostics.Add(Diagnostic.Create(BadComputedName, cm.Locations.FirstOrDefault(), cm.Name));
+                        Report(BadComputedName, cm.Locations.FirstOrDefault(), cm.Name);
                         break;
                     }
 
                     computeds.Add(new ComputedModel(
                         cm.Name,
                         propName,
-                        cm.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+                        cm.ReturnType.ToDisplayString(TypeFormat)));
                     break;
                 }
 
                 case IMethodSymbol am when am.MethodKind == MethodKind.Ordinary && HasAttribute(am, ActionAttribute):
                 {
+                    if (am.IsStatic)
+                    {
+                        Report(MustBeInstanceMember, am.Locations.FirstOrDefault(), am.Name);
+                        break;
+                    }
+
+                    if (am.IsAsync && am.ReturnsVoid)
+                    {
+                        Report(AsyncVoidAction, am.Locations.FirstOrDefault(), am.Name);
+                        break;
+                    }
+
+                    if (am.IsGenericMethod)
+                    {
+                        Report(GenericMethodNotSupported, am.Locations.FirstOrDefault(), am.Name);
+                        break;
+                    }
+
                     var attr = am.GetAttributes().First(a => a.AttributeClass?.ToDisplayString() == ActionAttribute);
                     var explicitName = attr.NamedArguments
                         .FirstOrDefault(a => a.Key == "Name").Value.Value as string;
@@ -186,21 +341,22 @@ public sealed class ReflexGenerator : IIncrementalGenerator
                     var wrapper = DeriveWrapperName(am.Name, explicitName);
                     if (wrapper is null)
                     {
-                        result.Diagnostics.Add(Diagnostic.Create(BadActionName, am.Locations.FirstOrDefault(), am.Name));
+                        Report(BadActionName, am.Locations.FirstOrDefault(), am.Name);
                         break;
                     }
+
+                    var isAsync = IsTaskReturning(am.ReturnType);
+                    if (ReturnsDiscardedValue(am, isAsync))
+                        Report(ActionReturnsValue, am.Locations.FirstOrDefault(), am.Name);
 
                     // The label is for display (DevTools / time-travel) and may contain spaces;
                     // the wrapper is a C# identifier and is kept separate.
                     var label = string.IsNullOrWhiteSpace(explicitName) ? wrapper : explicitName!;
 
-                    var isAsync = IsTaskReturning(am.ReturnType);
                     var isValueTask = IsValueTaskReturning(am.ReturnType);
-                    var prms = am.Parameters
-                        .Select(p => new ParamModel(
-                            p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                            p.Name))
-                        .ToArray();
+                    var prms = BuildParams(am, am.Parameters, Report);
+                    if (prms is null)
+                        break;
 
                     actions.Add(new ActionModel(
                         am.Name,
@@ -214,6 +370,12 @@ public sealed class ReflexGenerator : IIncrementalGenerator
 
                 case IMethodSymbol em when em.MethodKind == MethodKind.Ordinary && HasAttribute(em, EffectAttribute):
                 {
+                    if (em.IsStatic)
+                    {
+                        Report(MustBeInstanceMember, em.Locations.FirstOrDefault(), em.Name);
+                        break;
+                    }
+
                     var attr = em.GetAttributes().First(a => a.AttributeClass?.ToDisplayString() == EffectAttribute);
                     var explicitName = attr.NamedArguments
                         .FirstOrDefault(a => a.Key == "Name").Value.Value as string;
@@ -221,40 +383,68 @@ public sealed class ReflexGenerator : IIncrementalGenerator
                     var wrapper = DeriveWrapperName(em.Name, explicitName);
                     if (wrapper is null)
                     {
-                        result.Diagnostics.Add(Diagnostic.Create(BadActionName, em.Locations.FirstOrDefault(), em.Name));
+                        Report(BadActionName, em.Locations.FirstOrDefault(), em.Name);
+                        break;
+                    }
+
+                    if (em.IsGenericMethod)
+                    {
+                        Report(GenericMethodNotSupported, em.Locations.FirstOrDefault(), em.Name);
                         break;
                     }
 
                     // Effects must be task-returning with no result so the lifecycle wrapper can
                     // own loading/error without losing a return value.
-                    var name = em.ReturnType.ToDisplayString();
-                    var isTask = name == "System.Threading.Tasks.Task" || name == "System.Threading.Tasks.ValueTask";
+                    var returnName = em.ReturnType.ToDisplayString();
+                    var isTask = returnName == "System.Threading.Tasks.Task" || returnName == "System.Threading.Tasks.ValueTask";
                     if (!isTask)
                     {
-                        result.Diagnostics.Add(Diagnostic.Create(EffectMustBeAsync, em.Locations.FirstOrDefault(), em.Name));
+                        Report(EffectMustBeAsync, em.Locations.FirstOrDefault(), em.Name);
                         break;
                     }
 
+                    var concurrency = 0;
+                    var concurrencyArg = attr.NamedArguments.FirstOrDefault(a => a.Key == "Concurrency").Value;
+                    if (concurrencyArg.Value is int c)
+                        concurrency = c;
+
+                    // A trailing CancellationToken parameter is supplied by the wrapper (it does
+                    // not appear on the public method) and enables CancelXxx() / Latest semantics.
+                    var parameters = em.Parameters;
+                    var hasToken = parameters.Length > 0
+                        && parameters[parameters.Length - 1].Type.ToDisplayString() == CancellationTokenType;
+                    if (hasToken)
+                        parameters = System.Collections.Immutable.ImmutableArray.CreateRange(parameters.Take(parameters.Length - 1));
+
+                    if (concurrency == 1 && !hasToken)
+                        Report(LatestWithoutToken, em.Locations.FirstOrDefault(), em.Name);
+
                     var label = string.IsNullOrWhiteSpace(explicitName) ? wrapper : explicitName!;
-                    var isValueTaskEffect = name == "System.Threading.Tasks.ValueTask";
-                    var prms = em.Parameters
-                        .Select(p => new ParamModel(
-                            p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-                            p.Name))
-                        .ToArray();
+                    var isValueTaskEffect = returnName == "System.Threading.Tasks.ValueTask";
+                    var prms = BuildParams(em, parameters, Report);
+                    if (prms is null)
+                        break;
 
                     effects.Add(new EffectModel(
                         em.Name,
                         wrapper,
                         label,
                         isValueTaskEffect,
+                        concurrency,
+                        hasToken,
                         new EquatableArray<ParamModel>(prms)));
                     break;
                 }
             }
         }
 
-        result.Model = new StoreModel(
+        // A name collision would emit uncompilable code; report REFLEX005 and emit nothing.
+        var beforeDuplicates = diagnostics.Count;
+        DetectDuplicates(storeName, states, computeds, actions, effects, symbol, Report);
+        if (diagnostics.Count > beforeDuplicates)
+            return Fail();
+
+        var model = new StoreModel(
             ns,
             symbol.Name,
             storeName,
@@ -264,9 +454,92 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             new EquatableArray<ActionModel>(actions.ToArray()),
             new EquatableArray<EffectModel>(effects.ToArray()));
 
-        DetectDuplicates(storeName, states, computeds, actions, effects, symbol, result);
+        return new TransformOutput(model, new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
+    }
 
-        return result;
+    /// <summary>
+    /// Builds parameter models for a wrapper, propagating default values and <c>params</c>.
+    /// Returns null (and reports REFLEX013) when a by-ref parameter makes wrapping impossible.
+    /// </summary>
+    private static ParamModel[]? BuildParams(
+        IMethodSymbol method,
+        System.Collections.Immutable.ImmutableArray<IParameterSymbol> parameters,
+        System.Action<DiagnosticDescriptor, Location?, string[]> report)
+    {
+        var models = new ParamModel[parameters.Length];
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            var p = parameters[i];
+            if (p.RefKind != RefKind.None)
+            {
+                report(UnsupportedParameterModifier, method.Locations.FirstOrDefault(), [method.Name]);
+                return null;
+            }
+
+            models[i] = new ParamModel(
+                p.Type.ToDisplayString(TypeFormat),
+                p.Name,
+                FormatDefaultValue(p),
+                p.IsParams);
+        }
+
+        return models;
+    }
+
+    /// <summary>Formats a parameter's explicit default value as a C# literal, or null when none.</summary>
+    private static string? FormatDefaultValue(IParameterSymbol p)
+    {
+        if (!p.HasExplicitDefaultValue)
+            return null;
+
+        var value = p.ExplicitDefaultValue;
+        if (value is null)
+            return p.Type.IsValueType ? "default" : "null";
+
+        // Unwrap Nullable<T> so enum defaults emit a proper cast: `Mode? m = (Mode)1` compiles,
+        // `Mode? m = 1` does not.
+        var type = p.Type;
+        if (type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T } nullable)
+            type = nullable.TypeArguments[0];
+
+        if (type.TypeKind == TypeKind.Enum)
+            return $"({type.ToDisplayString(TypeFormat)})({System.Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture)})";
+
+        return value switch
+        {
+            bool b => b ? "true" : "false",
+            string s => SymbolDisplay.FormatLiteral(s, quote: true),
+            char c => SymbolDisplay.FormatLiteral(c, quote: true),
+            float f when float.IsNaN(f) => "float.NaN",
+            float f when float.IsPositiveInfinity(f) => "float.PositiveInfinity",
+            float f when float.IsNegativeInfinity(f) => "float.NegativeInfinity",
+            float f => f.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "F",
+            double d when double.IsNaN(d) => "double.NaN",
+            double d when double.IsPositiveInfinity(d) => "double.PositiveInfinity",
+            double d when double.IsNegativeInfinity(d) => "double.NegativeInfinity",
+            double d => d.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "D",
+            decimal m => m.ToString(System.Globalization.CultureInfo.InvariantCulture) + "M",
+            long l => l.ToString(System.Globalization.CultureInfo.InvariantCulture) + "L",
+            ulong ul => ul.ToString(System.Globalization.CultureInfo.InvariantCulture) + "UL",
+            uint ui => ui.ToString(System.Globalization.CultureInfo.InvariantCulture) + "U",
+            _ => System.Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture) ?? "default",
+        };
+    }
+
+    private static bool ReturnsDiscardedValue(IMethodSymbol method, bool isAsync)
+    {
+        if (method.ReturnsVoid)
+            return false;
+
+        var name = method.ReturnType.ToDisplayString();
+        if (name == "System.Threading.Tasks.Task" || name == "System.Threading.Tasks.ValueTask")
+            return false;
+
+        // Task<T> / ValueTask<T> results and plain sync return values are dropped by the wrapper.
+        return isAsync
+            ? name.StartsWith("System.Threading.Tasks.Task<", System.StringComparison.Ordinal)
+                || name.StartsWith("System.Threading.Tasks.ValueTask<", System.StringComparison.Ordinal)
+            : true;
     }
 
     private static void DetectDuplicates(
@@ -276,23 +549,56 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         List<ActionModel> actions,
         List<EffectModel> effects,
         INamedTypeSymbol symbol,
-        TransformResult result)
+        System.Action<DiagnosticDescriptor, Location?, string[]> report)
     {
         var seen = new HashSet<string>(System.StringComparer.Ordinal);
+
+        // Generated members must not collide with base-class/reserved members...
+        foreach (var reserved in ReservedNames)
+            seen.Add(reserved);
+
+        // ...nor with anything the user already declared on the store.
+        foreach (var member in symbol.GetMembers())
+        {
+            if (!member.IsImplicitlyDeclared)
+                seen.Add(member.Name);
+        }
+
         void Check(string name)
         {
             if (!seen.Add(name))
-                result.Diagnostics.Add(Diagnostic.Create(DuplicateMember, symbol.Locations.FirstOrDefault(), storeName, name));
+                report(DuplicateMember, symbol.Locations.FirstOrDefault(), [storeName, name]);
         }
 
         foreach (var s in states)
             Check(s.PropertyName);
         foreach (var c in computeds)
+        {
             Check(c.PropertyName);
+            Check($"__{c.PropertyName}Valid");
+            Check($"__{c.PropertyName}Value");
+        }
+
         foreach (var a in actions)
             Check(a.WrapperName);
         foreach (var e in effects)
+        {
             Check(e.WrapperName);
+            Check(e.WrapperName + "IsLoading");
+            Check(e.WrapperName + "Error");
+            Check($"__{e.WrapperName}Pending");
+            Check($"__{e.WrapperName}Error");
+            if (e.HasCancellationToken)
+            {
+                Check("Cancel" + e.WrapperName);
+                Check($"__{e.WrapperName}Cts");
+            }
+
+            if (e.Concurrency == 1)
+                Check($"__{e.WrapperName}Version");
+            if (e.Concurrency == 3)
+                Check($"__{e.WrapperName}Queue");
+        }
     }
 
     private static bool HasAttribute(ISymbol symbol, string fullName)
@@ -362,16 +668,73 @@ public sealed class ReflexGenerator : IIncrementalGenerator
                 return false;
         }
 
-        return true;
+        // Reserved keywords ("lock", "class", ...) would emit `public void lock()`. Contextual
+        // keywords ("value", "async") are fine as identifiers.
+        return SyntaxFacts.GetKeywordKind(value) == SyntaxKind.None;
+    }
+
+    /// <summary>
+    /// Escapes a string for embedding inside a C# string literal (quotes, backslashes, control
+    /// characters, ...).
+    /// </summary>
+    private static string Escape(string value)
+    {
+        var quoted = SymbolDisplay.FormatLiteral(value, quote: true);
+        return quoted.Substring(1, quoted.Length - 2);
+    }
+
+    /// <summary>
+    /// Escapes a string for embedding inside an XML doc comment: XML entities are encoded and
+    /// control characters (which would break out of the <c>///</c> line) become spaces.
+    /// </summary>
+    private static string DocEscape(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+        foreach (var ch in value)
+        {
+            switch (ch)
+            {
+                case '<': sb.Append("&lt;"); break;
+                case '>': sb.Append("&gt;"); break;
+                case '&': sb.Append("&amp;"); break;
+                default: sb.Append(char.IsControl(ch) ? ' ' : ch); break;
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Escapes an identifier with <c>@</c> when it is a reserved keyword (a legal parameter or
+    /// field can be declared as <c>@lock</c>, and the symbol name comes back as <c>lock</c>).
+    /// </summary>
+    private static string Id(string name)
+        => SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None ? name : "@" + name;
+
+    /// <summary>Renders a wrapper's parameter list, preserving params modifiers and default values.</summary>
+    private static string ParamList(EquatableArray<ParamModel> parameters)
+        => string.Join(", ", parameters.Select(p =>
+            $"{(p.IsParams ? "params " : "")}{p.TypeFqn} {Id(p.Name)}{(p.DefaultLiteral is null ? "" : " = " + p.DefaultLiteral)}"));
+
+    /// <summary>Builds the ActionArg[] expression for a wrapper's parameters, or null when parameterless.</summary>
+    private static string? ArgsExpression(EquatableArray<ParamModel> parameters)
+    {
+        if (parameters.Count == 0)
+            return null;
+
+        var items = string.Join(", ", parameters.Select(p =>
+            $"new global::Reflex.ActionArg(\"{Escape(p.Name)}\", {Id(p.Name)})"));
+        return $"IsObserved ? new global::Reflex.ActionArg[] {{ {items} }} : null";
     }
 
     private static string Emit(StoreModel m)
     {
+        const string JsonObject = "global::System.Text.Json.Nodes.JsonObject";
+        const string JsonSerializer = "global::System.Text.Json.JsonSerializer";
+
         var sb = new StringBuilder();
         sb.AppendLine("// <auto-generated/>");
         sb.AppendLine("#nullable enable");
-        sb.AppendLine("using System.Text.Json;");
-        sb.AppendLine("using System.Text.Json.Nodes;");
         sb.AppendLine();
 
         var indent = "";
@@ -389,7 +752,7 @@ public sealed class ReflexGenerator : IIncrementalGenerator
 
         // Name
         sb.AppendLine($"{body}/// <inheritdoc />");
-        sb.AppendLine($"{body}public override string Name => \"{m.StoreName}\";");
+        sb.AppendLine($"{body}public override string Name => \"{Escape(m.StoreName)}\";");
         sb.AppendLine();
 
         if (m.Persist)
@@ -399,14 +762,16 @@ public sealed class ReflexGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        // State properties
+        // State properties. Field accesses are `this.`-qualified and @-escaped so fields named
+        // like locals/keywords ("state", "value", "@lock") bind correctly.
         foreach (var s in m.States)
         {
-            sb.AppendLine($"{body}/// <summary>Reactive state backed by <c>{s.FieldName}</c>.</summary>");
+            var field = "this." + Id(s.FieldName);
+            sb.AppendLine($"{body}/// <summary>Reactive state backed by <c>{DocEscape(s.FieldName)}</c>.</summary>");
             sb.AppendLine($"{body}public {s.TypeFqn} {s.PropertyName}");
             sb.AppendLine($"{body}{{");
-            sb.AppendLine($"{body}    get => {s.FieldName};");
-            sb.AppendLine($"{body}    set => SetState(ref {s.FieldName}, value, \"{s.PropertyName}\");");
+            sb.AppendLine($"{body}    get => {field};");
+            sb.AppendLine($"{body}    set => SetState(ref {field}, value, \"{Escape(s.PropertyName)}\");");
             sb.AppendLine($"{body}}}");
             sb.AppendLine();
         }
@@ -437,56 +802,153 @@ public sealed class ReflexGenerator : IIncrementalGenerator
         // Action wrappers
         foreach (var a in m.Actions)
         {
-            var paramList = string.Join(", ", a.Parameters.Select(p => $"{p.TypeFqn} {p.Name}"));
-            var argList = string.Join(", ", a.Parameters.Select(p => p.Name));
-            sb.AppendLine($"{body}/// <summary>Dispatches the <c>{a.ActionLabel}</c> action.</summary>");
+            var paramList = ParamList(a.Parameters);
+            var argList = string.Join(", ", a.Parameters.Select(p => Id(p.Name)));
+            var label = Escape(a.ActionLabel);
+            var argsExpr = ArgsExpression(a.Parameters);
+            var trailing = argsExpr is null ? "" : $", {argsExpr}";
+            sb.AppendLine($"{body}/// <summary>Dispatches the <c>{DocEscape(a.ActionLabel)}</c> action.</summary>");
             if (a.IsAsync)
             {
                 // ValueTask / ValueTask<T> aren't assignable to Task, so normalize via AsTask().
                 var call = a.IsValueTask ? $"{a.ImplName}({argList}).AsTask()" : $"{a.ImplName}({argList})";
                 sb.AppendLine($"{body}public global::System.Threading.Tasks.Task {a.WrapperName}({paramList})");
-                sb.AppendLine($"{body}    => DispatchAsync(\"{a.ActionLabel}\", () => {call});");
+                sb.AppendLine($"{body}    => DispatchAsync(\"{label}\", () => {call}{trailing});");
             }
             else
             {
                 sb.AppendLine($"{body}public void {a.WrapperName}({paramList})");
-                sb.AppendLine($"{body}    => Dispatch(\"{a.ActionLabel}\", () => {a.ImplName}({argList}));");
+                sb.AppendLine($"{body}    => Dispatch(\"{label}\", () => {a.ImplName}({argList}){trailing});");
             }
 
             sb.AppendLine();
         }
 
-        // Effect wrappers (auto-managed loading/error lifecycle)
+        // Effect wrappers (auto-managed loading/error lifecycle, cancellation, concurrency)
         foreach (var e in m.Effects)
         {
-            var loadingField = $"__{e.WrapperName}Loading";
+            var pendingField = $"__{e.WrapperName}Pending";
             var errorField = $"__{e.WrapperName}Error";
-            var paramList = string.Join(", ", e.Parameters.Select(p => $"{p.TypeFqn} {p.Name}"));
-            var argList = string.Join(", ", e.Parameters.Select(p => p.Name));
-            var call = e.IsValueTask ? $"{e.ImplName}({argList}).AsTask()" : $"{e.ImplName}({argList})";
+            var ctsField = $"__{e.WrapperName}Cts";
+            var queueField = $"__{e.WrapperName}Queue";
+            var versionField = $"__{e.WrapperName}Version";
+            var paramList = ParamList(e.Parameters);
+            var argList = string.Join(", ", e.Parameters.Select(p => Id(p.Name)));
+            // Wrapper locals carry a __reflex prefix so user parameters (even "__ct") can't collide.
+            var implArgs = e.HasCancellationToken
+                ? (argList.Length == 0 ? "__reflexCt" : $"{argList}, __reflexCt")
+                : argList;
+            var call = e.IsValueTask ? $"{e.ImplName}({implArgs}).AsTask()" : $"{e.ImplName}({implArgs})";
+            var label = Escape(e.ActionLabel);
+            var argsExpr = ArgsExpression(e.Parameters);
+            var trailing = argsExpr is null ? "" : $", {argsExpr}";
+            var isLatest = e.Concurrency == 1;
+            var isDrop = e.Concurrency == 2;
+            var isQueue = e.Concurrency == 3;
 
-            sb.AppendLine($"{body}private bool {loadingField};");
-            sb.AppendLine($"{body}/// <summary>True while the <c>{e.ActionLabel}</c> effect is running.</summary>");
-            sb.AppendLine($"{body}public bool {e.WrapperName}IsLoading => {loadingField};");
+            var cancellationNote = e.HasCancellationToken
+                ? " Cancellations via the effect's own token are not treated as errors."
+                : "";
+            sb.AppendLine($"{body}private int {pendingField};");
+            sb.AppendLine($"{body}/// <summary>True while any run of the <c>{DocEscape(e.ActionLabel)}</c> effect is in flight.</summary>");
+            sb.AppendLine($"{body}public bool {e.WrapperName}IsLoading => {pendingField} > 0;");
             sb.AppendLine($"{body}private global::System.Exception? {errorField};");
-            sb.AppendLine($"{body}/// <summary>The exception thrown by the last <c>{e.ActionLabel}</c> run, or <c>null</c>.</summary>");
+            sb.AppendLine($"{body}/// <summary>The exception thrown by the last <c>{DocEscape(e.ActionLabel)}</c> run, or <c>null</c>.{cancellationNote}</summary>");
             sb.AppendLine($"{body}public global::System.Exception? {e.WrapperName}Error => {errorField};");
-            sb.AppendLine($"{body}/// <summary>Runs the <c>{e.ActionLabel}</c> effect, managing its loading/error state.</summary>");
+
+            if (e.HasCancellationToken)
+            {
+                sb.AppendLine($"{body}private global::System.Threading.CancellationTokenSource? {ctsField};");
+                sb.AppendLine($"{body}/// <summary>Cancels the in-flight <c>{DocEscape(e.ActionLabel)}</c> run (the most recently started one, when runs overlap).</summary>");
+                sb.AppendLine($"{body}public void Cancel{e.WrapperName}() => {ctsField}?.Cancel();");
+            }
+
+            if (isLatest)
+                sb.AppendLine($"{body}private int {versionField};");
+
+            if (isQueue)
+                sb.AppendLine($"{body}private global::System.Threading.Tasks.Task {queueField} = global::System.Threading.Tasks.Task.CompletedTask;");
+
+            sb.AppendLine($"{body}/// <summary>Runs the <c>{DocEscape(e.ActionLabel)}</c> effect, managing its loading/error state.</summary>");
             sb.AppendLine($"{body}public async global::System.Threading.Tasks.Task {e.WrapperName}({paramList})");
             sb.AppendLine($"{body}{{");
-            sb.AppendLine($"{body}    SetEffectState(ref {loadingField}, true);");
-            sb.AppendLine($"{body}    SetEffectState(ref {errorField}, null);");
+
+            if (isDrop) // ignore while one is running
+            {
+                sb.AppendLine($"{body}    if ({pendingField} > 0)");
+                sb.AppendLine($"{body}        return;");
+            }
+
+            if (isLatest) // stale runs must not clobber the newest run's error state
+                sb.AppendLine($"{body}    var __reflexVersion = ++{versionField};");
+
+            if (e.HasCancellationToken)
+            {
+                if (isLatest) // cancel the previous run
+                    sb.AppendLine($"{body}    {ctsField}?.Cancel();");
+                sb.AppendLine($"{body}    var __reflexCts = new global::System.Threading.CancellationTokenSource();");
+                sb.AppendLine($"{body}    {ctsField} = __reflexCts;");
+                sb.AppendLine($"{body}    var __reflexCt = __reflexCts.Token;");
+            }
+
+            if (isQueue) // run after the previous invocation completes
+            {
+                sb.AppendLine($"{body}    var __reflexPrevious = {queueField};");
+                sb.AppendLine($"{body}    var __reflexGate = new global::System.Threading.Tasks.TaskCompletionSource(global::System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);");
+                sb.AppendLine($"{body}    {queueField} = __reflexGate.Task;");
+            }
+
             sb.AppendLine($"{body}    try");
             sb.AppendLine($"{body}    {{");
-            sb.AppendLine($"{body}        await DispatchAsync(\"{e.ActionLabel}\", () => {call}).ConfigureAwait(true);");
+            // Inside the try so a throwing StateChanged subscriber can't skip the finally
+            // (which would brick a Queue gate or leak the pending counter).
+            sb.AppendLine($"{body}        BeginEffect(ref {pendingField});");
+            if (isQueue)
+            {
+                // Wait for the predecessor BEFORE clearing the error: clearing first would let a
+                // failed predecessor overwrite this (successful) run's cleared state out of order.
+                sb.AppendLine($"{body}        await __reflexPrevious.ConfigureAwait(true);");
+            }
+
+            sb.AppendLine($"{body}        SetEffectState(ref {errorField}, null);");
+            sb.AppendLine($"{body}        await DispatchAsync(\"{label}\", () => {call}{trailing}).ConfigureAwait(true);");
             sb.AppendLine($"{body}    }}");
-            sb.AppendLine($"{body}    catch (global::System.Exception __ex)");
+            if (e.HasCancellationToken)
+            {
+                // Only *our* cancellation is benign; a foreign OperationCanceledException (e.g. an
+                // HttpClient timeout) is a real failure and falls through to the error handler.
+                sb.AppendLine($"{body}    catch (global::System.OperationCanceledException) when (__reflexCt.IsCancellationRequested)");
+                sb.AppendLine($"{body}    {{");
+                sb.AppendLine($"{body}        // Cancelled via Cancel{e.WrapperName}() or supersession -- a normal outcome, not an error.");
+                sb.AppendLine($"{body}    }}");
+            }
+
+            sb.AppendLine($"{body}    catch (global::System.Exception __reflexEx)");
             sb.AppendLine($"{body}    {{");
-            sb.AppendLine($"{body}        SetEffectState(ref {errorField}, __ex);");
+            if (isLatest)
+            {
+                sb.AppendLine($"{body}        // A superseded (stale) run must not clobber the newest run's error state.");
+                sb.AppendLine($"{body}        if (__reflexVersion == {versionField})");
+                sb.AppendLine($"{body}            SetEffectState(ref {errorField}, __reflexEx);");
+            }
+            else
+            {
+                sb.AppendLine($"{body}        SetEffectState(ref {errorField}, __reflexEx);");
+            }
+
             sb.AppendLine($"{body}    }}");
             sb.AppendLine($"{body}    finally");
             sb.AppendLine($"{body}    {{");
-            sb.AppendLine($"{body}        SetEffectState(ref {loadingField}, false);");
+            if (isQueue)
+                sb.AppendLine($"{body}        __reflexGate.SetResult();");
+            if (e.HasCancellationToken)
+            {
+                sb.AppendLine($"{body}        if (object.ReferenceEquals({ctsField}, __reflexCts))");
+                sb.AppendLine($"{body}            {ctsField} = null;");
+                sb.AppendLine($"{body}        __reflexCts.Dispose();");
+            }
+
+            sb.AppendLine($"{body}        EndEffect(ref {pendingField});");
             sb.AppendLine($"{body}    }}");
             sb.AppendLine($"{body}}}");
             sb.AppendLine();
@@ -505,25 +967,27 @@ public sealed class ReflexGenerator : IIncrementalGenerator
 
         // SerializeState
         sb.AppendLine($"{body}/// <inheritdoc />");
-        sb.AppendLine($"{body}public override JsonObject SerializeState()");
+        sb.AppendLine($"{body}public override {JsonObject} SerializeState()");
         sb.AppendLine($"{body}{{");
-        sb.AppendLine($"{body}    var __o = new JsonObject();");
+        sb.AppendLine($"{body}    var __o = new {JsonObject}();");
         foreach (var s in m.States)
-            sb.AppendLine($"{body}    __o[\"{s.PropertyName}\"] = JsonSerializer.SerializeToNode({s.FieldName}, global::Reflex.ReflexJson.Options);");
+            sb.AppendLine($"{body}    __o[\"{Escape(s.PropertyName)}\"] = {JsonSerializer}.SerializeToNode(this.{Id(s.FieldName)}, global::Reflex.ReflexJson.Options);");
         sb.AppendLine($"{body}    return __o;");
         sb.AppendLine($"{body}}}");
         sb.AppendLine();
 
         // DeserializeState
         sb.AppendLine($"{body}/// <inheritdoc />");
-        sb.AppendLine($"{body}public override void DeserializeState(JsonObject state)");
+        sb.AppendLine($"{body}public override void DeserializeState({JsonObject} state)");
         sb.AppendLine($"{body}{{");
         var idx = 0;
         foreach (var s in m.States)
         {
+            // A property that is present but JSON-null must restore the field to default/null;
+            // only a *missing* property leaves the current value untouched.
             var node = $"__n{idx++}";
-            sb.AppendLine($"{body}    if (state.TryGetPropertyValue(\"{s.PropertyName}\", out var {node}) && {node} is not null)");
-            sb.AppendLine($"{body}        {s.FieldName} = {node}.Deserialize<{s.TypeFqn}>(global::Reflex.ReflexJson.Options)!;");
+            sb.AppendLine($"{body}    if (state.TryGetPropertyValue(\"{Escape(s.PropertyName)}\", out var {node}))");
+            sb.AppendLine($"{body}        this.{Id(s.FieldName)} = {node} is null ? default! : {JsonSerializer}.Deserialize<{s.TypeFqn}>({node}, global::Reflex.ReflexJson.Options)!;");
         }
 
         sb.AppendLine($"{body}}}");

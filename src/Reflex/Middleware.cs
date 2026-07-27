@@ -3,16 +3,28 @@ using System.Text.Json.Nodes;
 namespace Reflex;
 
 /// <summary>
+/// A named action argument captured at dispatch time. Generated action/effect wrappers attach
+/// their parameters so middleware, subscribers and DevTools can inspect the payload.
+/// </summary>
+/// <param name="Name">The parameter name (or property name for a standalone <c>Set X</c>).</param>
+/// <param name="Value">The argument value (may be <c>null</c>).</param>
+public readonly record struct ActionArg(string Name, object? Value);
+
+/// <summary>
 /// Context passed to middleware after an action has mutated a store.
 /// </summary>
 public sealed class ReflexActionContext
 {
-    internal ReflexActionContext(IStore store, string actionName, JsonObject globalState, int sequence)
+    private readonly Func<JsonObject>? _capture;
+    private JsonObject? _globalState;
+
+    internal ReflexActionContext(IStore store, string actionName, Func<JsonObject> captureGlobalState, int sequence, IReadOnlyList<ActionArg>? args)
     {
         Store = store;
         ActionName = actionName;
-        GlobalState = globalState;
+        _capture = captureGlobalState;
         Sequence = sequence;
+        Args = args ?? [];
         Timestamp = DateTimeOffset.UtcNow;
     }
 
@@ -22,17 +34,31 @@ public sealed class ReflexActionContext
     /// <summary>The action name (e.g. <c>"Increment"</c> or <c>"Set Count"</c>).</summary>
     public string ActionName { get; }
 
-    /// <summary>Snapshot of the whole application state immediately after the action.</summary>
-    public JsonObject GlobalState { get; }
+    /// <summary>
+    /// Snapshot of the whole application state immediately after the action. Captured lazily on
+    /// first access (serializing every store is expensive, and many observers -- persistence, for
+    /// example -- never need the full tree). Access it synchronously inside your handler; reading
+    /// it after later actions have run would capture their state instead. Treat the returned tree
+    /// as read-only: the same instance is shared by every observer of this action.
+    /// </summary>
+    public JsonObject GlobalState => _globalState ??= _capture!();
 
     /// <summary>Monotonically increasing action sequence number.</summary>
     public int Sequence { get; }
 
+    /// <summary>
+    /// The action's arguments (parameter name/value pairs), captured by the generated wrappers.
+    /// Empty for parameterless actions. A standalone <c>Set X</c> carries the assigned value.
+    /// </summary>
+    public IReadOnlyList<ActionArg> Args { get; }
+
     /// <summary>When the action completed (UTC).</summary>
     public DateTimeOffset Timestamp { get; }
 
+    private string? _qualifiedName;
+
     /// <summary>Fully-qualified action label including the originating store.</summary>
-    public string QualifiedName => $"{Store.Name}/{ActionName}";
+    public string QualifiedName => _qualifiedName ??= $"{Store.Name}/{ActionName}";
 }
 
 /// <summary>
@@ -41,10 +67,11 @@ public sealed class ReflexActionContext
 /// </summary>
 public sealed class ReflexPreActionContext
 {
-    internal ReflexPreActionContext(IStore store, string actionName)
+    internal ReflexPreActionContext(IStore store, string actionName, IReadOnlyList<ActionArg>? args)
     {
         Store = store;
         ActionName = actionName;
+        Args = args ?? [];
     }
 
     /// <summary>The store about to produce the action.</summary>
@@ -53,8 +80,16 @@ public sealed class ReflexPreActionContext
     /// <summary>The action name (e.g. <c>"Increment"</c> or <c>"Set Count"</c>).</summary>
     public string ActionName { get; }
 
+    /// <summary>
+    /// The action's arguments (parameter name/value pairs). Useful for validation filters that
+    /// veto based on the payload. Empty for parameterless actions.
+    /// </summary>
+    public IReadOnlyList<ActionArg> Args { get; }
+
+    private string? _qualifiedName;
+
     /// <summary>Fully-qualified action label including the originating store.</summary>
-    public string QualifiedName => $"{Store.Name}/{ActionName}";
+    public string QualifiedName => _qualifiedName ??= $"{Store.Name}/{ActionName}";
 
     /// <summary>Whether a middleware has vetoed this action.</summary>
     public bool IsCancelled { get; private set; }

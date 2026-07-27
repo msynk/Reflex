@@ -13,10 +13,13 @@ namespace Reflex;
 /// </remarks>
 public sealed class ReflexHistory : IDisposable
 {
+    private readonly record struct Entry(JsonObject State, string? Label);
+
     private readonly ReflexManager _manager;
-    private readonly List<JsonObject> _undo = [];
-    private readonly List<JsonObject> _redo = [];
+    private readonly List<Entry> _undo = [];
+    private readonly List<Entry> _redo = [];
     private JsonObject? _present;
+    private string? _presentLabel;
     private bool _started;
     private bool _restoring;
 
@@ -42,6 +45,24 @@ public sealed class ReflexHistory : IDisposable
     /// <summary>Whether there is a state to redo to.</summary>
     public bool CanRedo => _redo.Count > 0;
 
+    /// <summary>Number of states available to undo to.</summary>
+    public int UndoCount => _undo.Count;
+
+    /// <summary>Number of states available to redo to.</summary>
+    public int RedoCount => _redo.Count;
+
+    /// <summary>
+    /// The qualified name of the action that <see cref="Undo"/> would revert (e.g. for an
+    /// "Undo Increment" button label), or <c>null</c> when nothing can be undone.
+    /// </summary>
+    public string? NextUndoLabel => CanUndo ? _presentLabel : null;
+
+    /// <summary>
+    /// The qualified name of the action that <see cref="Redo"/> would re-apply, or <c>null</c>
+    /// when nothing can be redone.
+    /// </summary>
+    public string? NextRedoLabel => _redo.Count > 0 ? _redo[^1].Label : null;
+
     /// <summary>Captures the current state as the baseline and begins recording. Idempotent.</summary>
     public void Start()
     {
@@ -49,7 +70,31 @@ public sealed class ReflexHistory : IDisposable
             return;
         _started = true;
         _present = _manager.CaptureGlobalState();
+        _presentLabel = null;
         _manager.ActionDispatched += OnAction;
+        _manager.StateRestored += OnExternalRestore;
+    }
+
+    private void OnExternalRestore()
+    {
+        if (_restoring)
+            return;
+
+        try
+        {
+            // An external restore (DevTools time-travel, manual RestoreGlobalState) changed the
+            // state without an action. Refresh the present snapshot so the next Undo diffs from
+            // what the user actually sees rather than a stale pre-jump state.
+            _present = _manager.CaptureGlobalState();
+            _presentLabel = null;
+            Changed?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            // This handler sits directly on the pipeline events; an escaping exception would
+            // break dispatch for observers registered after it.
+            _manager.ReportError("history", ex);
+        }
     }
 
     private void OnAction(ReflexActionContext context)
@@ -57,16 +102,26 @@ public sealed class ReflexHistory : IDisposable
         if (_restoring)
             return;
 
-        if (_present is not null)
+        try
         {
-            _undo.Add(_present);
-            if (_undo.Count > MaxEntries)
-                _undo.RemoveAt(0);
-        }
+            if (_present is not null)
+            {
+                _undo.Add(new Entry(_present, _presentLabel));
+                if (_undo.Count > MaxEntries)
+                    _undo.RemoveAt(0);
+            }
 
-        _present = context.GlobalState;
-        _redo.Clear();
-        Changed?.Invoke();
+            _present = context.GlobalState;
+            _presentLabel = context.QualifiedName;
+            _redo.Clear();
+            Changed?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            // A throwing Changed handler (user UI code) must not break the dispatch pipeline
+            // for observers registered after history (e.g. persistence).
+            _manager.ReportError("history", ex, context.QualifiedName);
+        }
     }
 
     /// <summary>Reverts to the previous state. No-op when <see cref="CanUndo"/> is false.</summary>
@@ -76,11 +131,13 @@ public sealed class ReflexHistory : IDisposable
             return;
 
         if (_present is not null)
-            _redo.Add(_present);
+            _redo.Add(new Entry(_present, _presentLabel));
 
-        _present = _undo[^1];
+        var entry = _undo[^1];
         _undo.RemoveAt(_undo.Count - 1);
-        Restore(_present);
+        _present = entry.State;
+        _presentLabel = entry.Label;
+        Restore(entry.State);
         Changed?.Invoke();
     }
 
@@ -91,11 +148,13 @@ public sealed class ReflexHistory : IDisposable
             return;
 
         if (_present is not null)
-            _undo.Add(_present);
+            _undo.Add(new Entry(_present, _presentLabel));
 
-        _present = _redo[^1];
+        var entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);
-        Restore(_present);
+        _present = entry.State;
+        _presentLabel = entry.Label;
+        Restore(entry.State);
         Changed?.Invoke();
     }
 
@@ -105,6 +164,7 @@ public sealed class ReflexHistory : IDisposable
         _undo.Clear();
         _redo.Clear();
         _present = _manager.CaptureGlobalState();
+        _presentLabel = null;
         Changed?.Invoke();
     }
 
@@ -127,6 +187,7 @@ public sealed class ReflexHistory : IDisposable
         if (_started)
         {
             _manager.ActionDispatched -= OnAction;
+            _manager.StateRestored -= OnExternalRestore;
             _started = false;
         }
     }

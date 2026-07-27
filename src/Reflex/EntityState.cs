@@ -27,9 +27,10 @@ public sealed class EntityState<TEntity, TKey>
     /// <summary>The id-to-entity map.</summary>
     public IReadOnlyDictionary<TKey, TEntity> Entities { get; }
 
-    /// <summary>An empty state.</summary>
+    /// <summary>An empty state. Shared and defensively read-only.</summary>
     public static EntityState<TEntity, TKey> Empty { get; } =
-        new(Array.Empty<TKey>(), new Dictionary<TKey, TEntity>());
+        new(Array.Empty<TKey>(),
+            new System.Collections.ObjectModel.ReadOnlyDictionary<TKey, TEntity>(new Dictionary<TKey, TEntity>()));
 
     /// <summary>Number of stored entities.</summary>
     [JsonIgnore]
@@ -62,12 +63,33 @@ public sealed class EntityAdapter<TEntity, TKey>
     where TKey : notnull
 {
     private readonly Func<TEntity, TKey> _selectId;
+    private readonly IComparer<TEntity>? _sortComparer;
 
     /// <summary>Creates an adapter that derives an entity's id via <paramref name="selectId"/>.</summary>
     public EntityAdapter(Func<TEntity, TKey> selectId)
+        : this(selectId, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates an adapter that keeps <see cref="EntityState{TEntity, TKey}.Ids"/> sorted by
+    /// <paramref name="sortComparer"/> after every operation (like Redux Toolkit's
+    /// <c>sortComparer</c>). Without a comparer, insertion order is preserved.
+    /// </summary>
+    public EntityAdapter(Func<TEntity, TKey> selectId, IComparer<TEntity>? sortComparer)
     {
         ArgumentNullException.ThrowIfNull(selectId);
         _selectId = selectId;
+        _sortComparer = sortComparer;
+    }
+
+    /// <summary>Builds the resulting state, re-sorting ids when a sort comparer is configured.</summary>
+    private EntityState<TEntity, TKey> Build(List<TKey> ids, Dictionary<TKey, TEntity> map)
+    {
+        if (_sortComparer is not null)
+            ids = ids.OrderBy(id => map[id], _sortComparer).ToList(); // stable sort
+
+        return new EntityState<TEntity, TKey>(ids, map);
     }
 
     /// <summary>The empty initial state for this entity type.</summary>
@@ -87,7 +109,7 @@ public sealed class EntityAdapter<TEntity, TKey>
         var ids = new List<TKey>(state.Ids) { id };
         var map = ToDictionary(state);
         map[id] = entity;
-        return new EntityState<TEntity, TKey>(ids, map);
+        return Build(ids, map);
     }
 
     /// <summary>Adds many entities, ignoring any whose id already exists.</summary>
@@ -104,7 +126,7 @@ public sealed class EntityAdapter<TEntity, TKey>
             map[id] = entity;
         }
 
-        return new EntityState<TEntity, TKey>(ids, map);
+        return Build(ids, map);
     }
 
     /// <summary>Adds or replaces an entity (matched by id).</summary>
@@ -115,7 +137,7 @@ public sealed class EntityAdapter<TEntity, TKey>
         var existed = map.ContainsKey(id);
         map[id] = entity;
         var ids = existed ? new List<TKey>(state.Ids) : new List<TKey>(state.Ids) { id };
-        return new EntityState<TEntity, TKey>(ids, map);
+        return Build(ids, map);
     }
 
     /// <summary>Adds or replaces many entities (matched by id).</summary>
@@ -131,7 +153,7 @@ public sealed class EntityAdapter<TEntity, TKey>
             map[id] = entity;
         }
 
-        return new EntityState<TEntity, TKey>(ids, map);
+        return Build(ids, map);
     }
 
     /// <summary>Applies an update function to one entity, matched by id. No-op if absent.</summary>
@@ -147,15 +169,47 @@ public sealed class EntityAdapter<TEntity, TKey>
         if (EqualityComparer<TKey>.Default.Equals(newId, id))
         {
             map[id] = updated;
-            return new EntityState<TEntity, TKey>(new List<TKey>(state.Ids), map);
+            // The id list is never mutated after construction, so it can be shared when order
+            // is insertion-based; a sort comparer may need to re-position the updated entity.
+            return _sortComparer is null
+                ? new EntityState<TEntity, TKey>(state.Ids, map)
+                : Build(new List<TKey>(state.Ids), map);
         }
 
-        // Id changed: replace in place positionally.
+        // Id changed.
         map.Remove(id);
-        map[newId] = updated;
         var ids = new List<TKey>(state.Ids);
-        ids[ids.IndexOf(id)] = newId;
-        return new EntityState<TEntity, TKey>(ids, map);
+        if (map.ContainsKey(newId))
+        {
+            // The new id already belongs to another entity: overwrite it and drop the old
+            // slot (a positional swap would duplicate the id in the ordered list).
+            map[newId] = updated;
+            ids.Remove(id);
+        }
+        else
+        {
+            map[newId] = updated;
+            ids[ids.IndexOf(id)] = newId;
+        }
+
+        return Build(ids, map);
+    }
+
+    /// <summary>Applies an update function to each entity matched by id. Missing ids are ignored.</summary>
+    public EntityState<TEntity, TKey> UpdateMany(EntityState<TEntity, TKey> state, IEnumerable<TKey> ids, Func<TEntity, TEntity> update)
+    {
+        ArgumentNullException.ThrowIfNull(update);
+        var result = state;
+        foreach (var id in ids)
+            result = UpdateOne(result, id, update);
+        return result;
+    }
+
+    /// <summary>Applies a transform to every entity (like Redux Toolkit's <c>map</c>).</summary>
+    public EntityState<TEntity, TKey> Map(EntityState<TEntity, TKey> state, Func<TEntity, TEntity> transform)
+    {
+        ArgumentNullException.ThrowIfNull(transform);
+        return UpdateMany(state, new List<TKey>(state.Ids), transform);
     }
 
     /// <summary>Removes the entity with the given id. No-op if absent.</summary>
@@ -168,7 +222,7 @@ public sealed class EntityAdapter<TEntity, TKey>
         map.Remove(id);
         var ids = new List<TKey>(state.Ids);
         ids.Remove(id);
-        return new EntityState<TEntity, TKey>(ids, map);
+        return Build(ids, map);
     }
 
     /// <summary>Removes the entities with the given ids.</summary>
@@ -205,7 +259,7 @@ public sealed class EntityAdapter<TEntity, TKey>
             map[id] = entity;
         }
 
-        return new EntityState<TEntity, TKey>(ids, map);
+        return Build(ids, map);
     }
 
     private static Dictionary<TKey, TEntity> ToDictionary(EntityState<TEntity, TKey> state)

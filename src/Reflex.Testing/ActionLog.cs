@@ -8,12 +8,14 @@ namespace Reflex.Testing;
 /// <param name="QualifiedName">The qualified name (e.g. <c>"counter/Increment"</c>).</param>
 /// <param name="Sequence">The monotonic action sequence number.</param>
 /// <param name="State">The global state tree right after the action.</param>
+/// <param name="Args">The action's arguments (parameter name/value pairs), if any.</param>
 public sealed record RecordedAction(
     IStore Store,
     string ActionName,
     string QualifiedName,
     int Sequence,
-    JsonObject State);
+    JsonObject State,
+    IReadOnlyList<ActionArg> Args);
 
 /// <summary>
 /// Records every action dispatched through a <see cref="ReflexManager"/> for assertions in tests.
@@ -27,7 +29,7 @@ public sealed class ActionLog : IDisposable
     internal ActionLog(ReflexManager manager)
     {
         _subscription = manager.Subscribe(ctx => _actions.Add(new RecordedAction(
-            ctx.Store, ctx.ActionName, ctx.QualifiedName, ctx.Sequence, ctx.GlobalState)));
+            ctx.Store, ctx.ActionName, ctx.QualifiedName, ctx.Sequence, ctx.GlobalState, ctx.Args)));
     }
 
     /// <summary>All recorded actions, in dispatch order.</summary>
