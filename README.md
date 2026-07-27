@@ -1,3 +1,5 @@
+![Blex](https://raw.githubusercontent.com/msynk/Blex/main/assets/icon.png)
+
 # Blex
 
 [![NuGet](https://img.shields.io/nuget/v/Blex.svg?label=Blex)](https://www.nuget.org/packages/Blex)
