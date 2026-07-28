@@ -4,6 +4,8 @@ All notable changes to Blex are documented here.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-28
+
 ### Added
 
 - **XAML data binding**: every store now implements `INotifyPropertyChanged`. `PropertyChanged`
