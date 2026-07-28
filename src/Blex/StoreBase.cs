@@ -343,10 +343,23 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     /// <summary>
     /// Async variant carrying action arguments (surfaced to middleware, subscribers and DevTools).
     /// </summary>
-    protected async Task DispatchAsync(string actionName, Func<Task> mutation, ActionArg[]? args)
+    protected Task DispatchAsync(string actionName, Func<Task> mutation, ActionArg[]? args)
     {
         ArgumentNullException.ThrowIfNull(mutation);
+        return BeginAction(actionName, args)
+            ? DispatchApprovedAsync(actionName, mutation, args)
+            : Task.CompletedTask;
+    }
 
+    /// <summary>
+    /// Runs the before-action pipeline for an action that is about to start and reports whether it
+    /// may proceed (<c>false</c> means a middleware vetoed it). Call this <em>before</em> touching
+    /// any observable state, then run the body through <see cref="DispatchApprovedAsync"/> so the
+    /// decision is taken exactly once. Generated effect wrappers use this so a vetoed effect leaves
+    /// no trace at all -- no loading flicker, no cleared error, no cancelled predecessor.
+    /// </summary>
+    protected bool BeginAction(string actionName, ActionArg[]? args)
+    {
         // Gate the veto on the *synchronous* nesting depth, not the record depth. A record depth
         // above zero can mean either "lexically nested inside a running action" (must not re-veto:
         // the enclosing action already passed the filters) or "another async action of this store
@@ -354,8 +367,18 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
         // every veto filter, which is the common case since Parallel is the default effect
         // concurrency. Only a synchronous Dispatch body raises _notifyDepth, so it distinguishes
         // the two exactly.
-        if (_notifyDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName, args))
-            return;
+        return _notifyDepth != 0
+            || _manager is null
+            || _manager.BeforeAction(this, actionName, args);
+    }
+
+    /// <summary>
+    /// Async dispatch for a body whose veto decision has already been taken by
+    /// <see cref="BeginAction"/>. Records the action when the outermost dispatch completes.
+    /// </summary>
+    protected async Task DispatchApprovedAsync(string actionName, Func<Task> mutation, ActionArg[]? args)
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
 
         _recordDepth++;
         try

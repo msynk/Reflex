@@ -65,7 +65,7 @@ public sealed class BlexPersistenceOptions
 /// in dispatch order so a stale payload can never overwrite a newer one.
 /// Single-threaded dispatch is assumed (Blazor's model).
 /// </summary>
-public sealed class StatePersistor : IAsyncDisposable
+public sealed class StatePersistor : IAsyncDisposable, IDisposable
 {
     private const string VersionKey = "__blexVersion";
     private const string StateKey = "state";
@@ -332,16 +332,7 @@ public sealed class StatePersistor : IAsyncDisposable
 
         foreach (var name in pending)
         {
-            IStore? store = null;
-            foreach (var s in _manager.Stores)
-            {
-                if (s.Name == name)
-                {
-                    store = s;
-                    break;
-                }
-            }
-
+            var store = _manager.GetStore(name);
             if (store is null)
                 continue;
 
@@ -408,16 +399,42 @@ public sealed class StatePersistor : IAsyncDisposable
         }
     }
 
-    /// <summary>Stops listening and flushes any pending writes.</summary>
+    private void Unsubscribe()
+    {
+        if (!_subscribed)
+            return;
+
+        _manager.ActionDispatched -= OnAction;
+        _manager.StateRestored -= OnStateRestored;
+        _subscribed = false;
+    }
+
+    /// <summary>Stops listening, flushes any pending writes and waits for them to complete.</summary>
     public async ValueTask DisposeAsync()
     {
-        if (_subscribed)
-        {
-            _manager.ActionDispatched -= OnAction;
-            _manager.StateRestored -= OnStateRestored;
-            _subscribed = false;
-        }
-
+        Unsubscribe();
         await FlushAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Synchronous disposal, for DI containers that are torn down with <see cref="IDisposable"/>.
+    /// </summary>
+    /// <remarks>
+    /// A container registered as a singleton is disposed through whichever interface the host
+    /// calls, and <c>ServiceProvider.Dispose()</c> throws outright on a service that only offers
+    /// <see cref="IAsyncDisposable"/> -- so both have to exist. This one stops listening and hands
+    /// any debounced state to the storage, but does not wait for the writes to finish: blocking a
+    /// UI thread on storage during shutdown risks a deadlock. A synchronous
+    /// <see cref="IBlexStorage"/> (MAUI <c>Preferences</c>, a file) completes inline either way;
+    /// prefer <see cref="DisposeAsync"/> when the storage is genuinely asynchronous.
+    /// </remarks>
+    public void Dispose()
+    {
+        Unsubscribe();
+        lock (_saveGate)
+        {
+            CancelDebounceLocked();
+            SavePendingLocked();
+        }
     }
 }

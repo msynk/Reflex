@@ -214,6 +214,20 @@ public class DiagnosticTests
     }
 
     [Fact]
+    public void GeneratedMemberCollidingWithBeginAction_ReportsBLEX005()
+    {
+        // BeginAction/DispatchApprovedAsync are StoreBase members the effect wrappers call.
+        var result = GeneratorTestHelper.Run(Usings + """
+            [Store] public partial class S
+            {
+                [State] private int _x;
+                [Action] private void OnBeginAction() { }
+            }
+            """);
+        Assert.True(result.HasDiagnostic("BLEX005"));
+    }
+
+    [Fact]
     public void VoidComputed_ReportsBLEX017()
     {
         // `public void X { get { ... } }` does not compile; the memoized property needs a value.

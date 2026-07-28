@@ -6,6 +6,31 @@ All notable changes to Blex are documented here.
 
 ### Fixed
 
+- **A vetoed effect no longer leaves a trace.** `BlexPreActionContext.Cancel()` promises the action
+  does not run, but the generated effect wrapper took the decision *after* it had already
+  incremented the loading counter, cleared `XxxError`, cancelled the predecessor of a `Latest`
+  effect and taken a `Queue` slot. The veto is now evaluated before any of that, so a vetoed
+  invocation flips nothing, supersedes nothing and delays nothing behind it. `Drop`ped invocations
+  still never reach the pipeline at all - nothing was dispatched. New `StoreBase.BeginAction` /
+  `DispatchApprovedAsync` split the decision from the dispatch (both are reserved names for
+  BLEX005).
+- **`StatePersistor` implemented only `IAsyncDisposable`**, so any host that disposed its container
+  synchronously - what `ServiceProvider.Dispose()` does, and what a singleton registration invites -
+  threw `InvalidOperationException` at shutdown. It now implements `IDisposable` too, unsubscribing
+  and handing pending state to storage without blocking a UI thread on the write.
+- **`Blex.Maui` registrations were rejected by DI scope validation.** MAUI has no scopes, so the
+  startup initializer resolves everything from the root provider - illegal for the scoped default
+  the core helpers use. `UseBlex()` and the new `MauiAppBuilder` helpers register singletons, and
+  the initializer now reports an actionable error through `OnError` instead of failing
+  `MauiApp.Build()` when it cannot resolve its services.
+- **Reopening the Redux DevTools monitor showed a blank state.** The extension's `START` message
+  was ignored, so nothing appeared until the next action; the current tree is now re-sent as the
+  initial snapshot.
+- `BlexComponentBase` no longer discards the render task, which turned a teardown race into an
+  unobserved task exception; shutdown cases are ignored and anything else goes to the error
+  boundary via `DispatchExceptionAsync`. `<BlexProvider>` likewise tolerates `TaskCanceledException`
+  and `ObjectDisposedException` from interop torn down mid-start.
+
 - **Veto filters were silently bypassed by overlapping async actions.** An action dispatched while
   another asynchronous action of the same store was still awaiting skipped the `BeforeAction`
   pipeline entirely, so `UseFilter(...)` guard rails did not apply to it. Since `Parallel` is the
@@ -48,6 +73,21 @@ All notable changes to Blex are documented here.
   `public void Xxx { get { ... } }` and surfaced as five raw `CS` errors inside generated code.
 - **`BLEX006` now covers static stores.** A `static partial class` store emitted instance members
   and a base type it cannot have, producing four raw `CS` errors instead of one Blex diagnostic.
+- **`BlexJson.Configure(...)`** registers converters for domain types that appear in `[State]`
+  fields. A `JsonSerializerOptions` becomes read-only on first use, so this swaps in a configured
+  copy rather than mutating the live instance; `BlexJson.Reset()` restores the defaults.
+- **Service lifetimes are configurable.** `AddBlex`, `AddBlexStore`, `AddBlexPersistence` and
+  `AddBlexHistory` take a `ServiceLifetime` that still defaults to `Scoped`, so Blazor is
+  unchanged. `Blex.Maui` adds `builder.AddBlexStore<T>()`, `builder.AddBlexHistory()` and
+  `builder.AddBlexPreferencesPersistence()` on `MauiAppBuilder`, which register singletons.
+- **`BlexManager.GetStore(string name)`** - the counterpart to indexing `CaptureGlobalState()`.
+
+### Known limitations
+
+- Time-travel *recording* still coalesces overlapping asynchronous actions on one store into the
+  outermost in-flight action, so DevTools shows a single entry for them. Attributing each run
+  separately needs per-action dirty tracking plus async-context flow; the middleware/veto pipeline
+  is unaffected (every invocation is offered to it independently).
 
 ## [0.2.0] - 2026-07-28
 

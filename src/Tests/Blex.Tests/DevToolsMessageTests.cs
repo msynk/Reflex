@@ -61,6 +61,47 @@ public class DevToolsMessageTests
     }
 
     [Fact]
+    public void StartMessage_ReSendsTheCurrentStateAsTheInitialSnapshot()
+    {
+        // The extension sends START when its monitor is (re)opened, which can be long after the
+        // app booted. Without re-initializing, the monitor stays blank until the next action.
+        var sink = new RecordingDevTools();
+        var (store, manager, errors) = Setup();
+        manager.ConnectDevTools(sink);
+        store.Increment();
+        store.Increment();
+        sink.Inits.Clear();
+
+        manager.HandleDevToolsMessage("""{"type":"START"}""");
+
+        var init = Assert.Single(sink.Inits);
+        Assert.Equal(2, init["counter"]!["Count"]!.GetValue<int>());
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void StartMessage_WhenNotConnected_IsIgnored()
+    {
+        var sink = new RecordingDevTools();
+        var (_, manager, errors) = Setup();
+        manager.ConnectDevTools(sink);
+        manager.DisconnectDevTools();
+        sink.Inits.Clear();
+
+        manager.HandleDevToolsMessage("""{"type":"START"}""");
+
+        Assert.Empty(sink.Inits);
+        Assert.Empty(errors);
+    }
+
+    private sealed class RecordingDevTools : IBlexDevTools
+    {
+        public List<JsonObject> Inits { get; } = [];
+        public void Init(JsonObject globalState) => Inits.Add(globalState);
+        public void Send(string actionName, JsonObject globalState) { }
+    }
+
+    [Fact]
     public void UnparseableJumpState_IsReportedNotThrown()
     {
         var (store, manager, errors) = Setup();

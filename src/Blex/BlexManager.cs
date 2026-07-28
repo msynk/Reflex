@@ -87,6 +87,23 @@ public sealed class BlexManager
         }
     }
 
+    /// <summary>
+    /// Returns the registered store with the given <see cref="IStore.Name"/>, or <c>null</c>.
+    /// Names are the keys of the global state tree, so this is the counterpart to indexing
+    /// <see cref="CaptureGlobalState"/>.
+    /// </summary>
+    public IStore? GetStore(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        foreach (var store in _stores)
+        {
+            if (store.Name == name)
+                return store;
+        }
+
+        return null;
+    }
+
     /// <summary>Returns the first registered store of type <typeparamref name="TStore"/>, or <c>null</c>.</summary>
     public TStore? GetStore<TStore>() where TStore : class, IStore
     {
@@ -501,6 +518,23 @@ public sealed class BlexManager
             return;
 
         var type = AsString(message["type"]);
+
+        // The extension sends START when its monitor is (re)opened. Re-sending the current tree as
+        // the initial snapshot is what makes a monitor opened after the app booted show state
+        // instead of staying blank until the next action.
+        if (type == "START")
+        {
+            if (_connected && _devTools is not null)
+            {
+                var state = CaptureGlobalState();
+                _initialState ??= state;
+                _committedState ??= state;
+                _devTools.Init(SanitizeState(state));
+            }
+
+            return;
+        }
+
         if (type != "DISPATCH")
             return;
 

@@ -189,10 +189,11 @@ normal outcome and never populates `Error`. A *foreign* `OperationCanceledExcept
 failure and is recorded in `Error`.
 
 Every invocation is offered to the middleware/veto pipeline independently, including one started
-while another async action of the same store is still awaiting. Time-travel *recording*, however,
-is coalesced: overlapping runs on one store are folded into the outermost in-flight action, so
-DevTools shows a single entry for them. Use `Queue`, `Drop` or `Latest` - or separate stores - when
-each run needs its own history entry.
+while another async action of the same store is still awaiting. A vetoed invocation leaves no
+trace: it never flips `IsLoading`, never clears `Error`, never supersedes a `Latest` run in flight
+and never takes a `Queue` slot. Time-travel *recording*, however, is coalesced: overlapping runs on
+one store are folded into the outermost in-flight action, so DevTools shows a single entry for
+them. Use `Queue`, `Drop` or `Latest` - or separate stores - when each run needs its own entry.
 
 ## Normalized collections (entity adapter)
 
@@ -215,7 +216,9 @@ public partial class TodoStore
 ```
 
 `EntityState` exposes `Ids`, `Entities`, `All`, `Count`, `Contains(id)` and `Find(id)`, and
-round-trips through JSON for snapshots and persistence. The adapter also offers `AddMany`,
+round-trips through JSON for snapshots and persistence. Every operation that changes nothing -
+removing an absent id, upserting an empty sequence, an updater that returns an equal entity -
+returns the *same* instance, so it raises no notification and records no action. The adapter also offers `AddMany`,
 `UpsertMany`, `UpdateMany`, `Map` (transform every entity), `RemoveMany`, `RemoveAll` and `SetAll`,
 plus an optional sort comparer that keeps `Ids` ordered after every operation:
 
@@ -407,10 +410,17 @@ generated state, computed and effect-lifecycle properties:
 
 ```csharp
 // MauiProgram.cs
-builder.UseBlex();                                  // manager + startup initializer
-builder.Services.AddBlexStore<CounterStore>();
-builder.Services.AddBlexPreferencesPersistence();   // OS-native Preferences storage
+builder.UseBlex();                          // manager + startup initializer
+builder.AddBlexStore<CounterStore>();
+builder.AddBlexPreferencesPersistence();    // OS-native Preferences storage
 ```
+
+Register through the `MauiAppBuilder` extensions rather than `builder.Services`: a native MAUI app
+has no DI scopes, so these register Blex as **singletons**, which is both the honest lifetime and
+what keeps the wiring legal if you build the container with `ValidateScopes` enabled (it rejects
+resolving a scoped service from the root provider - exactly what the startup initializer must do).
+The core `builder.Services.AddBlexStore<T>()` still works and still defaults to scoped for Blazor;
+pass `ServiceLifetime.Singleton` if you prefer to call it directly.
 
 ```xml
 <ContentPage ... x:DataType="stores:CounterStore">
@@ -444,9 +454,14 @@ debounce/versioning/migration options as the browser-storage providers, and an u
 payload is reported through `options.OnError` and discarded rather than crashing startup.
 
 To persist somewhere else (files, SQLite), register your own `IBlexStorage` before calling
-`AddBlexPreferencesPersistence()` - the first registration wins. An `IBlexStorage` that
-completes asynchronously should be hydrated from app code (`await persistor.StartAsync()`)
-instead of relying on the synchronous startup initializer.
+`AddBlexPreferencesPersistence()` - the first registration wins, so give it the same lifetime as
+the rest of your Blex registrations. An `IBlexStorage` that completes asynchronously should be
+hydrated from app code (`await persistor.StartAsync()`) instead of relying on the synchronous
+startup initializer.
+
+If the startup initializer cannot resolve its services (typically a lifetime mismatch under
+`ValidateScopes`), it reports through `options.OnError` and lets the app start rather than failing
+`MauiApp.Build()`.
 
 ## Projects
 

@@ -103,9 +103,9 @@ public sealed class BlexProvider : ComponentBase, IAsyncDisposable
             // JS interop is unavailable during prerendering; retry after the first render.
             return;
         }
-        catch (JSDisconnectedException)
+        catch (Exception ex) when (ex is JSDisconnectedException or TaskCanceledException or ObjectDisposedException)
         {
-            // Circuit torn down mid-start; nothing to do.
+            // Circuit torn down mid-start; JS interop surfaces any of these. Nothing to do.
             return;
         }
 

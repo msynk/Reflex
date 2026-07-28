@@ -92,6 +92,30 @@ public class StoreRegistryTests
     }
 
     [Fact]
+    public void GetStoreByName_MatchesTheGlobalStateKeys()
+    {
+        var manager = new BlexManager();
+        var counter = new CounterStore();
+        manager.Register(counter);
+        manager.Register(new SettingsStore());
+
+        Assert.Same(counter, manager.GetStore("counter"));
+        Assert.Null(manager.GetStore("nope"));
+        Assert.All(manager.CaptureGlobalState(), kvp => Assert.NotNull(manager.GetStore(kvp.Key)));
+    }
+
+    [Fact]
+    public void GetStoreByName_ForgetsAnUnregisteredStore()
+    {
+        var manager = new BlexManager();
+        var counter = new CounterStore();
+        manager.Register(counter);
+        manager.Unregister(counter);
+
+        Assert.Null(manager.GetStore("counter"));
+    }
+
+    [Fact]
     public void UnregisteredStore_StopsBeingObserved_ButKeepsWorking()
     {
         var manager = new BlexManager();

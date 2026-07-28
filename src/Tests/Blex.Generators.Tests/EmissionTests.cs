@@ -285,4 +285,49 @@ public class EmissionTests
         Assert.Contains("params int[] values", result.SingleGenerated);
         Assert.Empty(result.CompileErrors());
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Concurrency = EffectConcurrency.Latest")]
+    [InlineData("Concurrency = EffectConcurrency.Drop")]
+    [InlineData("Concurrency = EffectConcurrency.Queue")]
+    public void EffectWrapper_TakesTheVetoDecisionBeforeTouchingAnyLifecycleState(string concurrency)
+    {
+        var attribute = concurrency.Length == 0 ? "[Effect]" : $"[Effect({concurrency})]";
+        var result = GeneratorTestHelper.Run(Usings + $$"""
+            namespace App;
+            [Store] public partial class S
+            {
+                [State] private int _x;
+                {{attribute}}
+                private async Task OnLoad(int id, CancellationToken ct) { await Task.Delay(1, ct); X = id; }
+            }
+            """);
+
+        Assert.Empty(result.CompileErrors());
+
+        // Scope the search to the wrapper body: CancelLoad() mentions the token source too, and it
+        // is emitted before the wrapper.
+        var source = result.SingleGenerated;
+        var wrapperStart = source.IndexOf("public async global::System.Threading.Tasks.Task Load(", StringComparison.Ordinal);
+        Assert.True(wrapperStart > 0, "the effect wrapper should have been emitted");
+        var wrapper = source.Substring(wrapperStart);
+
+        // A veto means the action never happened, so the decision has to precede every observable
+        // side effect: the loading counter, the cleared error, the cancelled predecessor and the
+        // queue slot. Guard the ordering, not just the presence of the call.
+        var veto = wrapper.IndexOf("if (!BeginAction(", StringComparison.Ordinal);
+        Assert.True(veto > 0, "the wrapper must consult the pipeline before running");
+
+        foreach (var sideEffect in new[] { "BeginEffect(ref", "SetEffectState(ref __LoadError, null)", "__LoadCts?.Cancel()", "__LoadQueue = " })
+        {
+            var index = wrapper.IndexOf(sideEffect, StringComparison.Ordinal);
+            if (index >= 0)
+                Assert.True(veto < index, $"'{sideEffect}' must come after the veto check");
+        }
+
+        // ...and the body itself must not re-consult the pipeline.
+        Assert.Contains("DispatchApprovedAsync(", wrapper);
+        Assert.DoesNotContain("await DispatchAsync(", wrapper);
+    }
 }

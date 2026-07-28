@@ -14,9 +14,32 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
     {
         // Resolving the stores is what attaches them to the manager (see AddBlexStore); do it
         // before hydration so every persistent store is known to the persistor.
-        _ = services.GetServices<IStore>();
+        //
+        // This runs against the root provider. When Blex was registered with the core (scoped)
+        // defaults *and* the container was built with ValidateScopes, that resolution is rejected.
+        // Startup must not die over it: report something actionable and let the app run with
+        // lazily-registered stores and default state.
+        try
+        {
+            _ = services.GetServices<IStore>().ToList();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(services, ex, "resolving stores at startup; register Blex for MAUI with builder.UseBlex() and builder.AddBlexStore<T>() so the services are singletons");
+            return;
+        }
 
-        var persistor = services.GetService<StatePersistor>();
+        StatePersistor? persistor;
+        try
+        {
+            persistor = services.GetService<StatePersistor>();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(services, ex, "resolving persistence at startup; use builder.AddBlexPreferencesPersistence() so the persistor is a singleton");
+            return;
+        }
+
         if (persistor is not null)
         {
             try
@@ -29,13 +52,41 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
             catch (Exception ex)
             {
                 // Unreadable storage must not crash app startup: report through OnError and run
-                // with default state, mirroring <BlexProvider>'s containment.
-                services.GetRequiredService<BlexManager>().ReportError("persistence", ex, "hydrating at startup");
+                // with default state, mirroring <BlexProvider>'s containment. This is a
+                // persistence failure, not a wiring one, so it keeps the "persistence" source.
+                Report(services, ex, "hydrating at startup", source: "persistence");
             }
         }
 
         // Start recording history only after rehydration so the baseline (the state Undo
         // ultimately returns to) is the hydrated state, not the pre-hydration defaults.
-        services.GetService<BlexHistory>()?.Start();
+        try
+        {
+            services.GetService<BlexHistory>()?.Start();
+        }
+        catch (InvalidOperationException ex)
+        {
+            Report(services, ex, "starting undo/redo at startup; use builder.AddBlexHistory() so the history is a singleton");
+        }
+    }
+
+    /// <summary>
+    /// Routes a startup failure to <see cref="BlexManager.OnError"/>. The manager itself may be
+    /// unreachable (it is the very thing whose lifetime went wrong), so this falls back to stderr
+    /// rather than throwing over a diagnostic.
+    /// </summary>
+    private static void Report(IServiceProvider services, Exception exception, string detail, string source = "startup")
+    {
+        try
+        {
+            services.GetRequiredService<BlexManager>().ReportError(source, exception, detail);
+            return;
+        }
+        catch (Exception)
+        {
+            // Fall through to stderr below.
+        }
+
+        Console.Error.WriteLine($"[Blex] {source} failed ({detail}): {exception.Message}");
     }
 }

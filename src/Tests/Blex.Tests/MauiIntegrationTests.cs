@@ -51,6 +51,69 @@ public class MauiIntegrationTests
     }
 
     [Fact]
+    public void MauiRegistrations_AreValidUnderScopeValidation()
+    {
+        // A MAUI app has no scopes: everything resolves from the root provider, and the startup
+        // initializer has to do exactly that. Registering Blex as scoped makes it illegal the
+        // moment the container is built with ValidateScopes, so the MAUI helpers use singletons.
+        var services = new ServiceCollection();
+        services.AddBlex(lifetime: ServiceLifetime.Singleton);
+        services.AddBlexStore<SettingsStore>(ServiceLifetime.Singleton);
+        services.AddBlexHistory(lifetime: ServiceLifetime.Singleton);
+        services.AddScoped(_ => new FakePreferences());
+        services.AddSingleton<IBlexStorage>(new PreferencesBlexStorage(new FakePreferences()));
+        services.AddBlexPreferencesPersistence(lifetime: ServiceLifetime.Singleton);
+
+        using var provider = services.BuildServiceProvider(
+            new ServiceProviderOptions { ValidateScopes = true, ValidateOnBuild = true });
+
+        RunInitializers(provider); // must not throw
+        Assert.Equal("light", provider.GetRequiredService<SettingsStore>().Theme);
+
+        // Singleton registration also means the host may tear the container down synchronously,
+        // which ServiceProvider rejects for an IAsyncDisposable-only service.
+        provider.Dispose();
+    }
+
+    [Fact]
+    public void SingletonPersistor_SurvivesSynchronousContainerDisposal()
+    {
+        var preferences = new FakePreferences();
+        var services = new ServiceCollection();
+        services.AddBlex(lifetime: ServiceLifetime.Singleton);
+        services.AddBlexStore<SettingsStore>(ServiceLifetime.Singleton);
+        services.AddSingleton<IBlexStorage>(new PreferencesBlexStorage(preferences));
+        services.AddBlexPreferencesPersistence(lifetime: ServiceLifetime.Singleton);
+
+        var provider = services.BuildServiceProvider();
+        RunInitializers(provider);
+        provider.GetRequiredService<SettingsStore>().SetTheme("blue");
+
+        provider.Dispose(); // must not throw...
+
+        // ...and must have handed the pending state to storage on the way out.
+        Assert.Contains("blue", (string)preferences.Data["blex:settings"]!);
+    }
+
+    [Fact]
+    public void ScopedRegistrations_UnderScopeValidation_ReportRatherThanCrashStartup()
+    {
+        // The legacy (core, scoped) wiring is still rejected by ValidateScopes. Startup must
+        // survive it with an actionable report instead of taking the app down.
+        var errors = new List<BlexError>();
+        var services = new ServiceCollection();
+        services.AddBlex(options => options.OnError = errors.Add, ServiceLifetime.Singleton);
+        services.AddBlexStore<SettingsStore>(); // scoped: the mismatch under test
+        services.AddBlexMauiInitializer();
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+
+        RunInitializers(provider); // must not throw
+
+        Assert.Contains(errors, e => e.Source == "startup");
+    }
+
+    [Fact]
     public async Task PreferencesStorage_RoundTrips()
     {
         var storage = new PreferencesBlexStorage(new FakePreferences());

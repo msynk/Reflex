@@ -38,6 +38,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
         "Name", "Persist", "StateChanged", "PropertyChanged", "SerializeState", "DeserializeState",
         "InvalidateComputed", "NotifyRestored", "SetState", "SetEffectState",
         "BeginEffect", "EndEffect", "Dispatch", "DispatchAsync",
+        "BeginAction", "DispatchApprovedAsync",
         "Batch", "ResetState", "RestoreState", "IsRestoring", "IsObserved",
     ];
 
@@ -858,7 +859,6 @@ public sealed class BlexGenerator : IIncrementalGenerator
             var call = e.IsValueTask ? $"{e.ImplName}({implArgs}).AsTask()" : $"{e.ImplName}({implArgs})";
             var label = Escape(e.ActionLabel);
             var argsExpr = ArgsExpression(e.Parameters);
-            var trailing = argsExpr is null ? "" : $", {argsExpr}";
             var isLatest = e.Concurrency == 1;
             var isDrop = e.Concurrency == 2;
             var isQueue = e.Concurrency == 3;
@@ -896,6 +896,15 @@ public sealed class BlexGenerator : IIncrementalGenerator
                 sb.AppendLine($"{body}        return;");
             }
 
+            // Take the veto decision before touching anything observable. A vetoed action must
+            // leave no trace, and every step below this point is a side effect: the loading
+            // counter, the cleared error, the cancelled predecessor (Latest) and the queue slot
+            // (Queue). The body then runs through DispatchApprovedAsync so the pipeline is not
+            // consulted a second time.
+            sb.AppendLine($"{body}    global::Blex.ActionArg[]? __blexArgs = {argsExpr ?? "null"};");
+            sb.AppendLine($"{body}    if (!BeginAction(\"{label}\", __blexArgs))");
+            sb.AppendLine($"{body}        return;");
+
             if (isLatest) // stale runs must not clobber the newest run's error state
                 sb.AppendLine($"{body}    var __blexVersion = ++{versionField};");
 
@@ -928,7 +937,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
             }
 
             sb.AppendLine($"{body}        SetEffectState(ref {errorField}, null);");
-            sb.AppendLine($"{body}        await DispatchAsync(\"{label}\", () => {call}{trailing}).ConfigureAwait(true);");
+            sb.AppendLine($"{body}        await DispatchApprovedAsync(\"{label}\", () => {call}, __blexArgs).ConfigureAwait(true);");
             sb.AppendLine($"{body}    }}");
             if (e.HasCancellationToken)
             {
