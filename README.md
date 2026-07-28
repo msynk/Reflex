@@ -365,6 +365,53 @@ builder.Services.AddBlex(options =>
 });
 ```
 
+## .NET MAUI Blazor Hybrid
+
+Blex works in MAUI Blazor Hybrid apps out of the box - there is no separate MAUI package. The
+packages' plain `net8.0`/`net9.0`/`net10.0` builds resolve from `net8.0-android`, `net8.0-ios`,
+`net8.0-maccatalyst` and `net8.0-windows` targets, and setup is the same as any Blazor app:
+`AddBlex(...)` + store registrations in `MauiProgram.cs`, and `<BlexProvider>` wrapping the root
+component inside the `BlazorWebView`.
+
+Two platform notes:
+
+- **DevTools** - there is no browser extension inside a `BlazorWebView`, so the bridge detects its
+  absence and disables itself (time-travel is simply off). Set `<BlexProvider
+  EnableDevTools="false">` to skip loading the bridge module entirely.
+- **Persistence** - `AddBlexLocalStoragePersistence()` works (the WebView provides
+  `localStorage`), but the data then lives in the WebView's profile storage. To persist to
+  OS-native app preferences instead, implement `IBlexStorage` over MAUI's `Preferences`:
+
+```csharp
+public sealed class PreferencesBlexStorage : IBlexStorage
+{
+    public ValueTask<string?> GetAsync(string key, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult(Preferences.Default.Get<string?>(key, null));
+
+    public ValueTask SetAsync(string key, string value, CancellationToken cancellationToken = default)
+    {
+        Preferences.Default.Set(key, value);
+        return ValueTask.CompletedTask;
+    }
+
+    public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
+    {
+        Preferences.Default.Remove(key);
+        return ValueTask.CompletedTask;
+    }
+}
+```
+
+```csharp
+// MauiProgram.cs
+builder.Services.AddScoped<IBlexStorage, PreferencesBlexStorage>();
+builder.Services.AddBlexPersistence();   // debounce/versioning options work as usual
+```
+
+Native (XAML) MAUI apps can use the core `Blex` package as a plain state container via
+`store.Subscribe(...)`, but generated properties do not raise `INotifyPropertyChanged`, so XAML
+bindings will not observe changes on their own.
+
 ## Projects
 
 | Project | Description |
