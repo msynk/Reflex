@@ -13,6 +13,13 @@ public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
     private IJSObjectReference? _module;
     private DotNetObjectReference<ReduxDevToolsConnector>? _selfRef;
     private BlexManager? _manager;
+
+    /// <summary>
+    /// Handle identifying this connector's connection inside the shared JS module (0 = none).
+    /// The module is cached per URL, so every connector on the page shares it; without a handle a
+    /// re-created provider's disconnect would tear down whichever connection happened to be last.
+    /// </summary>
+    private int _handle;
     private bool _ready;
     private bool _disposed;
 
@@ -40,9 +47,10 @@ public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
             _module = module;
             _selfRef = DotNetObjectReference.Create(this);
 
-            var connected = await _module.InvokeAsync<bool>("connect", _selfRef, name);
-            if (connected && !_disposed)
+            var handle = await _module.InvokeAsync<int>("connect", _selfRef, name);
+            if (handle > 0 && !_disposed)
             {
+                _handle = handle;
                 _ready = true;
                 manager.ConnectDevTools(this);
             }
@@ -62,7 +70,7 @@ public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
     public void Init(JsonObject globalState)
     {
         if (_ready && _module is not null)
-            FireAndForget(_module.InvokeVoidAsync("init", globalState.ToJsonString()));
+            FireAndForget(_module.InvokeVoidAsync("init", _handle, globalState.ToJsonString()));
     }
 
     /// <inheritdoc />
@@ -73,7 +81,7 @@ public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
     public void Send(string actionName, JsonObject globalState, JsonObject? payload)
     {
         if (_ready && _module is not null)
-            FireAndForget(_module.InvokeVoidAsync("send", actionName, globalState.ToJsonString(), payload?.ToJsonString()));
+            FireAndForget(_module.InvokeVoidAsync("send", _handle, actionName, globalState.ToJsonString(), payload?.ToJsonString()));
     }
 
     // DevTools is a non-critical sink, so interop is dispatched without blocking the dispatch
@@ -120,7 +128,8 @@ public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
         {
             if (_module is not null)
             {
-                await _module.InvokeVoidAsync("disconnect");
+                if (_handle > 0)
+                    await _module.InvokeVoidAsync("disconnect", _handle);
                 await _module.DisposeAsync();
             }
         }

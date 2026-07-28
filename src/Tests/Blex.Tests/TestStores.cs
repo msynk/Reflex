@@ -180,6 +180,32 @@ public partial class EffectConcurrencyStore
     }
 }
 
+/// <summary>
+/// A store with one effect that parks on a gate, so a second action can be dispatched while the
+/// first is still in flight (the default <c>EffectConcurrency.Parallel</c> shape).
+/// </summary>
+[Store(Name = "gated")]
+public partial class GatedStore
+{
+    [State] private int _count;
+
+    public TaskCompletionSource Gate { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    [Effect]
+    private async Task OnSlow()
+    {
+        await Gate.Task;
+        Count++;
+    }
+
+    [Effect]
+    private async Task OnQuick()
+    {
+        await Task.Yield();
+        Count += 10;
+    }
+}
+
 public record Todo(int Id, string Text, bool Done);
 
 [Store(Name = "todos")]

@@ -188,6 +188,12 @@ normal outcome and never populates `Error`. A *foreign* `OperationCanceledExcept
 `HttpClient` timeout, or any cancellation when the effect has no token parameter - is a real
 failure and is recorded in `Error`.
 
+Every invocation is offered to the middleware/veto pipeline independently, including one started
+while another async action of the same store is still awaiting. Time-travel *recording*, however,
+is coalesced: overlapping runs on one store are folded into the outermost in-flight action, so
+DevTools shows a single entry for them. Use `Queue`, `Drop` or `Latest` - or separate stores - when
+each run needs its own history entry.
+
 ## Normalized collections (entity adapter)
 
 `EntityAdapter<TEntity, TKey>` generates CRUD operations over an immutable, id-keyed
@@ -291,8 +297,17 @@ builder.Services.AddBlex(options =>
 });
 ```
 
-`OnError` receives every non-fatal failure Blex isolates from the dispatch pipeline (throwing
-subscribers, middleware, persistence writes, restores) - without it they go to `Console.Error`.
+`OnError` receives every non-fatal failure Blex isolates from the dispatch pipeline - without it
+they go to `Console.Error`. Isolation is per handler and covers the whole observer surface:
+`StateChanged`/`PropertyChanged` subscribers (including selector subscriptions and
+`BlexComponentBase`), `manager.Subscribe(...)` handlers *and* their filters, raw
+`ActionDispatched`/`StateRestored` handlers, `BlexHistory.Changed`, middleware, persistence writes,
+restores and sanitizers. One component throwing while it re-renders can never starve the
+subscribers behind it, nor the persistence and undo/redo observers that run after them.
+
+Store names key the global state tree, the DevTools slices *and* the persistence storage keys, so
+they must be unique. Registering two stores under one name is reported through `OnError` rather
+than silently letting them shadow each other - give one an explicit `[Store(Name = "...")]`.
 
 ## Undo / redo
 
@@ -337,12 +352,12 @@ await harness.Store.WaitForAsync(() => !harness.Store.LoadUserIsLoading);
 The generator validates store shapes and fails fast with precise errors instead of emitting broken
 code: `BLEX001` store not partial · `BLEX002/003` underivable action/computed names ·
 `BLEX004` computed with parameters · `BLEX005` generated-member collisions (including against
-your own members and `StoreBase`) · `BLEX006` nested/generic stores · `BLEX007` non-async
+your own members and `StoreBase`) · `BLEX006` nested/generic/static stores · `BLEX007` non-async
 effects · `BLEX008` static/readonly members · `BLEX009` `Latest` effect without a
 `CancellationToken` (warning) · `BLEX010` `async void` actions · `BLEX011` discarded action
 return values (warning) · `BLEX012` state field/property name conflicts · `BLEX013` by-ref
 parameters · `BLEX014` generic action/effect methods · `BLEX015` record stores ·
-`BLEX016` conflicting base class.
+`BLEX016` conflicting base class · `BLEX017` `void` computed methods.
 
 ## Time-travel debugging
 

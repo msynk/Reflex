@@ -2,18 +2,23 @@
 // Implements the documented extension integration API:
 //   window.__REDUX_DEVTOOLS_EXTENSION__.connect(options) -> { init, send, subscribe }
 // Time-travel is driven by the extension sending DISPATCH messages back to us.
+//
+// ES modules are cached per URL, so every importer shares this module instance. Connections are
+// therefore keyed by a handle rather than held in a single slot: a provider that is torn down and
+// re-created (render-mode switch, enhanced navigation) would otherwise have the outgoing instance's
+// disconnect() tear down the incoming instance's live connection.
 
-let connection = null;
-let unsubscribe = null;
+const connections = new Map();
+let nextHandle = 1;
 
 export function connect(dotNetRef, name) {
     const ext = window.__REDUX_DEVTOOLS_EXTENSION__;
     if (!ext) {
         console.info("[Blex] Redux DevTools extension not detected. Time-travel disabled.");
-        return false;
+        return 0;
     }
 
-    connection = ext.connect({
+    const connection = ext.connect({
         name: name || "Blex",
         // Only advertise what the .NET side actually implements.
         features: {
@@ -28,36 +33,42 @@ export function connect(dotNetRef, name) {
         }
     });
 
-    unsubscribe = connection.subscribe(message => {
-        // Forward every extension message to .NET, which decides how to time-travel.
+    // Forward every extension message to .NET, which decides how to time-travel.
+    const unsubscribe = connection.subscribe(message => {
         dotNetRef.invokeMethodAsync("HandleMessage", JSON.stringify(message));
     });
 
-    return true;
+    const handle = nextHandle++;
+    connections.set(handle, { connection, unsubscribe });
+    return handle;
 }
 
-export function init(stateJson) {
-    if (!connection) return;
-    connection.init(safeParse(stateJson));
+export function init(handle, stateJson) {
+    const entry = connections.get(handle);
+    if (entry) entry.connection.init(safeParse(stateJson));
 }
 
-export function send(actionType, stateJson, payloadJson) {
-    if (!connection) return;
+export function send(handle, actionType, stateJson, payloadJson) {
+    const entry = connections.get(handle);
+    if (!entry) return;
+
     const action = { type: actionType };
     if (payloadJson) {
         action.payload = safeParse(payloadJson);
     }
-    connection.send(action, safeParse(stateJson));
+    entry.connection.send(action, safeParse(stateJson));
 }
 
-export function disconnect() {
+export function disconnect(handle) {
+    const entry = connections.get(handle);
+    if (!entry) return;
+    connections.delete(handle);
+
     // Detach only this connection; ext.disconnect() would kill every DevTools
     // instance on the page (including other libraries').
-    if (typeof unsubscribe === "function") {
-        try { unsubscribe(); } catch { /* extension already gone */ }
+    if (typeof entry.unsubscribe === "function") {
+        try { entry.unsubscribe(); } catch { /* extension already gone */ }
     }
-    unsubscribe = null;
-    connection = null;
 }
 
 function safeParse(json) {

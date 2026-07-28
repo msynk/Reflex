@@ -70,18 +70,70 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     /// property name, meaning "all properties changed"). Every notification funnels through here
     /// so both eventing models always stay in sync.
     /// </summary>
+    /// <remarks>
+    /// Subscribers are invoked one at a time and their exceptions are isolated and reported through
+    /// <see cref="BlexManager.OnError"/>, matching how the manager treats middleware and action
+    /// subscribers: one component throwing while it re-renders must not starve the others -- nor
+    /// the persistence/history/DevTools observers that run after the notification -- of the change.
+    /// </remarks>
     private void NotifyStateChanged()
     {
         try
         {
-            StateChanged?.Invoke();
+            if (StateChanged is { } stateChanged)
+                InvokeIsolated(stateChanged);
         }
         finally
         {
-            // A throwing StateChanged subscriber must not starve XAML bindings of the raise:
-            // the mutation was applied either way.
-            PropertyChanged?.Invoke(this, AllPropertiesChanged);
+            // The mutation was applied either way, so XAML bindings get their raise regardless of
+            // what the StateChanged subscribers did.
+            if (PropertyChanged is { } propertyChanged)
+                InvokeIsolated(propertyChanged);
         }
+    }
+
+    private void InvokeIsolated(Delegate handler)
+    {
+        var targets = handler.GetInvocationList();
+
+        // The overwhelmingly common case is a single subscriber; skip the loop bookkeeping there.
+        if (targets.Length == 1)
+        {
+            Invoke(targets[0]);
+            return;
+        }
+
+        for (var i = 0; i < targets.Length; i++)
+            Invoke(targets[i]);
+
+        void Invoke(Delegate target)
+        {
+            try
+            {
+                switch (target)
+                {
+                    case Action action:
+                        action();
+                        break;
+                    case PropertyChangedEventHandler propertyChanged:
+                        propertyChanged(this, AllPropertiesChanged);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                ReportSubscriberError(ex);
+            }
+        }
+    }
+
+    /// <summary>Routes a throwing notification subscriber to the manager, or to stderr when detached.</summary>
+    private void ReportSubscriberError(Exception exception)
+    {
+        if (_manager is { } manager)
+            manager.ReportError("subscriber", exception, Name);
+        else
+            Console.Error.WriteLine($"[Blex] subscriber failed ({Name}): {exception.Message}");
     }
 
     /// <summary>
@@ -294,7 +346,15 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     protected async Task DispatchAsync(string actionName, Func<Task> mutation, ActionArg[]? args)
     {
         ArgumentNullException.ThrowIfNull(mutation);
-        if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName, args))
+
+        // Gate the veto on the *synchronous* nesting depth, not the record depth. A record depth
+        // above zero can mean either "lexically nested inside a running action" (must not re-veto:
+        // the enclosing action already passed the filters) or "another async action of this store
+        // is still awaiting" -- and in the latter case skipping the check would silently bypass
+        // every veto filter, which is the common case since Parallel is the default effect
+        // concurrency. Only a synchronous Dispatch body raises _notifyDepth, so it distinguishes
+        // the two exactly.
+        if (_notifyDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName, args))
             return;
 
         _recordDepth++;

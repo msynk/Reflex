@@ -15,6 +15,10 @@ public abstract class BlexComponentBase : ComponentBase, IDisposable
     /// <summary>Subscribes to one or more stores; the component re-renders on any change.</summary>
     protected void Subscribe(params ReadOnlySpan<IStore> stores)
     {
+        // Subscribing after disposal would attach a handler nothing will ever detach.
+        if (_disposed)
+            return;
+
         foreach (var store in stores)
         {
             if (store is null || _subscriptions.Contains(store))
@@ -34,6 +38,9 @@ public abstract class BlexComponentBase : ComponentBase, IDisposable
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(selector);
+        if (_disposed)
+            return;
+
         _selectorSubscriptions.Add(store.Subscribe(selector, (Action<T>)(_ => OnStoreChanged()), comparer));
     }
 
@@ -45,6 +52,13 @@ public abstract class BlexComponentBase : ComponentBase, IDisposable
     protected void OwnsSubscription(IDisposable subscription)
     {
         ArgumentNullException.ThrowIfNull(subscription);
+        if (_disposed)
+        {
+            // Nothing left to own it; dispose immediately rather than leak it.
+            subscription.Dispose();
+            return;
+        }
+
         _selectorSubscriptions.Add(subscription);
     }
 

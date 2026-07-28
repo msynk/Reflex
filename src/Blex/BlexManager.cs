@@ -17,7 +17,10 @@ namespace Blex;
 /// </remarks>
 public sealed class BlexManager
 {
-    private readonly List<IStore> _stores = [];
+    // Copy-on-write: the registry is replaced rather than mutated, so anything already walking
+    // Stores (persistence saving slices, a restore in progress, user code) keeps a stable snapshot
+    // even when a lazily-loaded feature registers or tears down a store mid-enumeration.
+    private volatile IStore[] _stores = [];
     private readonly List<IBlexMiddleware> _middleware;
     private readonly Lock _gate = new();
     private IBlexDevTools? _devTools;
@@ -32,7 +35,11 @@ public sealed class BlexManager
         _middleware = middleware?.ToList() ?? [];
     }
 
-    /// <summary>All registered stores.</summary>
+    /// <summary>
+    /// All registered stores. The returned list is an immutable snapshot: registering or
+    /// unregistering a store while it is being enumerated is safe and does not affect the walk
+    /// already in progress.
+    /// </summary>
     public IReadOnlyList<IStore> Stores => _stores;
 
     /// <summary>
@@ -83,20 +90,53 @@ public sealed class BlexManager
     /// <summary>Returns the first registered store of type <typeparamref name="TStore"/>, or <c>null</c>.</summary>
     public TStore? GetStore<TStore>() where TStore : class, IStore
     {
-        lock (_gate)
+        foreach (var store in _stores)
         {
-            foreach (var store in _stores)
-            {
-                if (store is TStore typed)
-                    return typed;
-            }
+            if (store is TStore typed)
+                return typed;
         }
 
         return null;
     }
 
     /// <summary>Raised whenever any store changes (after the per-store event).</summary>
+    /// <remarks>
+    /// Handlers are invoked one at a time and their exceptions are isolated and reported through
+    /// <see cref="OnError"/>, so a raw <c>+=</c> handler that throws cannot stop the handlers behind
+    /// it -- persistence and undo/redo both observe this event.
+    /// </remarks>
     public event Action<BlexActionContext>? ActionDispatched;
+
+    /// <summary>
+    /// Invokes a multicast event one handler at a time, containing and reporting any exception, so
+    /// that one misbehaving observer cannot starve the rest of the pipeline.
+    /// </summary>
+    internal void InvokeIsolated<T>(Delegate? handler, T argument, string source, string? detail)
+    {
+        if (handler is null)
+            return;
+
+        var targets = handler.GetInvocationList();
+        for (var i = 0; i < targets.Length; i++)
+        {
+            try
+            {
+                switch (targets[i])
+                {
+                    case Action<T> typed:
+                        typed(argument);
+                        break;
+                    case Action bare:
+                        bare();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                ReportError(source, ex, detail);
+            }
+        }
+    }
 
     /// <summary>
     /// Subscribes to dispatched actions, optionally filtered. Returns a token; dispose it to stop
@@ -108,10 +148,13 @@ public sealed class BlexManager
         ArgumentNullException.ThrowIfNull(handler);
         void Wrapped(BlexActionContext ctx)
         {
-            if (filter is not null && !filter(ctx))
-                return;
             try
             {
+                // The filter is user code too, and it runs on the dispatch path: a throwing
+                // predicate must be contained exactly like a throwing handler.
+                if (filter is not null && !filter(ctx))
+                    return;
+
                 handler(ctx);
             }
             catch (Exception ex)
@@ -180,16 +223,42 @@ public sealed class BlexManager
     }
 
     /// <summary>Registers a store with the manager. Idempotent.</summary>
+    /// <remarks>
+    /// Store names key the global state tree, the DevTools slices and the persistence storage keys,
+    /// so they must be unique. Registering a second store under a name already in use is reported
+    /// through <see cref="OnError"/> (rather than throwing) and the store is still registered, but
+    /// the two will shadow each other -- give one of them an explicit <c>[Store(Name = "...")]</c>.
+    /// </remarks>
     public void Register(IStore store)
     {
         ArgumentNullException.ThrowIfNull(store);
+        var duplicate = false;
         lock (_gate)
         {
-            if (_stores.Contains(store))
-                return;
-            _stores.Add(store);
+            var current = _stores;
+            foreach (var existing in current)
+            {
+                if (ReferenceEquals(existing, store))
+                    return;
+                if (existing.Name == store.Name)
+                    duplicate = true;
+            }
+
+            var next = new IStore[current.Length + 1];
+            Array.Copy(current, next, current.Length);
+            next[current.Length] = store;
+            _stores = next;
+
             if (store is StoreBase sb)
                 sb.Attach(this);
+        }
+
+        if (duplicate)
+        {
+            ReportError(
+                "register",
+                new InvalidOperationException($"More than one store is named '{store.Name}'."),
+                $"duplicate store name '{store.Name}'; state slices, DevTools entries and persistence keys will collide -- set a unique [Store(Name = \"...\")]");
         }
     }
 
@@ -202,7 +271,17 @@ public sealed class BlexManager
         ArgumentNullException.ThrowIfNull(store);
         lock (_gate)
         {
-            if (_stores.Remove(store) && store is StoreBase sb)
+            var current = _stores;
+            var index = Array.IndexOf(current, store);
+            if (index < 0)
+                return;
+
+            var next = new IStore[current.Length - 1];
+            Array.Copy(current, next, index);
+            Array.Copy(current, index + 1, next, index, current.Length - index - 1);
+            _stores = next;
+
+            if (store is StoreBase sb)
                 sb.Detach();
         }
     }
@@ -230,11 +309,8 @@ public sealed class BlexManager
     public JsonObject CaptureGlobalState()
     {
         var root = new JsonObject();
-        lock (_gate)
-        {
-            foreach (var store in _stores)
-                root[store.Name] = store.SerializeState();
-        }
+        foreach (var store in _stores)
+            root[store.Name] = store.SerializeState();
 
         return root;
     }
@@ -323,7 +399,7 @@ public sealed class BlexManager
                 _devTools.Send(SanitizeAction(context.QualifiedName), SanitizeState(global), BuildDevToolsPayload(context.Args));
             }
 
-            ActionDispatched?.Invoke(context);
+            InvokeIsolated(ActionDispatched, context, "subscriber", context.QualifiedName);
         }
         finally
         {
@@ -396,6 +472,21 @@ public sealed class BlexManager
     /// </summary>
     public void HandleDevToolsMessage(string messageJson)
     {
+        try
+        {
+            HandleDevToolsMessageCore(messageJson);
+        }
+        catch (Exception ex)
+        {
+            // The extension is untrusted input reaching us through a JS interop callback: a message
+            // whose shape drifted (a non-string "type", a payload that isn't an object, ...) must
+            // not throw back into interop and tear the circuit down.
+            ReportError("devtools", ex, "handling extension message");
+        }
+    }
+
+    private void HandleDevToolsMessageCore(string messageJson)
+    {
         JsonNode? message;
         try
         {
@@ -409,16 +500,16 @@ public sealed class BlexManager
         if (message is null)
             return;
 
-        var type = message["type"]?.GetValue<string>();
+        var type = AsString(message["type"]);
         if (type != "DISPATCH")
             return;
 
-        var payloadType = message["payload"]?["type"]?.GetValue<string>();
+        var payloadType = AsString(message["payload"]?["type"]);
         switch (payloadType)
         {
             case "JUMP_TO_STATE":
             case "JUMP_TO_ACTION":
-                ApplyStateString(message["state"]?.GetValue<string>());
+                ApplyStateString(AsString(message["state"]));
                 break;
 
             case "ROLLBACK":
@@ -427,7 +518,7 @@ public sealed class BlexManager
                 if (_committedState is not null)
                     RestoreGlobalState(_committedState);
                 else
-                    ApplyStateString(message["state"]?.GetValue<string>());
+                    ApplyStateString(AsString(message["state"]));
                 break;
 
             case "RESET":
@@ -450,6 +541,13 @@ public sealed class BlexManager
         }
     }
 
+    /// <summary>
+    /// Reads a node as a string without throwing when the extension sent a different JSON kind
+    /// (<c>JsonNode.GetValue&lt;string&gt;()</c> would throw on a number/object/array).
+    /// </summary>
+    private static string? AsString(JsonNode? node)
+        => node is JsonValue value && value.TryGetValue<string>(out var s) ? s : null;
+
     private void ApplyStateString(string? stateJson)
     {
         if (string.IsNullOrEmpty(stateJson))
@@ -470,7 +568,8 @@ public sealed class BlexManager
     /// <summary>
     /// Raised after <see cref="RestoreGlobalState"/> applies a snapshot (time-travel, undo/redo).
     /// Persistence uses this to write the restored state back to storage so a reload does not
-    /// resurrect the pre-restore state.
+    /// resurrect the pre-restore state. Handler exceptions are isolated and reported through
+    /// <see cref="OnError"/>.
     /// </summary>
     public event Action? StateRestored;
 
@@ -489,16 +588,9 @@ public sealed class BlexManager
         if (_inFlight.Count > 0)
             FreezeInFlightSnapshots();
 
-        // Snapshot the registry, then apply outside the lock: ApplyRestoredState raises
-        // StateChanged, and a handler that registers/unregisters a store must not deadlock or
-        // invalidate the enumeration.
-        IStore[] stores;
-        lock (_gate)
-        {
-            stores = [.. _stores];
-        }
-
-        foreach (var store in stores)
+        // Read the registry once: ApplyRestoredState raises StateChanged, and a handler that
+        // registers/unregisters a store swaps in a new array rather than mutating this one.
+        foreach (var store in _stores)
         {
             if (global[store.Name] is JsonObject slice && store is StoreBase sb)
             {
@@ -515,6 +607,6 @@ public sealed class BlexManager
             }
         }
 
-        StateRestored?.Invoke();
+        InvokeIsolated<object?>(StateRestored, null, "restore", "state restored handler");
     }
 }

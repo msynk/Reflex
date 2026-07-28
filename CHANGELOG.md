@@ -4,6 +4,51 @@ All notable changes to Blex are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Veto filters were silently bypassed by overlapping async actions.** An action dispatched while
+  another asynchronous action of the same store was still awaiting skipped the `BeforeAction`
+  pipeline entirely, so `UseFilter(...)` guard rails did not apply to it. Since `Parallel` is the
+  default effect concurrency, this was the common case for overlapping effects. The veto is now
+  gated on synchronous nesting depth, so lexically nested mutations still inherit their enclosing
+  action's decision while genuinely concurrent invocations each get their own.
+- **Error isolation now covers the whole observer surface.** `StateChanged`/`PropertyChanged`
+  subscribers, raw `ActionDispatched`/`StateRestored` handlers, `BlexHistory.Changed` handlers and
+  subscription *filters* were all invoked unprotected, so a single throwing handler aborted every
+  handler behind it - and with it persistence, undo/redo and DevTools recording. Every one of these
+  is now invoked per handler with exceptions contained and reported through `OnError`.
+- **`RedactDevToolsKeys` matched case-sensitively** while state slices are keyed by the generated
+  PascalCase property name (`Token`) and action payloads by the camelCase parameter name (`token`),
+  so a redaction failed open and leaked exactly what it was meant to hide - including for the
+  spelling used in the README's own example. Matching is now case-insensitive.
+- **`HandleDevToolsMessage` could throw back into JS interop.** The message comes from a browser
+  extension and was read with `GetValue<string>()`, which throws when a field is a different JSON
+  kind. Malformed messages are now contained and reported instead of tearing down the circuit.
+- **Duplicate store names are reported.** Two stores sharing a name silently shadowed each other in
+  the global state tree, in DevTools and - most damagingly - under the same persistence storage key.
+  `Register` now reports the collision through `OnError`.
+- **Entity adapter no-ops allocated a new state.** `AddMany`/`UpsertMany`/`RemoveMany`/`RemoveAll`/
+  `SetAll` with nothing to do, and `UpdateOne`/`UpdateMany`/`Map` whose updater returned an equal
+  entity, returned a new instance. State compares by reference, so each of those raised a change
+  notification and recorded a phantom time-travel action. They now return the same instance.
+- **`EntityState` no longer deserializes into an instance that throws on first use** when a
+  persisted payload is missing or nulls out its `ids`/`entities` half.
+- **The DevTools JS bridge kept its connection in a module-level slot.** ES modules are cached per
+  URL, so a provider that was torn down and re-created had the outgoing instance's `disconnect()`
+  tear down the incoming instance's live connection. Connections are now keyed by a handle.
+- **The store registry is copy-on-write**, so registering or unregistering a store from inside a
+  notification (a lazily-loaded feature arriving mid-dispatch) can no longer invalidate a walk
+  already in progress. `BlexManager.Stores` returns an immutable snapshot.
+- `BlexComponentBase` no longer attaches subscriptions after disposal, where nothing would detach
+  them; `OwnsSubscription` disposes a token handed to it post-disposal rather than leaking it.
+
+### Added
+
+- **`BLEX017`**: a `[Computed]` method returning `void` is now a diagnostic. It previously emitted
+  `public void Xxx { get { ... } }` and surfaced as five raw `CS` errors inside generated code.
+- **`BLEX006` now covers static stores.** A `static partial class` store emitted instance members
+  and a base type it cannot have, producing four raw `CS` errors instead of one Blex diagnostic.
+
 ## [0.2.0] - 2026-07-28
 
 ### Added

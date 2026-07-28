@@ -70,7 +70,10 @@ public class PersistenceAdvancedTests
 
         Assert.Equal("dark", store.Theme); // state applied
         Assert.True(storage.Data.ContainsKey("blex:settings")); // data NOT deleted
-        Assert.Contains(errors, e => e.Source == "persistence");
+
+        // The store isolates the misbehaving notification subscriber itself, so the failure is
+        // attributed to the subscriber (naming the store) rather than to persistence.
+        Assert.Contains(errors, e => e.Source == "subscriber" && e.Detail == "settings");
     }
 
     [Fact]

@@ -31,7 +31,7 @@
     <ul>
         <li>declared <code>partial</code> - otherwise <code>BLEX001</code>;</li>
         <li>a plain class, not a <code>record</code> - <code>BLEX015</code>. Records get value equality and a synthesized clone that fight a mutable reactive container;</li>
-        <li>top-level and non-generic - <code>BLEX006</code>;</li>
+        <li>top-level, non-generic and non-static - <code>BLEX006</code>;</li>
         <li>with no other base class, since the generated partial adds <code>: Blex.StoreBase</code> - <code>BLEX016</code>.</li>
     </ul>
     <p>

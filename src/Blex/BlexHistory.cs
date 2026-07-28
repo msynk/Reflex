@@ -37,7 +37,14 @@ public sealed class BlexHistory : IDisposable
     public int MaxEntries { get; }
 
     /// <summary>Raised whenever undo/redo availability changes (handy for binding button state).</summary>
+    /// <remarks>
+    /// Handlers are invoked one at a time with their exceptions isolated and reported through
+    /// <see cref="BlexManager.OnError"/>: this event fires from inside the dispatch pipeline, where
+    /// a throwing UI handler would otherwise starve the observers behind it (persistence included).
+    /// </remarks>
     public event Action? Changed;
+
+    private void RaiseChanged() => _manager.InvokeIsolated<object?>(Changed, null, "history", null);
 
     /// <summary>Whether there is a prior state to undo to.</summary>
     public bool CanUndo => _undo.Count > 0;
@@ -87,7 +94,7 @@ public sealed class BlexHistory : IDisposable
             // what the user actually sees rather than a stale pre-jump state.
             _present = _manager.CaptureGlobalState();
             _presentLabel = null;
-            Changed?.Invoke();
+            RaiseChanged();
         }
         catch (Exception ex)
         {
@@ -114,7 +121,7 @@ public sealed class BlexHistory : IDisposable
             _present = context.GlobalState;
             _presentLabel = context.QualifiedName;
             _redo.Clear();
-            Changed?.Invoke();
+            RaiseChanged();
         }
         catch (Exception ex)
         {
@@ -138,7 +145,7 @@ public sealed class BlexHistory : IDisposable
         _present = entry.State;
         _presentLabel = entry.Label;
         Restore(entry.State);
-        Changed?.Invoke();
+        RaiseChanged();
     }
 
     /// <summary>Re-applies the most recently undone state. No-op when <see cref="CanRedo"/> is false.</summary>
@@ -155,7 +162,7 @@ public sealed class BlexHistory : IDisposable
         _present = entry.State;
         _presentLabel = entry.Label;
         Restore(entry.State);
-        Changed?.Invoke();
+        RaiseChanged();
     }
 
     /// <summary>Clears all undo/redo history, keeping the current state as the new baseline.</summary>
@@ -165,7 +172,7 @@ public sealed class BlexHistory : IDisposable
         _redo.Clear();
         _present = _manager.CaptureGlobalState();
         _presentLabel = null;
-        Changed?.Invoke();
+        RaiseChanged();
     }
 
     private void Restore(JsonObject state)

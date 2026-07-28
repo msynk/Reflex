@@ -351,6 +351,21 @@
             [Store]
             public partial class CounterStore : StoreBase { }
             """),
+
+        new("BLEX017", "Computed method must return a value", true,
+            "A computed backs a memoized property, so there has to be something to memoize; a <code>void</code> method would emit <code>public void Xxx { get; }</code>, which does not compile.",
+            """
+            [Computed]
+            private void ComputeSummary() { }         // BLEX017
+            """,
+            """
+            [Computed]
+            private string ComputeSummary() => $"{Count} items";
+
+            // Something that only performs work (no value) is an action, not a computed:
+            [Action]
+            private void OnRefreshSummary() { }
+            """),
     ];
 
     private const string Suppress = """

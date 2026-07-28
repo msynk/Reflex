@@ -200,4 +200,50 @@ public class DiagnosticTests
             """);
         Assert.True(result.HasDiagnostic("BLEX006"));
     }
+
+    [Fact]
+    public void StaticStore_ReportsBLEX006()
+    {
+        // A static class cannot derive from StoreBase or hold the instance members the generator
+        // emits; without this the user gets four raw CS errors inside generated code.
+        var result = GeneratorTestHelper.Run(Usings + """
+            [Store] public static partial class S { }
+            """);
+        Assert.True(result.HasDiagnostic("BLEX006"));
+        Assert.Empty(result.GeneratedSources);
+    }
+
+    [Fact]
+    public void VoidComputed_ReportsBLEX017()
+    {
+        // `public void X { get { ... } }` does not compile; the memoized property needs a value.
+        var result = GeneratorTestHelper.Run(Usings + """
+            [Store] public partial class S
+            {
+                [State] private int _x;
+                [Computed] private void ComputeThing() { }
+            }
+            """);
+        Assert.True(result.HasDiagnostic("BLEX017"));
+    }
+
+    [Fact]
+    public void VoidComputed_StillEmitsTheRestOfTheStoreWithoutCompileErrors()
+    {
+        var result = GeneratorTestHelper.Run(Usings + """
+            [Store] public partial class S
+            {
+                [State] private int _x;
+                [Computed] private void ComputeThing() { }
+                [Computed] private int ComputeDouble() => X * 2;
+                [Action] private void OnBump() => X++;
+            }
+            """);
+
+        // The offending member is skipped rather than poisoning the whole emission, so the only
+        // failure the user sees is the precise BLEX017 diagnostic.
+        Assert.True(result.HasDiagnostic("BLEX017"));
+        Assert.Empty(result.CompileErrors());
+        Assert.Contains("public int Double", result.SingleGenerated);
+    }
 }

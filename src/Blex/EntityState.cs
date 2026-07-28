@@ -14,12 +14,22 @@ public sealed class EntityState<TEntity, TKey>
     where TKey : notnull
 {
     /// <summary>Creates a normalized state from an ordered id list and matching entity map.</summary>
+    /// <remarks>
+    /// This is also the JSON constructor. A persisted payload that is missing (or nulls out) either
+    /// half degrades to an empty collection rather than producing an instance that throws on first
+    /// enumeration.
+    /// </remarks>
     [JsonConstructor]
     public EntityState(IReadOnlyList<TKey> ids, IReadOnlyDictionary<TKey, TEntity> entities)
     {
-        Ids = ids;
-        Entities = entities;
+        Ids = ids ?? EmptyIds;
+        Entities = entities ?? EmptyEntities;
     }
+
+    private static readonly IReadOnlyList<TKey> EmptyIds = Array.Empty<TKey>();
+
+    private static readonly IReadOnlyDictionary<TKey, TEntity> EmptyEntities =
+        new System.Collections.ObjectModel.ReadOnlyDictionary<TKey, TEntity>(new Dictionary<TKey, TEntity>());
 
     /// <summary>The ids in insertion/display order.</summary>
     public IReadOnlyList<TKey> Ids { get; }
@@ -28,15 +38,19 @@ public sealed class EntityState<TEntity, TKey>
     public IReadOnlyDictionary<TKey, TEntity> Entities { get; }
 
     /// <summary>An empty state. Shared and defensively read-only.</summary>
-    public static EntityState<TEntity, TKey> Empty { get; } =
-        new(Array.Empty<TKey>(),
-            new System.Collections.ObjectModel.ReadOnlyDictionary<TKey, TEntity>(new Dictionary<TKey, TEntity>()));
+    public static EntityState<TEntity, TKey> Empty { get; } = new(EmptyIds, EmptyEntities);
 
     /// <summary>Number of stored entities.</summary>
     [JsonIgnore]
     public int Count => Ids.Count;
 
     /// <summary>Entities in id order.</summary>
+    /// <remarks>
+    /// Lazily enumerated: the sequence is walked on each iteration rather than materialized, so
+    /// cache it (<c>ToList()</c>) when a render pass reads it more than once. Every adapter
+    /// operation keeps <see cref="Ids"/> and <see cref="Entities"/> in step; a hand-edited payload
+    /// that lists an id with no matching entity throws <see cref="KeyNotFoundException"/> here.
+    /// </remarks>
     [JsonIgnore]
     public IEnumerable<TEntity> All
     {
@@ -115,8 +129,10 @@ public sealed class EntityAdapter<TEntity, TKey>
     /// <summary>Adds many entities, ignoring any whose id already exists.</summary>
     public EntityState<TEntity, TKey> AddMany(EntityState<TEntity, TKey> state, IEnumerable<TEntity> entities)
     {
+        ArgumentNullException.ThrowIfNull(entities);
         var ids = new List<TKey>(state.Ids);
         var map = ToDictionary(state);
+        var changed = false;
         foreach (var entity in entities)
         {
             var id = _selectId(entity);
@@ -124,9 +140,13 @@ public sealed class EntityAdapter<TEntity, TKey>
                 continue;
             ids.Add(id);
             map[id] = entity;
+            changed = true;
         }
 
-        return Build(ids, map);
+        // A no-op must return the *same* instance: state fields compare by reference, so handing
+        // back an equivalent-but-new instance would raise a change notification and record a
+        // time-travel action for a mutation that never happened.
+        return changed ? Build(ids, map) : state;
     }
 
     /// <summary>Adds or replaces an entity (matched by id).</summary>
@@ -143,17 +163,20 @@ public sealed class EntityAdapter<TEntity, TKey>
     /// <summary>Adds or replaces many entities (matched by id).</summary>
     public EntityState<TEntity, TKey> UpsertMany(EntityState<TEntity, TKey> state, IEnumerable<TEntity> entities)
     {
+        ArgumentNullException.ThrowIfNull(entities);
         var ids = new List<TKey>(state.Ids);
         var map = ToDictionary(state);
+        var changed = false;
         foreach (var entity in entities)
         {
             var id = _selectId(entity);
             if (!map.ContainsKey(id))
                 ids.Add(id);
             map[id] = entity;
+            changed = true;
         }
 
-        return Build(ids, map);
+        return changed ? Build(ids, map) : state;
     }
 
     /// <summary>Applies an update function to one entity, matched by id. No-op if absent.</summary>
@@ -164,6 +187,17 @@ public sealed class EntityAdapter<TEntity, TKey>
 
         var updated = update(existing);
         var newId = _selectId(updated);
+
+        // An updater that returns an equal entity (a record with the same values, or the very same
+        // instance) is a no-op; returning the same state keeps it from raising a notification and
+        // recording a time-travel action. This is what makes Map/UpdateMany over unchanged
+        // entities free.
+        if (EqualityComparer<TKey>.Default.Equals(newId, id)
+            && EqualityComparer<TEntity>.Default.Equals(existing, updated))
+        {
+            return state;
+        }
+
         var map = ToDictionary(state);
 
         if (EqualityComparer<TKey>.Default.Equals(newId, id))
@@ -225,30 +259,42 @@ public sealed class EntityAdapter<TEntity, TKey>
         return Build(ids, map);
     }
 
-    /// <summary>Removes the entities with the given ids.</summary>
+    /// <summary>Removes the entities with the given ids. Ids that are not present are ignored.</summary>
     public EntityState<TEntity, TKey> RemoveMany(EntityState<TEntity, TKey> state, IEnumerable<TKey> ids)
     {
+        ArgumentNullException.ThrowIfNull(ids);
         var toRemove = new HashSet<TKey>(ids);
         var map = ToDictionary(state);
+        var removed = 0;
         foreach (var id in toRemove)
-            map.Remove(id);
-        var remaining = new List<TKey>();
+        {
+            if (map.Remove(id))
+                removed++;
+        }
+
+        if (removed == 0)
+            return state;
+
+        var remaining = new List<TKey>(state.Ids.Count - removed);
         foreach (var id in state.Ids)
         {
             if (!toRemove.Contains(id))
                 remaining.Add(id);
         }
 
+        // Removal preserves the relative order of what is left, so a sorted state stays sorted
+        // and there is nothing for Build's comparer pass to do.
         return new EntityState<TEntity, TKey>(remaining, map);
     }
 
     /// <summary>Removes every entity.</summary>
     public EntityState<TEntity, TKey> RemoveAll(EntityState<TEntity, TKey> state)
-        => EntityState<TEntity, TKey>.Empty;
+        => state.Count == 0 ? state : EntityState<TEntity, TKey>.Empty;
 
     /// <summary>Replaces the entire collection with the supplied entities.</summary>
     public EntityState<TEntity, TKey> SetAll(EntityState<TEntity, TKey> state, IEnumerable<TEntity> entities)
     {
+        ArgumentNullException.ThrowIfNull(entities);
         var ids = new List<TKey>();
         var map = new Dictionary<TKey, TEntity>();
         foreach (var entity in entities)
@@ -258,6 +304,11 @@ public sealed class EntityAdapter<TEntity, TKey>
                 ids.Add(id);
             map[id] = entity;
         }
+
+        // Clearing an already-empty collection changes nothing; keep the instance so it does not
+        // register as a mutation.
+        if (ids.Count == 0 && state.Count == 0)
+            return state;
 
         return Build(ids, map);
     }

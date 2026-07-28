@@ -84,7 +84,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor UnsupportedClassShape = new(
         "BLEX006",
         "Unsupported store class shape",
-        "Blex store '{0}' must be a top-level, non-generic class. Nested and generic stores are not supported.",
+        "Blex store '{0}' must be a top-level, non-generic, non-static class. Nested, generic and static stores are not supported.",
         "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -161,6 +161,14 @@ public sealed class BlexGenerator : IIncrementalGenerator
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    private static readonly DiagnosticDescriptor ComputedReturnsVoid = new(
+        "BLEX017",
+        "Computed method must return a value",
+        "Computed method '{0}' returns void; it must return a value so it can back a memoized property",
+        "Blex",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     private static readonly DiagnosticDescriptor ConflictingBaseType = new(
         "BLEX016",
         "Store cannot have another base class",
@@ -220,9 +228,10 @@ public sealed class BlexGenerator : IIncrementalGenerator
             return Fail();
         }
 
-        // The emitter writes a flat, top-level partial declaration, so nested and generic
-        // stores would produce broken output. Fail with a clear diagnostic instead.
-        if (symbol.ContainingType is not null || symbol.IsGenericType)
+        // The emitter writes a flat, top-level partial declaration with instance members, so
+        // nested, generic and static stores would produce broken output. Fail with a clear
+        // diagnostic instead.
+        if (symbol.ContainingType is not null || symbol.IsGenericType || symbol.IsStatic)
         {
             Report(UnsupportedClassShape, classDecl.Identifier.GetLocation(), symbol.Name);
             return Fail();
@@ -297,6 +306,14 @@ public sealed class BlexGenerator : IIncrementalGenerator
                     if (cm.Parameters.Length > 0)
                     {
                         Report(ComputedHasParameters, cm.Locations.FirstOrDefault(), cm.Name);
+                        break;
+                    }
+
+                    // A void computed would emit `public void Xxx { get { ... } }`, which does not
+                    // compile; the memoized property needs something to memoize.
+                    if (cm.ReturnsVoid)
+                    {
+                        Report(ComputedReturnsVoid, cm.Locations.FirstOrDefault(), cm.Name);
                         break;
                     }
 

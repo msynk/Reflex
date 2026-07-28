@@ -28,12 +28,19 @@ public sealed class BlexOptions
     public Action<BlexError>? OnError { get; set; }
 
     /// <summary>
-    /// Convenience: redacts the named top-level keys (recursively, anywhere in the tree) from the
-    /// state sent to DevTools, replacing their values with <c>"&lt;redacted&gt;"</c>.
+    /// Convenience: redacts the named keys (recursively, anywhere in the tree -- including inside
+    /// arrays and action payloads) from the state sent to DevTools, replacing their values with
+    /// <c>"&lt;redacted&gt;"</c>.
     /// </summary>
+    /// <remarks>
+    /// Matching is case-insensitive: state slices are keyed by the generated PascalCase property
+    /// name (<c>Token</c>) while action payloads use the camelCase parameter name (<c>token</c>),
+    /// and a redaction helper that silently missed one of them would fail open.
+    /// </remarks>
     public BlexOptions RedactDevToolsKeys(params string[] keys)
     {
-        var set = new HashSet<string>(keys, StringComparer.Ordinal);
+        ArgumentNullException.ThrowIfNull(keys);
+        var set = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
         DevToolsStateSanitizer = state => RedactKeys(state, set);
         return this;
     }

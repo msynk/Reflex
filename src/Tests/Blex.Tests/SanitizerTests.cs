@@ -11,8 +11,15 @@ public class SanitizerTests
     {
         public List<JsonObject> Inits { get; } = new();
         public List<(string Action, JsonObject State)> Sends { get; } = new();
+        public List<JsonObject?> Payloads { get; } = new();
         public void Init(JsonObject globalState) => Inits.Add(globalState);
-        public void Send(string actionName, JsonObject globalState) => Sends.Add((actionName, globalState));
+        public void Send(string actionName, JsonObject globalState) => Send(actionName, globalState, null);
+
+        public void Send(string actionName, JsonObject globalState, JsonObject? payload)
+        {
+            Sends.Add((actionName, globalState));
+            Payloads.Add(payload);
+        }
     }
 
     [Fact]
@@ -99,6 +106,43 @@ public class SanitizerTests
         Assert.Equal("<redacted>", items[0]!["token"]!.GetValue<string>());
         Assert.Equal("<redacted>", items[1]!["token"]!.GetValue<string>());
         Assert.Equal(1, items[0]!["Id"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void RedactDevToolsKeys_MatchesCaseInsensitively()
+    {
+        var options = new BlexOptions();
+        // State slices are keyed by the generated PascalCase property name while action payloads
+        // use the camelCase parameter name; a redaction helper must catch both spellings.
+        options.RedactDevToolsKeys("token", "password");
+
+        var state = new JsonObject
+        {
+            ["auth"] = new JsonObject { ["Token"] = "secret", ["PASSWORD"] = "hunter2", ["User"] = "sam" },
+        };
+
+        var sanitized = options.DevToolsStateSanitizer!(state);
+
+        Assert.Equal("<redacted>", sanitized["auth"]!["Token"]!.GetValue<string>());
+        Assert.Equal("<redacted>", sanitized["auth"]!["PASSWORD"]!.GetValue<string>());
+        Assert.Equal("sam", sanitized["auth"]!["User"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void RedactDevToolsKeys_RedactsActionPayloads()
+    {
+        var sink = new CapturingDevTools();
+        var options = new BlexOptions();
+        options.RedactDevToolsKeys("Label");
+
+        var manager = new BlexManager { DevToolsStateSanitizer = options.DevToolsStateSanitizer };
+        var counter = new CounterStore();
+        manager.Register(counter);
+        manager.ConnectDevTools(sink);
+
+        counter.Label = "secret"; // standalone set: the payload carries the assigned value
+
+        Assert.Equal("<redacted>", sink.Payloads[^1]!["Label"]!.GetValue<string>());
     }
 
     [Fact]
