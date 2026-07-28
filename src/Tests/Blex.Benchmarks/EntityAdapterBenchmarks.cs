@@ -3,7 +3,7 @@ using BenchmarkDotNet.Attributes;
 namespace Blex.Benchmarks;
 
 /// <summary>
-/// Cost of the immutable <see cref="EntityAdapter{TEntity, TKey}"/> operations at different
+/// Cost of the immutable <see cref="EntityAdapterBlex{TEntity, TKey}"/> operations at different
 /// collection sizes, including the sorted-adapter variant. Every operation copies the id list
 /// and entity map, so these numbers bound how large a normalized collection can get before
 /// per-action costs become noticeable.
@@ -13,13 +13,13 @@ public class EntityAdapterBenchmarks
 {
     public sealed record Item(int Id, string Name, bool Flag);
 
-    private readonly EntityAdapter<Item, int> _adapter = new(i => i.Id);
-    private readonly EntityAdapter<Item, int> _sortedAdapter = new(
+    private readonly EntityAdapterBlex<Item, int> _adapter = new(i => i.Id);
+    private readonly EntityAdapterBlex<Item, int> _sortedAdapter = new(
         i => i.Id,
         System.Collections.Generic.Comparer<Item>.Create((a, b) => string.CompareOrdinal(a.Name, b.Name)));
 
-    private EntityState<Item, int> _state = null!;
-    private EntityState<Item, int> _sortedState = null!;
+    private EntityStateBlex<Item, int> _state = null!;
+    private EntityStateBlex<Item, int> _sortedState = null!;
     private Item[] _seed = null!;
 
     [Params(100, 1000)]
@@ -36,26 +36,26 @@ public class EntityAdapterBenchmarks
     }
 
     [Benchmark(Baseline = true, Description = "UpsertOne (replace existing)")]
-    public EntityState<Item, int> UpsertOne()
+    public EntityStateBlex<Item, int> UpsertOne()
         => _adapter.UpsertOne(_state, new Item(Count / 2, "updated", true));
 
     [Benchmark(Description = "AddOne (new id)")]
-    public EntityState<Item, int> AddOne()
+    public EntityStateBlex<Item, int> AddOne()
         => _adapter.AddOne(_state, new Item(Count + 1, "new", false));
 
     [Benchmark(Description = "UpdateOne (record with-mutation)")]
-    public EntityState<Item, int> UpdateOne()
+    public EntityStateBlex<Item, int> UpdateOne()
         => _adapter.UpdateOne(_state, Count / 2, i => i with { Flag = !i.Flag });
 
     [Benchmark(Description = "RemoveOne")]
-    public EntityState<Item, int> RemoveOne()
+    public EntityStateBlex<Item, int> RemoveOne()
         => _adapter.RemoveOne(_state, Count / 2);
 
     [Benchmark(Description = "SetAll (rebuild)")]
-    public EntityState<Item, int> SetAll()
+    public EntityStateBlex<Item, int> SetAll()
         => _adapter.SetAll(_state, _seed);
 
     [Benchmark(Description = "UpsertOne (sorted adapter)")]
-    public EntityState<Item, int> UpsertOneSorted()
+    public EntityStateBlex<Item, int> UpsertOneSorted()
         => _sortedAdapter.UpsertOne(_sortedState, new Item(Count / 2, "zzz updated", true));
 }

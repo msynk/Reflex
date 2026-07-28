@@ -5,7 +5,7 @@ namespace Blex.Demo.Stores;
 /// in-flight request, and the trailing <see cref="CancellationToken"/> makes the generator emit
 /// <c>CancelSearch()</c>. The <c>SearchIsLoading</c> / <c>SearchError</c> properties come for free.
 /// </summary>
-[Store(Name = "search")]
+[StoreAttributeBlex(Name = "search")]
 public partial class SearchStore
 {
     private static readonly string[] Catalog =
@@ -16,15 +16,15 @@ public partial class SearchStore
         "State Management", "Dependency Injection", "Middleware Pipeline",
     ];
 
-    [State] private string _query = "";
-    [State] private IReadOnlyList<string> _results = [];
-    [State] private bool _simulateFailure;
+    [StateAttributeBlex] private string _query = "";
+    [StateAttributeBlex] private IReadOnlyList<string> _results = [];
+    [StateAttributeBlex] private bool _simulateFailure;
 
-    [Computed] private bool ComputeHasResults() => Results.Count > 0;
+    [ComputedAttributeBlex] private bool ComputeHasResults() => Results.Count > 0;
 
-    [Action] private void OnSetSimulateFailure(bool value) => SimulateFailure = value;
+    [ActionAttributeBlex] private void OnSetSimulateFailure(bool value) => SimulateFailure = value;
 
-    [Effect(Concurrency = EffectConcurrency.Latest)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]
     private async Task OnSearch(string query, CancellationToken ct)
     {
         Query = query;
@@ -40,7 +40,7 @@ public partial class SearchStore
             : [.. Catalog.Where(c => c.Contains(query, StringComparison.OrdinalIgnoreCase))];
     }
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnClear()
     {
         Query = "";

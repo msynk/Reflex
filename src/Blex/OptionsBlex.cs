@@ -3,17 +3,17 @@ using System.Text.Json.Nodes;
 namespace Blex;
 
 /// <summary>Configuration for the Blex manager, populated via <c>AddBlex</c>.</summary>
-public sealed class BlexOptions
+public sealed class OptionsBlex
 {
     internal List<Type> MiddlewareTypes { get; } = [];
-    internal List<IBlexMiddleware> MiddlewareInstances { get; } = [];
+    internal List<IMiddlewareBlex> MiddlewareInstances { get; } = [];
 
     /// <summary>Display name shown in Redux DevTools. Defaults to <c>"Blex"</c>.</summary>
     public string DevToolsName { get; set; } = "Blex";
 
     /// <summary>
     /// Sanitizer applied to the state tree before it is sent to DevTools (display only). Wired onto
-    /// <see cref="BlexManager.DevToolsStateSanitizer"/>. See the remarks there for the time-travel caveat.
+    /// <see cref="ManagerBlex.DevToolsStateSanitizer"/>. See the remarks there for the time-travel caveat.
     /// </summary>
     public Func<JsonObject, JsonObject>? DevToolsStateSanitizer { get; set; }
 
@@ -23,9 +23,9 @@ public sealed class BlexOptions
     /// <summary>
     /// Sink for non-fatal errors Blex isolates from the dispatch pipeline (throwing
     /// subscribers, middleware, persistence writes, restores, ...). Wired onto
-    /// <see cref="BlexManager.OnError"/>. When unset, errors go to <see cref="Console.Error"/>.
+    /// <see cref="ManagerBlex.OnError"/>. When unset, errors go to <see cref="Console.Error"/>.
     /// </summary>
-    public Action<BlexError>? OnError { get; set; }
+    public Action<ErrorBlex>? OnError { get; set; }
 
     /// <summary>
     /// Convenience: redacts the named keys (recursively, anywhere in the tree -- including inside
@@ -37,7 +37,7 @@ public sealed class BlexOptions
     /// name (<c>Token</c>) while action payloads use the camelCase parameter name (<c>token</c>),
     /// and a redaction helper that silently missed one of them would fail open.
     /// </remarks>
-    public BlexOptions RedactDevToolsKeys(params string[] keys)
+    public OptionsBlex RedactDevToolsKeys(params string[] keys)
     {
         ArgumentNullException.ThrowIfNull(keys);
         var set = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase);
@@ -80,7 +80,7 @@ public sealed class BlexOptions
     }
 
     /// <summary>Registers a middleware type resolved from DI.</summary>
-    public BlexOptions UseMiddleware<TMiddleware>() where TMiddleware : class, IBlexMiddleware
+    public OptionsBlex UseMiddleware<TMiddleware>() where TMiddleware : class, IMiddlewareBlex
     {
         MiddlewareTypes.Add(typeof(TMiddleware));
         return this;
@@ -94,7 +94,7 @@ public sealed class BlexOptions
     /// middleware. Ordering note: all DI-registered middleware (<see cref="UseMiddleware{TMiddleware}"/>)
     /// run before instance/delegate middleware, regardless of registration interleaving.
     /// </remarks>
-    public BlexOptions UseMiddleware(IBlexMiddleware middleware)
+    public OptionsBlex UseMiddleware(IMiddlewareBlex middleware)
     {
         ArgumentNullException.ThrowIfNull(middleware);
         MiddlewareInstances.Add(middleware);
@@ -102,13 +102,13 @@ public sealed class BlexOptions
     }
 
     /// <summary>Registers a delegate-based middleware (handy for quick logging).</summary>
-    public BlexOptions UseMiddleware(Action<BlexActionContext> handler)
-        => UseMiddleware(new DelegateMiddleware(handler));
+    public OptionsBlex UseMiddleware(Action<ActionContextBlex> handler)
+        => UseMiddleware(new DelegateMiddlewareBlex(handler));
 
     /// <summary>
     /// Registers a veto filter that runs before each action. Return <c>false</c> to cancel the
     /// action so its mutation never runs (e.g. guard rails, read-only modes, validation).
     /// </summary>
-    public BlexOptions UseFilter(Func<BlexPreActionContext, bool> filter)
-        => UseMiddleware(new FilterMiddleware(filter));
+    public OptionsBlex UseFilter(Func<PreActionContextBlex, bool> filter)
+        => UseMiddleware(new FilterMiddlewareBlex(filter));
 }

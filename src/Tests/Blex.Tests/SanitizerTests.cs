@@ -7,7 +7,7 @@ namespace Blex.Tests;
 
 public class SanitizerTests
 {
-    private sealed class CapturingDevTools : IBlexDevTools
+    private sealed class CapturingDevTools : IDevToolsBlex
     {
         public List<JsonObject> Inits { get; } = new();
         public List<(string Action, JsonObject State)> Sends { get; } = new();
@@ -26,7 +26,7 @@ public class SanitizerTests
     public void StateSanitizer_AppliesToSentState_NotInternalState()
     {
         var sink = new CapturingDevTools();
-        var manager = new BlexManager
+        var manager = new ManagerBlex
         {
             DevToolsStateSanitizer = state =>
             {
@@ -51,7 +51,7 @@ public class SanitizerTests
     public void ActionSanitizer_RewritesActionLabel()
     {
         var sink = new CapturingDevTools();
-        var manager = new BlexManager
+        var manager = new ManagerBlex
         {
             DevToolsActionSanitizer = label => label.ToUpperInvariant(),
         };
@@ -67,7 +67,7 @@ public class SanitizerTests
     [Fact]
     public void RedactDevToolsKeys_RedactsMatchingKeysRecursively()
     {
-        var options = new BlexOptions();
+        var options = new OptionsBlex();
         options.RedactDevToolsKeys("Label");
 
         var state = new JsonObject
@@ -86,7 +86,7 @@ public class SanitizerTests
     [Fact]
     public void RedactDevToolsKeys_RedactsInsideArrays()
     {
-        var options = new BlexOptions();
+        var options = new OptionsBlex();
         options.RedactDevToolsKeys("token");
 
         // Entity-style collection state: objects nested inside arrays must be redacted too.
@@ -111,7 +111,7 @@ public class SanitizerTests
     [Fact]
     public void RedactDevToolsKeys_MatchesCaseInsensitively()
     {
-        var options = new BlexOptions();
+        var options = new OptionsBlex();
         // State slices are keyed by the generated PascalCase property name while action payloads
         // use the camelCase parameter name; a redaction helper must catch both spellings.
         options.RedactDevToolsKeys("token", "password");
@@ -132,10 +132,10 @@ public class SanitizerTests
     public void RedactDevToolsKeys_RedactsActionPayloads()
     {
         var sink = new CapturingDevTools();
-        var options = new BlexOptions();
+        var options = new OptionsBlex();
         options.RedactDevToolsKeys("Label");
 
-        var manager = new BlexManager { DevToolsStateSanitizer = options.DevToolsStateSanitizer };
+        var manager = new ManagerBlex { DevToolsStateSanitizer = options.DevToolsStateSanitizer };
         var counter = new CounterStore();
         manager.Register(counter);
         manager.ConnectDevTools(sink);
@@ -149,8 +149,8 @@ public class SanitizerTests
     public void Sanitizer_Exception_FailsClosed_AndReportsError()
     {
         var sink = new CapturingDevTools();
-        var errors = new List<BlexError>();
-        var manager = new BlexManager
+        var errors = new List<ErrorBlex>();
+        var manager = new ManagerBlex
         {
             DevToolsStateSanitizer = _ => throw new System.Exception("boom"),
         };

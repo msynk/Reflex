@@ -1,5 +1,5 @@
 @page "/actions"
-@inherits BlexComponentBase
+@inherits ComponentBaseBlex
 @inject CounterStore Counter
 
 <DocPage Href="actions" Title="Actions"
@@ -7,7 +7,7 @@
 
     <h2>The convention</h2>
     <p>
-        Mark a method named <code>OnXxx</code> with <code>[Action]</code>. The generator emits a
+        Mark a method named <code>OnXxx</code> with <code>[ActionAttributeBlex]</code>. The generator emits a
         public <code>Xxx(...)</code> wrapper that runs your method inside a dispatch: all the
         mutations it makes are folded into one notification and one time-travel entry.
     </p>
@@ -18,7 +18,7 @@
     <h2>Naming</h2>
     <p>
         The wrapper name comes from the method name with the <code>On</code> prefix stripped, or from
-        <code>[Action(Name = "…")]</code>. The <code>Name</code> is used in two different ways
+        <code>[ActionAttributeBlex(Name = "…")]</code>. The <code>Name</code> is used in two different ways
         depending on whether it is a valid C# identifier:
     </p>
 
@@ -26,9 +26,9 @@
         <table>
             <thead><tr><th>Declaration</th><th>Method you call</th><th>Label in DevTools / history</th></tr></thead>
             <tbody>
-                <tr><td><code>[Action] void OnIncrement()</code></td><td><code>Increment()</code></td><td><code>Increment</code></td></tr>
-                <tr><td><code>[Action(Name = "Bump")] void OnIncrement()</code></td><td><code>Bump()</code></td><td><code>Bump</code></td></tr>
-                <tr><td><code>[Action(Name = "Apply preset")] void OnApplyPreset()</code></td><td><code>ApplyPreset()</code></td><td><code>Apply preset</code></td></tr>
+                <tr><td><code>[ActionAttributeBlex] void OnIncrement()</code></td><td><code>Increment()</code></td><td><code>Increment</code></td></tr>
+                <tr><td><code>[ActionAttributeBlex(Name = "Bump")] void OnIncrement()</code></td><td><code>Bump()</code></td><td><code>Bump</code></td></tr>
+                <tr><td><code>[ActionAttributeBlex(Name = "Apply preset")] void OnApplyPreset()</code></td><td><code>ApplyPreset()</code></td><td><code>Apply preset</code></td></tr>
             </tbody>
         </table>
     </div>
@@ -89,7 +89,7 @@
         </div>
         <div class="row" style="margin-top:0.9rem">
             <button class="btn btn-danger" @onclick="DirectAssignment">Two direct assignments</button>
-            <button class="btn btn-primary" @onclick="ViaAction">One [Action] method</button>
+            <button class="btn btn-primary" @onclick="ViaAction">One [ActionAttributeBlex] method</button>
             <button class="btn btn-primary" @onclick="ViaBatch">One Batch(…) call</button>
             <button class="btn btn-ghost" @onclick="Counter.ResetState">ResetState()</button>
         </div>
@@ -127,7 +127,7 @@
 
     <h2>Async actions</h2>
     <p>
-        An <code>[Action]</code> may return <code>Task</code> or <code>ValueTask</code>. State changes
+        An <code>[ActionAttributeBlex]</code> may return <code>Task</code> or <code>ValueTask</code>. State changes
         made before and after an <code>await</code> update the UI as they happen, but the whole
         operation is recorded as a single action.
     </p>
@@ -135,7 +135,7 @@
 
     <p>
         If what you are writing is a side-effect with a loading and error lifecycle, reach for
-        <a href="effects"><code>[Effect]</code></a> instead - it generates all of that for you.
+        <a href="effects"><code>[EffectAttributeBlex]</code></a> instead - it generates all of that for you.
     </p>
 
     <Callout Kind="Callout.CalloutKind.Gotcha" Title="A store is owned by its in-flight async action">
@@ -153,7 +153,7 @@
             An <code>async void</code> action cannot be awaited or recorded correctly, so it is a
             hard error (<code>BLEX010</code>). Return <code>Task</code> or <code>ValueTask</code>.
             Similarly, an action that returns a <em>value</em> gets warning <code>BLEX011</code>,
-            because the generated wrapper discards it - put the result in a <code>[State]</code>
+            because the generated wrapper discards it - put the result in a <code>[StateAttributeBlex]</code>
             field instead.
         </p>
     </Callout>
@@ -179,7 +179,7 @@
     private int _lastBatchNotifications;
     private int _lastBatchActions;
 
-    [Inject] private BlexManager Manager { get; set; } = default!;
+    [Inject] private ManagerBlex Manager { get; set; } = default!;
 
     protected override void OnInitialized()
     {
@@ -215,15 +215,15 @@
         Counter.Step = 3;
     }));
 
-    // BlexComponentBase owns IDisposable; this is its hook for extra cleanup.
+    // ComponentBaseBlex owns IDisposable; this is its hook for extra cleanup.
     protected override void Dispose(bool disposing)
         => Counter.StateChanged -= CountNotification;
 
     private const string Basic = """
-        [Action]
+        [ActionAttributeBlex]
         private void OnIncrement() => Count += Step;
 
-        [Action]
+        [ActionAttributeBlex]
         private void OnReset()
         {
             Count = 0;   // both assignments are folded into
@@ -240,10 +240,10 @@
         """;
 
     private const string Args = """
-        [Action]
+        [ActionAttributeBlex]
         private void OnSetStep(int step) => Step = step;
 
-        [Action]
+        [ActionAttributeBlex]
         private void OnAddItem(string name, int quantity = 1) => /* ... */;
 
         // store.SetStep(5) is recorded as:
@@ -257,8 +257,8 @@
         Counter.Count = 10;
         Counter.Step = 5;
 
-        // 2. One [Action] method -> one action, one render.
-        [Action]
+        // 2. One [ActionAttributeBlex] method -> one action, one render.
+        [ActionAttributeBlex]
         private void OnApplyPreset(int count, int step)
         {
             Count = count;
@@ -295,7 +295,7 @@
         """;
 
     private const string AsyncAction = """
-        [Action]
+        [ActionAttributeBlex]
         private async Task OnSaveDraft(string text)
         {
             IsSaving = true;              // renders immediately

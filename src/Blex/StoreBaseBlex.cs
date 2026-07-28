@@ -6,7 +6,7 @@ namespace Blex;
 /// <summary>
 /// Base class for all Blex stores. Provides change notification, batched dispatch and the
 /// hooks the source generator wires up. You normally never derive from this directly --
-/// decorate a partial class with <see cref="StoreAttribute"/> and the generator does it for you.
+/// decorate a partial class with <see cref="StoreAttributeBlex"/> and the generator does it for you.
 /// </summary>
 /// <remarks>
 /// Dispatch is assumed to be single-threaded, matching Blazor's rendering model. The depth
@@ -16,7 +16,7 @@ namespace Blex;
 /// recorded as its own action. Avoid mutating a store from outside while one of its async
 /// actions is in progress.
 /// </remarks>
-public abstract class StoreBase : IStore, INotifyPropertyChanged
+public abstract class StoreBaseBlex : IStoreBlex, INotifyPropertyChanged
 {
     // XAML binding engines (MAUI, WPF, WinUI) treat an empty property name as "every property
     // changed". That is the honest granularity here: memoized computed properties can change
@@ -26,7 +26,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     private int _recordDepth;
     private int _notifyDepth;
     private bool _dirty;
-    private BlexManager? _manager;
+    private ManagerBlex? _manager;
     private JsonObject? _initialState;
 
     /// <inheritdoc />
@@ -72,7 +72,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     /// </summary>
     /// <remarks>
     /// Subscribers are invoked one at a time and their exceptions are isolated and reported through
-    /// <see cref="BlexManager.OnError"/>, matching how the manager treats middleware and action
+    /// <see cref="ManagerBlex.OnError"/>, matching how the manager treats middleware and action
     /// subscribers: one component throwing while it re-renders must not starve the others -- nor
     /// the persistence/history/DevTools observers that run after the notification -- of the change.
     /// </remarks>
@@ -146,14 +146,14 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
         NotifyStateChanged();
     }
 
-    internal void Attach(BlexManager manager)
+    internal void Attach(ManagerBlex manager)
     {
         _manager = manager;
         // First registration captures the store's initial state so ResetState can return to it.
         _initialState ??= SerializeState();
     }
 
-    /// <summary>Detaches from the manager so actions are no longer observed (see <see cref="BlexManager.Unregister"/>).</summary>
+    /// <summary>Detaches from the manager so actions are no longer observed (see <see cref="ManagerBlex.Unregister"/>).</summary>
     internal void Detach() => _manager = null;
 
     /// <summary>
@@ -172,7 +172,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
             // applying. The label/args are only materialized when something is listening.
             // (_notifyDepth is always 0 here: a non-zero notify depth implies a record depth.)
             var label = "Set " + propertyName;
-            var args = new[] { new ActionArg(propertyName ?? "value", (object?)value) };
+            var args = new[] { new ActionArgBlex(propertyName ?? "value", (object?)value) };
             if (!manager.BeforeAction(this, label, args))
                 return;
 
@@ -257,7 +257,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     /// Runs <paramref name="mutation"/> as a single named action carrying the given arguments
     /// (surfaced to middleware, subscribers and DevTools). Used by generated wrappers.
     /// </summary>
-    protected void Dispatch(string actionName, Action mutation, ActionArg[]? args)
+    protected void Dispatch(string actionName, Action mutation, ActionArgBlex[]? args)
     {
         ArgumentNullException.ThrowIfNull(mutation);
         if (_recordDepth == 0 && _manager is not null && !_manager.BeforeAction(this, actionName, args))
@@ -301,7 +301,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
 
     /// <summary>
     /// Groups ad-hoc mutations into a single named action from outside the store's own
-    /// <c>[Action]</c> methods -- one notification, one time-travel entry, one middleware pass.
+    /// <c>[ActionAttributeBlex]</c> methods -- one notification, one time-travel entry, one middleware pass.
     /// The equivalent of Pinia's <c>$patch</c> / MobX's <c>runInAction</c>.
     /// </summary>
     /// <example><code>store.Batch("Apply preset", () => { store.Count = 10; store.Step = 5; });</code></example>
@@ -343,7 +343,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     /// <summary>
     /// Async variant carrying action arguments (surfaced to middleware, subscribers and DevTools).
     /// </summary>
-    protected Task DispatchAsync(string actionName, Func<Task> mutation, ActionArg[]? args)
+    protected Task DispatchAsync(string actionName, Func<Task> mutation, ActionArgBlex[]? args)
     {
         ArgumentNullException.ThrowIfNull(mutation);
         return BeginAction(actionName, args)
@@ -358,7 +358,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     /// decision is taken exactly once. Generated effect wrappers use this so a vetoed effect leaves
     /// no trace at all -- no loading flicker, no cleared error, no cancelled predecessor.
     /// </summary>
-    protected bool BeginAction(string actionName, ActionArg[]? args)
+    protected bool BeginAction(string actionName, ActionArgBlex[]? args)
     {
         // Gate the veto on the *synchronous* nesting depth, not the record depth. A record depth
         // above zero can mean either "lexically nested inside a running action" (must not re-veto:
@@ -376,7 +376,7 @@ public abstract class StoreBase : IStore, INotifyPropertyChanged
     /// Async dispatch for a body whose veto decision has already been taken by
     /// <see cref="BeginAction"/>. Records the action when the outermost dispatch completes.
     /// </summary>
-    protected async Task DispatchApprovedAsync(string actionName, Func<Task> mutation, ActionArg[]? args)
+    protected async Task DispatchApprovedAsync(string actionName, Func<Task> mutation, ActionArgBlex[]? args)
     {
         ArgumentNullException.ThrowIfNull(mutation);
 

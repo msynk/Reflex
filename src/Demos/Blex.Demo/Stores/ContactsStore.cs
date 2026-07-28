@@ -4,20 +4,20 @@ namespace Blex.Demo.Stores;
 public sealed record Contact(int Id, string Name, string Team, bool Starred);
 
 /// <summary>
-/// Normalized collection state via <see cref="EntityAdapter{TEntity, TKey}"/>. The adapter is a
-/// static field (it holds the id selector and is not serialized); the <c>[State]</c> field holds
-/// the immutable <see cref="EntityState{TEntity, TKey}"/> that every operation returns anew.
+/// Normalized collection state via <see cref="EntityAdapterBlex{TEntity, TKey}"/>. The adapter is a
+/// static field (it holds the id selector and is not serialized); the <c>[StateAttributeBlex]</c> field holds
+/// the immutable <see cref="EntityStateBlex{TEntity, TKey}"/> that every operation returns anew.
 /// </summary>
-[Store(Name = "contacts")]
+[StoreAttributeBlex(Name = "contacts")]
 public partial class ContactsStore
 {
     /// <summary>Sorted by name, so <c>Ids</c> stays ordered after every operation.</summary>
-    private static readonly EntityAdapter<Contact, int> Adapter =
+    private static readonly EntityAdapterBlex<Contact, int> Adapter =
         new(c => c.Id, Comparer<Contact>.Create((a, b) => string.CompareOrdinal(a.Name, b.Name)));
 
     private int _nextId = 5;
 
-    [State] private EntityState<Contact, int> _contacts = Adapter.GetInitialState(
+    [StateAttributeBlex] private EntityStateBlex<Contact, int> _contacts = Adapter.GetInitialState(
     [
         new(1, "Ada Lovelace", "Research", true),
         new(2, "Grace Hopper", "Compilers", false),
@@ -25,45 +25,45 @@ public partial class ContactsStore
         new(4, "Barbara Liskov", "Languages", true),
     ]);
 
-    [State] private string _teamFilter = "All";
+    [StateAttributeBlex] private string _teamFilter = "All";
 
-    [Computed] private int ComputeTotal() => Contacts.Count;
+    [ComputedAttributeBlex] private int ComputeTotal() => Contacts.Count;
 
-    [Computed] private int ComputeStarred() => Contacts.All.Count(c => c.Starred);
+    [ComputedAttributeBlex] private int ComputeStarred() => Contacts.All.Count(c => c.Starred);
 
-    [Computed]
+    [ComputedAttributeBlex]
     private IReadOnlyList<Contact> ComputeVisible()
         => TeamFilter == "All"
             ? [.. Contacts.All]
             : [.. Contacts.All.Where(c => c.Team == TeamFilter)];
 
-    [Computed]
+    [ComputedAttributeBlex]
     private IReadOnlyList<string> ComputeTeams()
         => ["All", .. Contacts.All.Select(c => c.Team).Distinct().Order()];
 
-    [Action] private void OnSetTeamFilter(string team) => TeamFilter = team;
+    [ActionAttributeBlex] private void OnSetTeamFilter(string team) => TeamFilter = team;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnAdd(string name, string team)
         => Contacts = Adapter.AddOne(Contacts, new Contact(_nextId++, name, team, false));
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnToggleStar(int id)
         => Contacts = Adapter.UpdateOne(Contacts, id, c => c with { Starred = !c.Starred });
 
-    [Action] private void OnRemove(int id) => Contacts = Adapter.RemoveOne(Contacts, id);
+    [ActionAttributeBlex] private void OnRemove(int id) => Contacts = Adapter.RemoveOne(Contacts, id);
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnStarAll()
         => Contacts = Adapter.Map(Contacts, c => c with { Starred = true });
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnRemoveUnstarred()
         => Contacts = Adapter.RemoveMany(Contacts, [.. Contacts.All.Where(c => !c.Starred).Select(c => c.Id)]);
 
-    [Action] private void OnRemoveAll() => Contacts = Adapter.RemoveAll(Contacts);
+    [ActionAttributeBlex] private void OnRemoveAll() => Contacts = Adapter.RemoveAll(Contacts);
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnReseed()
     {
         _nextId = 5;

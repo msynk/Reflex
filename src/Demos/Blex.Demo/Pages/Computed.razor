@@ -1,5 +1,5 @@
 @page "/computed"
-@inherits BlexComponentBase
+@inherits ComponentBaseBlex
 @inject CartStore Cart
 
 <DocPage Href="computed" Title="Computed state"
@@ -8,9 +8,9 @@
     <h2>The convention</h2>
     <p>
         Mark a parameterless method named <code>ComputeXxx()</code> or <code>GetXxx()</code> with
-        <code>[Computed]</code> and the generator emits a memoized public property <code>Xxx</code>.
+        <code>[ComputedAttributeBlex]</code> and the generator emits a memoized public property <code>Xxx</code>.
         The value is calculated on first read, cached, and thrown away the moment any
-        <code>[State]</code> field on that store changes.
+        <code>[StateAttributeBlex]</code> field on that store changes.
     </p>
 
     <CodeBlock Code="@Basic" />
@@ -106,7 +106,7 @@
 
     <h2>Computed values are not serialized</h2>
     <p>
-        Only <code>[State]</code> fields go into <code>SerializeState()</code>. Computed values are
+        Only <code>[StateAttributeBlex]</code> fields go into <code>SerializeState()</code>. Computed values are
         derived, so they are recalculated after a restore rather than stored - which means a
         time-travel jump or a rehydrate can never leave a derived value out of sync with the state it
         came from.
@@ -144,18 +144,18 @@
     }
 
     private const string Basic = """
-        [Store(Name = "cart")]
+        [StoreAttributeBlex(Name = "cart")]
         public partial class CartStore
         {
-            [State] private IReadOnlyList<CartLine> _lines = [];
-            [State] private decimal _discountRate;
+            [StateAttributeBlex] private IReadOnlyList<CartLine> _lines = [];
+            [StateAttributeBlex] private decimal _discountRate;
 
-            [Computed] private decimal ComputeSubtotal() => Lines.Sum(l => l.Total);
+            [ComputedAttributeBlex] private decimal ComputeSubtotal() => Lines.Sum(l => l.Total);
 
             // Computed values may build on other computed values.
-            [Computed] private decimal ComputeTotal() => Math.Round(Subtotal * (1 - DiscountRate), 2);
+            [ComputedAttributeBlex] private decimal ComputeTotal() => Math.Round(Subtotal * (1 - DiscountRate), 2);
 
-            [Computed] private int ComputeItemCount() => Lines.Sum(l => l.Quantity);
+            [ComputedAttributeBlex] private int ComputeItemCount() => Lines.Sum(l => l.Quantity);
         }
         """;
 
@@ -176,7 +176,7 @@
             }
         }
 
-        // Called by StoreBase after every state change.
+        // Called by StoreBaseBlex after every state change.
         protected override void InvalidateComputed()
         {
             __SubtotalValid = false;
@@ -190,7 +190,7 @@
         // purely so this demo can show how often they really run.
         public int SubtotalEvaluations { get; private set; }
 
-        [Computed]
+        [ComputedAttributeBlex]
         private decimal ComputeSubtotal()
         {
             SubtotalEvaluations++;

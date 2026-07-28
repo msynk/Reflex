@@ -20,21 +20,21 @@ Then open <http://localhost:5280>.
 | Page | Feature |
 |---|---|
 | Introduction | Positioning, comparison table, the whole-store sample |
-| Installation | Packages, DI registration, `<BlexProvider>` parameters, headless hosts |
+| Installation | Packages, DI registration, `<ProviderBlex>` parameters, headless hosts |
 | Quick start | A working counter in three files |
-| Stores & state | `[Store]`, `[State]`, naming, shape rules, change detection, `StoreBase` API |
-| Computed state | `[Computed]`, memoization, composition, invalidation semantics |
-| Actions | `[Action]`, naming, payloads, batching, `Set X`, `Batch`, `ResetState`, async actions |
-| Effects | `[Effect]`, loading/error, cancellation, all four concurrency modes |
-| Components & selectors | `BlexComponentBase`, selector subscriptions, `OwnsSubscription` |
-| Cross-store coordination | `BlexManager` registry, subscriptions, action context |
-| Entity adapter | `EntityState`, `EntityAdapter`, sorting, every CRUD operation |
+| Stores & state | `[StoreAttributeBlex]`, `[StateAttributeBlex]`, naming, shape rules, change detection, `StoreBaseBlex` API |
+| Computed state | `[ComputedAttributeBlex]`, memoization, composition, invalidation semantics |
+| Actions | `[ActionAttributeBlex]`, naming, payloads, batching, `Set X`, `Batch`, `ResetState`, async actions |
+| Effects | `[EffectAttributeBlex]`, loading/error, cancellation, all four concurrency modes |
+| Components & selectors | `ComponentBaseBlex`, selector subscriptions, `OwnsSubscription` |
+| Cross-store coordination | `ManagerBlex` registry, subscriptions, action context |
+| Entity adapter | `EntityStateBlex`, `EntityAdapterBlex`, sorting, every CRUD operation |
 | Middleware | Observing, vetoing, registration modes, error isolation |
-| Error isolation | `BlexError`, `OnError`, every reported source |
-| Persistence | `Persist`, providers, debounce, versioning, migrations, `StatePersistor` |
-| Undo & redo | `BlexHistory` |
+| Error isolation | `ErrorBlex`, `OnError`, every reported source |
+| Persistence | `Persist`, providers, debounce, versioning, migrations, `StatePersistorBlex` |
+| Undo & redo | `HistoryBlex` |
 | DevTools & time travel | The bridge, wire format, time-travel messages, sanitizers |
-| Testing | `BlexTestHarness`, `ActionLog`, `WaitForAsync`, `CountNotifications` |
+| Testing | `TestHarnessBlex`, `ActionLogBlex`, `WaitForAsync`, `CountNotifications` |
 | Diagnostics | All sixteen `BLEX####` codes, each with a rejected and a fixed sample |
 | API reference | Every public type, grouped by namespace |
 

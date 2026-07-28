@@ -4,16 +4,16 @@ namespace Blex.Blazor;
 
 /// <summary>
 /// Optional base component that re-renders automatically when subscribed stores change.
-/// Call <see cref="Subscribe(ReadOnlySpan{IStore})"/> in <c>OnInitialized</c>; unsubscription is automatic.
+/// Call <see cref="Subscribe(ReadOnlySpan{IStoreBlex})"/> in <c>OnInitialized</c>; unsubscription is automatic.
 /// </summary>
-public abstract class BlexComponentBase : ComponentBase, IDisposable
+public abstract class ComponentBaseBlex : ComponentBase, IDisposable
 {
-    private readonly List<IStore> _subscriptions = [];
+    private readonly List<IStoreBlex> _subscriptions = [];
     private readonly List<IDisposable> _selectorSubscriptions = [];
     private bool _disposed;
 
     /// <summary>Subscribes to one or more stores; the component re-renders on any change.</summary>
-    protected void Subscribe(params ReadOnlySpan<IStore> stores)
+    protected void Subscribe(params ReadOnlySpan<IStoreBlex> stores)
     {
         // Subscribing after disposal would attach a handler nothing will ever detach.
         if (_disposed)
@@ -31,10 +31,10 @@ public abstract class BlexComponentBase : ComponentBase, IDisposable
     /// <summary>
     /// Subscribes to a projection of a store; the component re-renders only when the selected
     /// value changes, ignoring unrelated mutations to the same store. Useful for stores with many
-    /// independent <c>[State]</c> fields or large collections.
+    /// independent <c>[StateAttributeBlex]</c> fields or large collections.
     /// </summary>
     /// <example><code>Subscribe(Store, () => Store.Count);</code></example>
-    protected void Subscribe<T>(IStore store, Func<T> selector, IEqualityComparer<T>? comparer = null)
+    protected void Subscribe<T>(IStoreBlex store, Func<T> selector, IEqualityComparer<T>? comparer = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(selector);

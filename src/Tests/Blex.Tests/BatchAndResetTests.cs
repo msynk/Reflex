@@ -9,7 +9,7 @@ public class BatchAndResetTests
     [Fact]
     public void Batch_GroupsAdHocMutations_IntoOneActionAndNotification()
     {
-        using var harness = BlexTestHarness.For<CounterStore>();
+        using var harness = TestHarnessBlex.For<CounterStore>();
         var store = harness.Store;
 
         var notifications = store.CountNotifications(() =>
@@ -30,7 +30,7 @@ public class BatchAndResetTests
     public void Batch_IsVetoable_ByFilterMiddleware()
     {
         var store = new CounterStore();
-        var manager = new BlexManager([new FilterMiddleware(ctx => ctx.ActionName != "Blocked")]);
+        var manager = new ManagerBlex([new FilterMiddlewareBlex(ctx => ctx.ActionName != "Blocked")]);
         manager.Register(store);
 
         store.Batch("Blocked", () => store.Count = 99);
@@ -41,7 +41,7 @@ public class BatchAndResetTests
     [Fact]
     public void ResetState_RestoresInitialValues_AndRecordsAction()
     {
-        using var harness = BlexTestHarness.For<CounterStore>();
+        using var harness = TestHarnessBlex.For<CounterStore>();
         var store = harness.Store;
 
         store.Add(41);
@@ -56,7 +56,7 @@ public class BatchAndResetTests
     [Fact]
     public void ResetState_InvalidatesComputedValues()
     {
-        using var harness = BlexTestHarness.For<CounterStore>();
+        using var harness = TestHarnessBlex.For<CounterStore>();
         var store = harness.Store;
 
         store.Add(5);
@@ -101,7 +101,7 @@ public class BatchAndResetTests
         var notifications = 0;
         store.StateChanged += () => notifications++;
 
-        // A sync [Action] invoked while an async action is awaiting must flush its own
+        // A sync [ActionAttributeBlex] invoked while an async action is awaiting must flush its own
         // notification; the async action's record wraps it, but the render must not be lost.
         var task = store.LoadData(); // async action: sets Label, awaits, sets Count/Label
 

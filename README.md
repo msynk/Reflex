@@ -17,19 +17,19 @@ Blex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux libr
 
 | | Fluxor | Blex |
 |---|---|---|
-| Define a piece of state | Feature + State class | one `[State]` field |
-| Define an action | Action class + Reducer method | one `[Action]` method |
+| Define a piece of state | Feature + State class | one `[StateAttributeBlex]` field |
+| Define an action | Action class + Reducer method | one `[ActionAttributeBlex]` method |
 | Action payloads in DevTools/middleware | manual | automatic (`ctx.Args`, DevTools payload) |
-| Derived state | manual / selectors | `[Computed]` (memoized) |
-| Async side-effects | Effect classes | `[Effect]` (auto loading/error) |
+| Derived state | manual / selectors | `[ComputedAttributeBlex]` (memoized) |
+| Async side-effects | Effect classes | `[EffectAttributeBlex]` (auto loading/error) |
 | Effect cancellation / concurrency | manual | `CancellationToken` + `Latest`/`Drop`/`Queue` modes |
 | Ad-hoc batched mutations | ✗ | `store.Batch(name, ...)` (Pinia `$patch`-style) |
 | Reset to initial state | manual | `store.ResetState()` |
 | Middleware | yes | yes (with veto/filter hooks + payload access) |
 | Granular re-render | manual selectors | selector `Subscribe(...)` (+ prev/current, fireImmediately) |
-| Normalized collections | manual | `EntityAdapter` / `EntityState` (+ sorting, `UpdateMany`, `Map`) |
-| Persistence | 3rd-party | `[Store(Persist = true)]` + debounce + versioning/migrations |
-| Undo / redo | ✗ | `BlexHistory` (in-app, labeled entries) |
+| Normalized collections | manual | `EntityAdapterBlex` / `EntityStateBlex` (+ sorting, `UpdateMany`, `Map`) |
+| Persistence | 3rd-party | `[StoreAttributeBlex(Persist = true)]` + debounce + versioning/migrations |
+| Undo / redo | ✗ | `HistoryBlex` (in-app, labeled entries) |
 | Redux DevTools time-travel | ✗ | ✓ built in (+ state/action sanitizers) |
 | Error isolation hook | ✗ | `options.OnError` |
 | Test helpers | ✗ | `Blex.Testing` harness (+ `WaitForAsync`) |
@@ -39,7 +39,7 @@ Blex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux libr
 
 ```bash
 dotnet add package Blex          # runtime + source generator
-dotnet add package Blex.Blazor   # Blazor integration (BlexProvider, DevTools bridge)
+dotnet add package Blex.Blazor   # Blazor integration (ProviderBlex, DevTools bridge)
 dotnet add package Blex.Maui     # .NET MAUI integration (XAML binding, Preferences persistence)
 dotnet add package Blex.Testing  # optional, for unit tests
 ```
@@ -51,34 +51,34 @@ codegen - there is no `Blex.Generators` package to install.
 ## The whole store
 
 ```csharp
-[Store(Name = "counter")]
+[StoreAttributeBlex(Name = "counter")]
 public partial class CounterStore
 {
-    [State] private int _count;
-    [State] private int _step = 1;
+    [StateAttributeBlex] private int _count;
+    [StateAttributeBlex] private int _step = 1;
 
-    [Computed] private int  ComputeDoubleCount() => Count * 2;
-    [Computed] private bool ComputeIsEven()      => Count % 2 == 0;
+    [ComputedAttributeBlex] private int  ComputeDoubleCount() => Count * 2;
+    [ComputedAttributeBlex] private bool ComputeIsEven()      => Count % 2 == 0;
 
-    [Action] private void OnIncrement()       => Count += Step;
-    [Action] private void OnSetStep(int step) => Step = step;
-    [Action] private void OnReset()           { Count = 0; Step = 1; }
+    [ActionAttributeBlex] private void OnIncrement()       => Count += Step;
+    [ActionAttributeBlex] private void OnSetStep(int step) => Step = step;
+    [ActionAttributeBlex] private void OnReset()           { Count = 0; Step = 1; }
 }
 ```
 
 The generator emits the reactive `Count`/`Step` properties, the memoized `DoubleCount`/`IsEven`
 accessors, the public `Increment()`/`SetStep(int)`/`Reset()` action wrappers, JSON snapshot
-support and the `StoreBase` base type.
+support and the `StoreBaseBlex` base type.
 
 ### Conventions
 
-- **State**: `[State] private T _foo;` → public reactive property `Foo`.
-- **Computed**: `[Computed]` on a parameterless `ComputeXxx()` / `GetXxx()` method → memoized property `Xxx`,
+- **State**: `[StateAttributeBlex] private T _foo;` → public reactive property `Foo`.
+- **Computed**: `[ComputedAttributeBlex]` on a parameterless `ComputeXxx()` / `GetXxx()` method → memoized property `Xxx`,
   automatically invalidated whenever state changes.
-- **Actions**: `[Action]` on a method named `OnXxx` → public `Xxx(...)` wrapper that batches all the
+- **Actions**: `[ActionAttributeBlex]` on a method named `OnXxx` → public `Xxx(...)` wrapper that batches all the
   mutations inside it into a single, named, time-travel-recorded action. `async Task` methods are
   supported (they update the UI as they go but record as one action). Override the name with
-  `[Action(Name = "...")]`. Action arguments are captured as the action's payload (visible to
+  `[ActionAttributeBlex(Name = "...")]`. Action arguments are captured as the action's payload (visible to
   middleware, subscribers and DevTools).
 - Directly assigning a generated property (e.g. `store.Count = 5`) is recorded as a `Set Count` action.
 - **Batching from outside**: `store.Batch("Apply preset", () => { store.Count = 10; store.Step = 5; })`
@@ -102,14 +102,14 @@ builder.Services.AddBlexStore<TodoStore>();
 
 ```razor
 @* App.razor - wrap your router once *@
-<BlexProvider>
+<ProviderBlex>
     <Router ... />
-</BlexProvider>
+</ProviderBlex>
 ```
 
 ```razor
 @* Counter.razor *@
-@inherits BlexComponentBase
+@inherits ComponentBaseBlex
 @inject CounterStore Store
 
 <p>Count: @Store.Count (double: @Store.DoubleCount)</p>
@@ -120,7 +120,7 @@ builder.Services.AddBlexStore<TodoStore>();
 }
 ```
 
-`BlexComponentBase.Subscribe(...)` re-renders the component whenever a subscribed store changes
+`ComponentBaseBlex.Subscribe(...)` re-renders the component whenever a subscribed store changes
 and unsubscribes automatically on dispose.
 
 ## Granular subscriptions (selectors)
@@ -144,11 +144,11 @@ using var log = store.Subscribe(() => store.Count,
 
 ## Effects (async with managed loading/error)
 
-`[Effect]` marks an async method (returning `Task`/`ValueTask`) whose loading and error lifecycle is
+`[EffectAttributeBlex]` marks an async method (returning `Task`/`ValueTask`) whose loading and error lifecycle is
 generated for you. The body is still recorded as a single, named, time-travelable action.
 
 ```csharp
-[Effect]
+[EffectAttributeBlex]
 private async Task OnLoadUser(int id)
 {
     var user = await _api.GetUserAsync(id);
@@ -167,7 +167,7 @@ emits a `CancelXxx()` method. `Concurrency` selects how overlapping invocations 
 the RxJS flattening operators used by NgRx effects:
 
 ```csharp
-[Effect(Concurrency = EffectConcurrency.Latest)]   // switchMap: new call cancels the previous
+[EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]   // switchMap: new call cancels the previous
 private async Task OnSearch(string query, CancellationToken ct)
 {
     Results = await _api.SearchAsync(query, ct);
@@ -197,25 +197,25 @@ them. Use `Queue`, `Drop` or `Latest` - or separate stores - when each run needs
 
 ## Normalized collections (entity adapter)
 
-`EntityAdapter<TEntity, TKey>` generates CRUD operations over an immutable, id-keyed
-`EntityState<TEntity, TKey>` - the same idea as Redux Toolkit's `createEntityAdapter`.
+`EntityAdapterBlex<TEntity, TKey>` generates CRUD operations over an immutable, id-keyed
+`EntityStateBlex<TEntity, TKey>` - the same idea as Redux Toolkit's `createEntityAdapter`.
 
 ```csharp
-[Store(Name = "todos")]
+[StoreAttributeBlex(Name = "todos")]
 public partial class TodoStore
 {
-    private static readonly EntityAdapter<Todo, int> Adapter = new(t => t.Id);
-    [State] private EntityState<Todo, int> _todos = Adapter.GetInitialState();
+    private static readonly EntityAdapterBlex<Todo, int> Adapter = new(t => t.Id);
+    [StateAttributeBlex] private EntityStateBlex<Todo, int> _todos = Adapter.GetInitialState();
 
-    [Computed] private int ComputeRemaining() => Todos.All.Count(t => !t.Done);
+    [ComputedAttributeBlex] private int ComputeRemaining() => Todos.All.Count(t => !t.Done);
 
-    [Action] private void OnUpsert(Todo todo) => Todos = Adapter.UpsertOne(Todos, todo);
-    [Action] private void OnToggle(int id)    => Todos = Adapter.UpdateOne(Todos, id, t => t with { Done = !t.Done });
-    [Action] private void OnRemove(int id)    => Todos = Adapter.RemoveOne(Todos, id);
+    [ActionAttributeBlex] private void OnUpsert(Todo todo) => Todos = Adapter.UpsertOne(Todos, todo);
+    [ActionAttributeBlex] private void OnToggle(int id)    => Todos = Adapter.UpdateOne(Todos, id, t => t with { Done = !t.Done });
+    [ActionAttributeBlex] private void OnRemove(int id)    => Todos = Adapter.RemoveOne(Todos, id);
 }
 ```
 
-`EntityState` exposes `Ids`, `Entities`, `All`, `Count`, `Contains(id)` and `Find(id)`, and
+`EntityStateBlex` exposes `Ids`, `Entities`, `All`, `Count`, `Contains(id)` and `Find(id)`, and
 round-trips through JSON for snapshots and persistence. Every operation that changes nothing -
 removing an absent id, upserting an empty sequence, an updater that returns an equal entity -
 returns the *same* instance, so it raises no notification and records no action. The adapter also offers `AddMany`,
@@ -223,18 +223,18 @@ returns the *same* instance, so it raises no notification and records no action.
 plus an optional sort comparer that keeps `Ids` ordered after every operation:
 
 ```csharp
-private static readonly EntityAdapter<Todo, int> Adapter =
+private static readonly EntityAdapterBlex<Todo, int> Adapter =
     new(t => t.Id, Comparer<Todo>.Create((a, b) => a.DueDate.CompareTo(b.DueDate)));
 ```
 
 ## Persistence
 
-Mark a store with `[Store(Persist = true)]` and wire up a storage provider; the store is rehydrated
+Mark a store with `[StoreAttributeBlex(Persist = true)]` and wire up a storage provider; the store is rehydrated
 on startup and saved after every action.
 
 ```csharp
-[Store(Name = "settings", Persist = true)]
-public partial class SettingsStore { [State] private string _theme = "light"; ... }
+[StoreAttributeBlex(Name = "settings", Persist = true)]
+public partial class SettingsStore { [StateAttributeBlex] private string _theme = "light"; ... }
 ```
 
 ```csharp
@@ -242,11 +242,11 @@ public partial class SettingsStore { [State] private string _theme = "light"; ..
 builder.Services.AddBlexLocalStoragePersistence();   // or AddBlexSessionStoragePersistence()
 ```
 
-`<BlexProvider>` restores persisted state on init. It also bridges to Blazor's
+`<ProviderBlex>` restores persisted state on init. It also bridges to Blazor's
 `PersistentComponentState` automatically (set `PersistComponentState="false"` to opt out), handing
 prerendered state to the interactive render to avoid the prerender "double render" flicker. Under
 Blazor Server prerendering (where JS interop is unavailable), hydration is automatically retried on
-first render instead of crashing startup. For non-Blazor hosts, implement `IBlexStorage` and call
+first render instead of crashing startup. For non-Blazor hosts, implement `IStorageBlex` and call
 `AddBlexPersistence()`.
 
 Persistence is production-hardened:
@@ -303,26 +303,26 @@ builder.Services.AddBlex(options =>
 `OnError` receives every non-fatal failure Blex isolates from the dispatch pipeline - without it
 they go to `Console.Error`. Isolation is per handler and covers the whole observer surface:
 `StateChanged`/`PropertyChanged` subscribers (including selector subscriptions and
-`BlexComponentBase`), `manager.Subscribe(...)` handlers *and* their filters, raw
-`ActionDispatched`/`StateRestored` handlers, `BlexHistory.Changed`, middleware, persistence writes,
+`ComponentBaseBlex`), `manager.Subscribe(...)` handlers *and* their filters, raw
+`ActionDispatched`/`StateRestored` handlers, `HistoryBlex.Changed`, middleware, persistence writes,
 restores and sanitizers. One component throwing while it re-renders can never starve the
 subscribers behind it, nor the persistence and undo/redo observers that run after them.
 
 Store names key the global state tree, the DevTools slices *and* the persistence storage keys, so
 they must be unique. Registering two stores under one name is reported through `OnError` rather
-than silently letting them shadow each other - give one an explicit `[Store(Name = "...")]`.
+than silently letting them shadow each other - give one an explicit `[StoreAttributeBlex(Name = "...")]`.
 
 ## Undo / redo
 
-`BlexHistory` provides in-app undo/redo over the whole application state, independent of the
+`HistoryBlex` provides in-app undo/redo over the whole application state, independent of the
 DevTools extension:
 
 ```csharp
-builder.Services.AddBlexHistory();   // <BlexProvider> starts recording automatically
+builder.Services.AddBlexHistory();   // <ProviderBlex> starts recording automatically
 ```
 
 ```razor
-@inject BlexHistory History
+@inject HistoryBlex History
 <button @onclick="History.Undo" disabled="@(!History.CanUndo)">Undo @History.NextUndoLabel</button>
 <button @onclick="History.Redo" disabled="@(!History.CanRedo)">Redo @History.NextRedoLabel</button>
 ```
@@ -336,7 +336,7 @@ undo/redo writes the restored state back to storage.
 `Blex.Testing` provides a zero-setup harness that records dispatched actions:
 
 ```csharp
-using var harness = BlexTestHarness.For<CounterStore>();
+using var harness = TestHarnessBlex.For<CounterStore>();
 harness.Store.Increment();
 Assert.Equal(new[] { "Increment" }, harness.Log.Names);
 Assert.Equal(1, harness.Snapshot()["Count"]!.GetValue<int>());
@@ -355,7 +355,7 @@ await harness.Store.WaitForAsync(() => !harness.Store.LoadUserIsLoading);
 The generator validates store shapes and fails fast with precise errors instead of emitting broken
 code: `BLEX001` store not partial · `BLEX002/003` underivable action/computed names ·
 `BLEX004` computed with parameters · `BLEX005` generated-member collisions (including against
-your own members and `StoreBase`) · `BLEX006` nested/generic/static stores · `BLEX007` non-async
+your own members and `StoreBaseBlex`) · `BLEX006` nested/generic/static stores · `BLEX007` non-async
 effects · `BLEX008` static/readonly members · `BLEX009` `Latest` effect without a
 `CancellationToken` (warning) · `BLEX010` `async void` actions · `BLEX011` discarded action
 return values (warning) · `BLEX012` state field/property name conflicts · `BLEX013` by-ref
@@ -373,7 +373,7 @@ Under the hood the `Blex.Blazor` JS bridge talks to `window.__REDUX_DEVTOOLS_EXT
 sends each action via `send(action, state)`, and applies `JUMP_TO_STATE` / `JUMP_TO_ACTION` /
 `ROLLBACK` / `RESET` / `COMMIT` messages back onto the stores.
 
-For production, set `<BlexProvider EnableDevTools="false">` to disable the connection entirely, or
+For production, set `<ProviderBlex EnableDevTools="false">` to disable the connection entirely, or
 redact sensitive values from the monitor with sanitizers:
 
 ```csharp
@@ -394,9 +394,9 @@ involved on the library side.
 ### Blazor Hybrid
 
 MAUI Blazor Hybrid apps use `Blex` + `Blex.Blazor` exactly like any Blazor app: `AddBlex(...)` in
-`MauiProgram.cs` and `<BlexProvider>` wrapping the root component inside the `BlazorWebView`.
+`MauiProgram.cs` and `<ProviderBlex>` wrapping the root component inside the `BlazorWebView`.
 There is no browser extension inside a WebView, so the DevTools bridge detects its absence and
-disables itself; set `<BlexProvider EnableDevTools="false">` to skip loading it entirely.
+disables itself; set `<ProviderBlex EnableDevTools="false">` to skip loading it entirely.
 `AddBlexLocalStoragePersistence()` works (the WebView provides `localStorage`), or add
 `Blex.Maui` and call `AddBlexPreferencesPersistence()` to persist to OS-native app preferences
 instead of the WebView profile.
@@ -405,7 +405,7 @@ instead of the WebView profile.
 
 `Blex.Maui` makes stores first-class XAML citizens. Every store implements
 `INotifyPropertyChanged` - raised with an empty property name ("all properties changed"), so
-bindings to `[Computed]` properties stay fresh too - which means XAML can bind directly to
+bindings to `[ComputedAttributeBlex]` properties stay fresh too - which means XAML can bind directly to
 generated state, computed and effect-lifecycle properties:
 
 ```csharp
@@ -446,16 +446,16 @@ public partial class MainPage : ContentPage
 }
 ```
 
-`UseBlex()` registers a startup initializer that mirrors what `<BlexProvider>` does in Blazor:
+`UseBlex()` registers a startup initializer that mirrors what `<ProviderBlex>` does in Blazor:
 when `MauiApp.Build()` runs it attaches every `AddBlexStore` store to the manager, rehydrates
-persisted state from `Preferences`, and starts `BlexHistory` recording (when registered) - all
+persisted state from `Preferences`, and starts `HistoryBlex` recording (when registered) - all
 before the first page appears. `AddBlexPreferencesPersistence()` supports the same
 debounce/versioning/migration options as the browser-storage providers, and an unreadable
 payload is reported through `options.OnError` and discarded rather than crashing startup.
 
-To persist somewhere else (files, SQLite), register your own `IBlexStorage` before calling
+To persist somewhere else (files, SQLite), register your own `IStorageBlex` before calling
 `AddBlexPreferencesPersistence()` - the first registration wins, so give it the same lifetime as
-the rest of your Blex registrations. An `IBlexStorage` that completes asynchronously should be
+the rest of your Blex registrations. An `IStorageBlex` that completes asynchronously should be
 hydrated from app code (`await persistor.StartAsync()`) instead of relying on the synchronous
 startup initializer.
 
@@ -467,11 +467,11 @@ If the startup initializer cannot resolve its services (typically a lifetime mis
 
 | Project | Description |
 |---|---|
-| `src/Blex` | Core runtime (no JS dependency): `StoreBase`, attributes, dispatch, middleware, persistence, entity adapter, undo/redo, `BlexManager` manager. |
+| `src/Blex` | Core runtime (no JS dependency): `StoreBaseBlex`, attributes, dispatch, middleware, persistence, entity adapter, undo/redo, `ManagerBlex` manager. |
 | `src/Blex.Generators` | Roslyn incremental source generator. |
-| `src/Blex.Blazor` | Blazor integration: `BlexComponentBase`, `<BlexProvider>`, browser-storage persistence, Redux DevTools bridge. |
+| `src/Blex.Blazor` | Blazor integration: `ComponentBaseBlex`, `<ProviderBlex>`, browser-storage persistence, Redux DevTools bridge. |
 | `src/Blex.Maui` | .NET MAUI integration: `UseBlex()` startup initializer, `Preferences`-backed persistence, XAML-bindable stores. |
-| `src/Blex.Testing` | Test harness and assertions (`BlexTestHarness`, `ActionLog`). |
+| `src/Blex.Testing` | Test harness and assertions (`TestHarnessBlex`, `ActionLogBlex`). |
 | `src/Demos/Blex.Demo` | Documentation website: every feature explained with a live, runnable demo. |
 | `src/Demos/Blex.Sample` | Blazor WebAssembly demo (Counter, Todos, Weather). |
 | `src/Tests/Blex.Tests` | xUnit tests for the runtime and generated code. |

@@ -16,13 +16,13 @@ public class GlobalStateBenchmarks
     [Params(10, 100, 500)]
     public int StoreCount;
 
-    private BlexManager _manager = null!;
+    private ManagerBlex _manager = null!;
     private JsonObject _snapshot = null!;
 
     [GlobalSetup]
     public void Setup()
     {
-        _manager = new BlexManager();
+        _manager = new ManagerBlex();
         for (var i = 0; i < StoreCount; i++)
         {
             var w = new BenchWideStore();

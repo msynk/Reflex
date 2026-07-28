@@ -4,15 +4,15 @@ using Microsoft.JSInterop;
 namespace Blex.Blazor;
 
 /// <summary>
-/// Bridges a <see cref="BlexManager"/> to the Redux DevTools browser extension, enabling
-/// live action inspection and time-travel. Created and managed by <see cref="BlexProvider"/>.
+/// Bridges a <see cref="ManagerBlex"/> to the Redux DevTools browser extension, enabling
+/// live action inspection and time-travel. Created and managed by <see cref="ProviderBlex"/>.
 /// </summary>
-public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
+public sealed class ReduxDevToolsConnectorBlex : IDevToolsBlex, IAsyncDisposable
 {
     private readonly IJSRuntime _js;
     private IJSObjectReference? _module;
-    private DotNetObjectReference<ReduxDevToolsConnector>? _selfRef;
-    private BlexManager? _manager;
+    private DotNetObjectReference<ReduxDevToolsConnectorBlex>? _selfRef;
+    private ManagerBlex? _manager;
 
     /// <summary>
     /// Handle identifying this connector's connection inside the shared JS module (0 = none).
@@ -24,13 +24,13 @@ public sealed class ReduxDevToolsConnector : IBlexDevTools, IAsyncDisposable
     private bool _disposed;
 
     /// <summary>Creates a connector over the supplied JS runtime.</summary>
-    public ReduxDevToolsConnector(IJSRuntime js) => _js = js;
+    public ReduxDevToolsConnectorBlex(IJSRuntime js) => _js = js;
 
     /// <summary>
     /// Loads the JS bridge, connects to the extension and wires the manager. Safe to call when the
     /// extension is absent or the bridge fails to load - it simply becomes a no-op.
     /// </summary>
-    public async Task ConnectAsync(BlexManager manager, string name)
+    public async Task ConnectAsync(ManagerBlex manager, string name)
     {
         _manager = manager;
         try

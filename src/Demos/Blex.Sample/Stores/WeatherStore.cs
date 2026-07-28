@@ -11,26 +11,26 @@ public sealed record WeatherForecast(DateOnly Date, int TemperatureC, string? Su
 }
 
 /// <summary>
-/// Demonstrates cancellable effects: <c>[Effect(Concurrency = Latest)]</c> gives type-ahead
+/// Demonstrates cancellable effects: <c>[EffectAttributeBlex(Concurrency = Latest)]</c> gives type-ahead
 /// ("switchMap") semantics -- a new <c>Load</c> cancels the previous one -- and the trailing
 /// <see cref="CancellationToken"/> parameter makes the generator emit a <c>CancelLoad()</c> method.
 /// Loading and error state (<c>LoadIsLoading</c>/<c>LoadError</c>) are generated; cancellations
 /// are never surfaced as errors. Stores are plain DI services, so injecting HttpClient just works.
 /// </summary>
-[Store(Name = "weather")]
+[StoreAttributeBlex(Name = "weather")]
 public partial class WeatherStore
 {
     private readonly HttpClient _http;
 
     public WeatherStore(HttpClient http) => _http = http;
 
-    [State] private WeatherForecast[]? _forecasts;
-    [State] private DateTimeOffset? _loadedAt;
+    [StateAttributeBlex] private WeatherForecast[]? _forecasts;
+    [StateAttributeBlex] private DateTimeOffset? _loadedAt;
 
-    [Computed]
+    [ComputedAttributeBlex]
     private int ComputeCount() => Forecasts?.Length ?? 0;
 
-    [Effect(Concurrency = EffectConcurrency.Latest)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]
     private async Task OnLoad(bool simulateFailure, CancellationToken ct)
     {
         Forecasts = null;
@@ -42,11 +42,11 @@ public partial class WeatherStore
         if (simulateFailure)
             throw new HttpRequestException("The weather service is unavailable (simulated).");
 
-        Forecasts = await _http.GetFromJsonAsync<WeatherForecast[]>("sample-data/weather.json", BlexJson.Options, ct);
+        Forecasts = await _http.GetFromJsonAsync<WeatherForecast[]>("sample-data/weather.json", JsonBlex.Options, ct);
         LoadedAt = DateTimeOffset.Now;
     }
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnClear()
     {
         Forecasts = null;

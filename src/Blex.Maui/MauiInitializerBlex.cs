@@ -5,10 +5,10 @@ namespace Blex.Maui;
 
 /// <summary>
 /// Runs when <c>MauiApp.Build()</c> executes, performing the startup work that
-/// <c>&lt;BlexProvider&gt;</c> does in Blazor hosts: register every store with the manager,
+/// <c>&lt;ProviderBlex&gt;</c> does in Blazor hosts: register every store with the manager,
 /// rehydrate persisted state, and start undo/redo recording.
 /// </summary>
-internal sealed class BlexMauiInitializer : IMauiInitializeService
+internal sealed class MauiInitializerBlex : IMauiInitializeService
 {
     public void Initialize(IServiceProvider services)
     {
@@ -21,7 +21,7 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
         // lazily-registered stores and default state.
         try
         {
-            _ = services.GetServices<IStore>().ToList();
+            _ = services.GetServices<IStoreBlex>().ToList();
         }
         catch (InvalidOperationException ex)
         {
@@ -29,10 +29,10 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
             return;
         }
 
-        StatePersistor? persistor;
+        StatePersistorBlex? persistor;
         try
         {
-            persistor = services.GetService<StatePersistor>();
+            persistor = services.GetService<StatePersistorBlex>();
         }
         catch (InvalidOperationException ex)
         {
@@ -44,15 +44,15 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
         {
             try
             {
-                // PreferencesBlexStorage completes synchronously, so this never actually blocks.
-                // A custom asynchronous IBlexStorage should be hydrated from app code instead
+                // PreferencesStorageBlex completes synchronously, so this never actually blocks.
+                // A custom asynchronous IStorageBlex should be hydrated from app code instead
                 // (await persistor.StartAsync()) rather than rely on this synchronous wait.
                 persistor.StartAsync().GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
                 // Unreadable storage must not crash app startup: report through OnError and run
-                // with default state, mirroring <BlexProvider>'s containment. This is a
+                // with default state, mirroring <ProviderBlex>'s containment. This is a
                 // persistence failure, not a wiring one, so it keeps the "persistence" source.
                 Report(services, ex, "hydrating at startup", source: "persistence");
             }
@@ -62,7 +62,7 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
         // ultimately returns to) is the hydrated state, not the pre-hydration defaults.
         try
         {
-            services.GetService<BlexHistory>()?.Start();
+            services.GetService<HistoryBlex>()?.Start();
         }
         catch (InvalidOperationException ex)
         {
@@ -71,7 +71,7 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
     }
 
     /// <summary>
-    /// Routes a startup failure to <see cref="BlexManager.OnError"/>. The manager itself may be
+    /// Routes a startup failure to <see cref="ManagerBlex.OnError"/>. The manager itself may be
     /// unreachable (it is the very thing whose lifetime went wrong), so this falls back to stderr
     /// rather than throwing over a diagnostic.
     /// </summary>
@@ -79,7 +79,7 @@ internal sealed class BlexMauiInitializer : IMauiInitializeService
     {
         try
         {
-            services.GetRequiredService<BlexManager>().ReportError(source, exception, detail);
+            services.GetRequiredService<ManagerBlex>().ReportError(source, exception, detail);
             return;
         }
         catch (Exception)

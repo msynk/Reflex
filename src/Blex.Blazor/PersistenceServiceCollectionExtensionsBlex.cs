@@ -4,32 +4,32 @@ using Microsoft.JSInterop;
 namespace Blex.Blazor;
 
 /// <summary>Blazor-specific DI helpers for wiring Blex persistence to browser storage.</summary>
-public static class PersistenceServiceCollectionExtensions
+public static class PersistenceServiceCollectionExtensionsBlex
 {
     /// <summary>
-    /// Persists stores marked <c>[Store(Persist = true)]</c> to <c>window.localStorage</c>, surviving
+    /// Persists stores marked <c>[StoreAttributeBlex(Persist = true)]</c> to <c>window.localStorage</c>, surviving
     /// full page reloads. Call after <c>AddBlex</c> and the store registrations.
     /// </summary>
     public static IServiceCollection AddBlexLocalStoragePersistence(
         this IServiceCollection services,
-        Action<BlexPersistenceOptions>? configure = null)
-        => services.AddBlexBrowserPersistence(BrowserStorageKind.Local, configure);
+        Action<PersistenceOptionsBlex>? configure = null)
+        => services.AddBlexBrowserPersistence(BrowserStorageKindBlex.Local, configure);
 
     /// <summary>
-    /// Persists stores marked <c>[Store(Persist = true)]</c> to <c>window.sessionStorage</c>, cleared
+    /// Persists stores marked <c>[StoreAttributeBlex(Persist = true)]</c> to <c>window.sessionStorage</c>, cleared
     /// when the tab closes. Call after <c>AddBlex</c> and the store registrations.
     /// </summary>
     public static IServiceCollection AddBlexSessionStoragePersistence(
         this IServiceCollection services,
-        Action<BlexPersistenceOptions>? configure = null)
-        => services.AddBlexBrowserPersistence(BrowserStorageKind.Session, configure);
+        Action<PersistenceOptionsBlex>? configure = null)
+        => services.AddBlexBrowserPersistence(BrowserStorageKindBlex.Session, configure);
 
     private static IServiceCollection AddBlexBrowserPersistence(
         this IServiceCollection services,
-        BrowserStorageKind kind,
-        Action<BlexPersistenceOptions>? configure)
+        BrowserStorageKindBlex kind,
+        Action<PersistenceOptionsBlex>? configure)
     {
-        services.AddScoped<IBlexStorage>(sp => new BrowserStorage(
+        services.AddScoped<IStorageBlex>(sp => new BrowserStorageBlex(
             sp.GetRequiredService<IJSRuntime>(), kind));
         services.AddBlexPersistence(configure);
         return services;

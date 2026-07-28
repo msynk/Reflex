@@ -4,39 +4,39 @@ using Blex;
 
 namespace Blex.Tests;
 
-[Store(Name = "counter")]
+[StoreAttributeBlex(Name = "counter")]
 public partial class CounterStore
 {
-    [State] private int _count;
-    [State] private string _label = "idle";
+    [StateAttributeBlex] private int _count;
+    [StateAttributeBlex] private string _label = "idle";
 
-    [Computed]
+    [ComputedAttributeBlex]
     private int ComputeDoubleCount() => Count * 2;
 
     private int _computeCalls;
     public int ComputeCalls => _computeCalls;
 
-    [Computed]
+    [ComputedAttributeBlex]
     private int ComputeTrackedCount()
     {
         _computeCalls++;
         return Count + 1;
     }
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnIncrement() => Count++;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnAdd(int amount) => Count += amount;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnReset()
     {
         Count = 0;
         Label = "idle";
     }
 
-    [Action(Name = "LoadData")]
+    [ActionAttributeBlex(Name = "LoadData")]
     private async Task OnLoadAsync()
     {
         Label = "loading";
@@ -49,7 +49,7 @@ public partial class CounterStore
     // The explicit name contains spaces, so it is a display label only; the wrapper is "LoadValue".
     // BLEX011 (discarded return value) is expected here and suppressed via NoWarn in the csproj
     // -- exercising that shape is exactly what this fixture is for.
-    [Action(Name = "Load Value")]
+    [ActionAttributeBlex(Name = "Load Value")]
     private async ValueTask<int> OnLoadValue()
     {
         await Task.Delay(1);
@@ -58,32 +58,32 @@ public partial class CounterStore
     }
 }
 
-[Store]
+[StoreAttributeBlex]
 public partial class TodoStore
 {
-    [State] private List<string> _items = new();
+    [StateAttributeBlex] private List<string> _items = new();
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnAddItem(string text) => Items = new List<string>(Items) { text };
 }
 
-[Store(Name = "settings", Persist = true)]
+[StoreAttributeBlex(Name = "settings", Persist = true)]
 public partial class SettingsStore
 {
-    [State] private string _theme = "light";
-    [State] private int _fontSize = 14;
+    [StateAttributeBlex] private string _theme = "light";
+    [StateAttributeBlex] private int _fontSize = 14;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnSetTheme(string theme) => Theme = theme;
 }
 
-[Store(Name = "data")]
+[StoreAttributeBlex(Name = "data")]
 public partial class DataStore
 {
-    [State] private string _value = "";
+    [StateAttributeBlex] private string _value = "";
     public bool ShouldThrow { get; set; }
 
-    [Effect]
+    [EffectAttributeBlex]
     private async Task OnLoad(string input)
     {
         await Task.Delay(1);
@@ -93,31 +93,31 @@ public partial class DataStore
     }
 }
 
-[Store(Name = "profile")]
+[StoreAttributeBlex(Name = "profile")]
 public partial class ProfileStore
 {
-    [State] private string? _userName = "anonymous";
-    [State] private int _age;
+    [StateAttributeBlex] private string? _userName = "anonymous";
+    [StateAttributeBlex] private int _age;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnSignOut() => UserName = null;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnSignIn(string name) => UserName = name;
 }
 
 /// <summary>Gated effects for deterministic concurrency tests. Enqueue gates before invoking.</summary>
-[Store(Name = "fx")]
+[StoreAttributeBlex(Name = "fx")]
 public partial class EffectConcurrencyStore
 {
-    [State] private string _last = "";
-    [State] private int _completed;
+    [StateAttributeBlex] private string _last = "";
+    [StateAttributeBlex] private int _completed;
 
     public Queue<TaskCompletionSource> Gates { get; } = new();
 
     private Task NextGate() => Gates.Count > 0 ? Gates.Dequeue().Task : Task.CompletedTask;
 
-    [Effect(Concurrency = EffectConcurrency.Latest)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]
     private async Task OnSearch(string query, CancellationToken ct)
     {
         await NextGate().WaitAsync(ct);
@@ -125,14 +125,14 @@ public partial class EffectConcurrencyStore
         Completed++;
     }
 
-    [Effect(Concurrency = EffectConcurrency.Drop)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Drop)]
     private async Task OnSubmit()
     {
         await NextGate();
         Completed++;
     }
 
-    [Effect(Concurrency = EffectConcurrency.Queue)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Queue)]
     private async Task OnWrite(string value)
     {
         await NextGate();
@@ -140,7 +140,7 @@ public partial class EffectConcurrencyStore
         Completed++;
     }
 
-    [Effect]
+    [EffectAttributeBlex]
     private async Task OnFetch()
     {
         await NextGate();
@@ -149,7 +149,7 @@ public partial class EffectConcurrencyStore
 
     // The gate is intentionally NOT linked to the token: a superseded run keeps executing and
     // then fails, which must not clobber the newest run's error state.
-    [Effect(Concurrency = EffectConcurrency.Latest)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]
     private async Task OnFlaky(bool fail, CancellationToken ct)
     {
         await NextGate();
@@ -161,7 +161,7 @@ public partial class EffectConcurrencyStore
 
     // Throws a *foreign* cancellation (like an HttpClient timeout) while our token is NOT
     // cancelled -- this must surface as an error, not be swallowed as a benign cancel.
-    [Effect]
+    [EffectAttributeBlex]
     private async Task OnTimeout(CancellationToken ct)
     {
         await Task.Yield();
@@ -170,7 +170,7 @@ public partial class EffectConcurrencyStore
 
     // Queue effect whose runs can fail: a failed predecessor's error must not survive a
     // successful successor (the successor clears the error only after the predecessor ends).
-    [Effect(Concurrency = EffectConcurrency.Queue)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Queue)]
     private async Task OnQueuedFlaky(bool fail)
     {
         await NextGate();
@@ -182,23 +182,23 @@ public partial class EffectConcurrencyStore
 
 /// <summary>
 /// A store with one effect that parks on a gate, so a second action can be dispatched while the
-/// first is still in flight (the default <c>EffectConcurrency.Parallel</c> shape).
+/// first is still in flight (the default <c>EffectConcurrencyBlex.Parallel</c> shape).
 /// </summary>
-[Store(Name = "gated")]
+[StoreAttributeBlex(Name = "gated")]
 public partial class GatedStore
 {
-    [State] private int _count;
+    [StateAttributeBlex] private int _count;
 
     public TaskCompletionSource Gate { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    [Effect]
+    [EffectAttributeBlex]
     private async Task OnSlow()
     {
         await Gate.Task;
         Count++;
     }
 
-    [Effect]
+    [EffectAttributeBlex]
     private async Task OnQuick()
     {
         await Task.Yield();
@@ -208,14 +208,14 @@ public partial class GatedStore
 
 public record Todo(int Id, string Text, bool Done);
 
-[Store(Name = "todos")]
+[StoreAttributeBlex(Name = "todos")]
 public partial class EntityTodoStore
 {
-    private static readonly EntityAdapter<Todo, int> Adapter = new(t => t.Id);
+    private static readonly EntityAdapterBlex<Todo, int> Adapter = new(t => t.Id);
 
-    [State] private EntityState<Todo, int> _todos = Adapter.GetInitialState();
+    [StateAttributeBlex] private EntityStateBlex<Todo, int> _todos = Adapter.GetInitialState();
 
-    [Computed] private int ComputeRemaining()
+    [ComputedAttributeBlex] private int ComputeRemaining()
     {
         var n = 0;
         foreach (var t in Todos.All)
@@ -223,9 +223,9 @@ public partial class EntityTodoStore
         return n;
     }
 
-    [Action] private void OnAdd(Todo todo) => Todos = Adapter.UpsertOne(Todos, todo);
+    [ActionAttributeBlex] private void OnAdd(Todo todo) => Todos = Adapter.UpsertOne(Todos, todo);
 
-    [Action] private void OnToggle(int id) => Todos = Adapter.UpdateOne(Todos, id, t => t with { Done = !t.Done });
+    [ActionAttributeBlex] private void OnToggle(int id) => Todos = Adapter.UpdateOne(Todos, id, t => t with { Done = !t.Done });
 
-    [Action] private void OnRemove(int id) => Todos = Adapter.RemoveOne(Todos, id);
+    [ActionAttributeBlex] private void OnRemove(int id) => Todos = Adapter.RemoveOne(Todos, id);
 }

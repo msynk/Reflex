@@ -6,7 +6,7 @@ namespace Blex;
 /// The shared <see cref="JsonSerializerOptions"/> used by generated snapshot code, persistence and
 /// the DevTools bridge.
 /// </summary>
-public static class BlexJson
+public static class JsonBlex
 {
     /// <summary>Default options: camelCase-insensitive, enums as strings, tolerant reading.</summary>
     public static JsonSerializerOptions Options { get; private set; } = CreateDefault();
@@ -20,7 +20,7 @@ public static class BlexJson
 
     /// <summary>
     /// Customizes how state is serialized -- typically to register a converter for a domain type
-    /// that appears in <c>[State]</c> fields. Call once during startup, before any store is
+    /// that appears in <c>[StateAttributeBlex]</c> fields. Call once during startup, before any store is
     /// resolved or snapshotted.
     /// </summary>
     /// <remarks>
@@ -31,7 +31,7 @@ public static class BlexJson
     /// a <c>[JsonConverter]</c> attribute need no registration at all.
     /// </remarks>
     /// <example><code>
-    /// BlexJson.Configure(o => o.Converters.Add(new MoneyJsonConverter()));
+    /// JsonBlex.Configure(o => o.Converters.Add(new MoneyJsonConverter()));
     /// </code></example>
     public static void Configure(Action<JsonSerializerOptions> configure)
     {

@@ -6,28 +6,28 @@ namespace Blex.Blazor;
 /// <summary>
 /// Bridges Blex stores to Blazor's <see cref="PersistentComponentState"/> so that state produced
 /// during prerendering is handed to the interactive render without re-fetching, eliminating the
-/// "double render" flicker. This is distinct from durable <see cref="IBlexStorage"/> persistence:
+/// "double render" flicker. This is distinct from durable <see cref="IStorageBlex"/> persistence:
 /// it only survives the prerender-to-interactive transition within a single page load.
 /// </summary>
 /// <remarks>
 /// Applies to every registered store (the goal is render handoff, not selective durability). Stores
 /// are restored eagerly in <see cref="TryRestore"/> and re-persisted via a registered callback.
 /// </remarks>
-public sealed class ComponentStatePersistence : IDisposable
+public sealed class ComponentStatePersistenceBlex : IDisposable
 {
     private const string KeyPrefix = "blex.cs:";
 
     private readonly PersistentComponentState _state;
-    private readonly IReadOnlyList<IStore> _stores;
+    private readonly IReadOnlyList<IStoreBlex> _stores;
     private PersistingComponentStateSubscription _subscription;
     private bool _subscribed;
 
     /// <summary>Creates the bridge over the framework state service and the registered stores.</summary>
-    public ComponentStatePersistence(PersistentComponentState state, IEnumerable<IStore> stores)
+    public ComponentStatePersistenceBlex(PersistentComponentState state, IEnumerable<IStoreBlex> stores)
     {
         ArgumentNullException.ThrowIfNull(state);
         _state = state;
-        _stores = stores as IReadOnlyList<IStore> ?? stores.ToList();
+        _stores = stores as IReadOnlyList<IStoreBlex> ?? stores.ToList();
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public sealed class ComponentStatePersistence : IDisposable
     {
         foreach (var store in _stores)
         {
-            if (store is not StoreBase sb)
+            if (store is not StoreBaseBlex sb)
                 continue;
 
             if (_state.TryTakeFromJson<JsonObject>(KeyPrefix + store.Name, out var slice) && slice is not null)

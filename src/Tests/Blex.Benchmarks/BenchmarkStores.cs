@@ -5,26 +5,26 @@ namespace Blex.Benchmarks;
 // Stores used by the benchmarks. Decorated like any real store so the source generator emits the
 // actual reactive API the benchmarks exercise.
 
-[Store(Name = "benchCounter")]
+[StoreAttributeBlex(Name = "benchCounter")]
 public partial class BenchCounterStore
 {
-    [State] private long _count;
-    [State] private string _label = "idle";
+    [StateAttributeBlex] private long _count;
+    [StateAttributeBlex] private string _label = "idle";
 
-    [Computed]
+    [ComputedAttributeBlex]
     private long ComputeDoubleCount() => Count * 2;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnIncrement() => Count++;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnBump(long amount)
     {
         Count += amount;
         Label = "bumped";
     }
 
-    [Action(Name = "LoadFast")]
+    [ActionAttributeBlex(Name = "LoadFast")]
     private async Task OnLoadFast()
     {
         Label = "loading";
@@ -35,17 +35,17 @@ public partial class BenchCounterStore
 }
 
 // A wider store so global-state capture and serialization have realistic work to do.
-[Store(Name = "benchWide")]
+[StoreAttributeBlex(Name = "benchWide")]
 public partial class BenchWideStore
 {
-    [State] private int _a;
-    [State] private int _b;
-    [State] private int _c;
-    [State] private string _title = "";
-    [State] private bool _flag;
-    [State] private double _ratio;
+    [StateAttributeBlex] private int _a;
+    [StateAttributeBlex] private int _b;
+    [StateAttributeBlex] private int _c;
+    [StateAttributeBlex] private string _title = "";
+    [StateAttributeBlex] private bool _flag;
+    [StateAttributeBlex] private double _ratio;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnTouch(int seed)
     {
         A = seed;

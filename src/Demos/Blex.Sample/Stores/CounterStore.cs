@@ -8,28 +8,28 @@ namespace Blex.Sample.Stores;
 /// the memoized <c>IsEven</c>/<c>DoubleCount</c> values and the <c>Increment</c>/<c>Decrement</c>/
 /// <c>SetStep</c>/<c>Reset</c> action wrappers.
 /// </summary>
-[Store(Name = "counter", Persist = true)]
+[StoreAttributeBlex(Name = "counter", Persist = true)]
 public partial class CounterStore
 {
-    [State] private int _count;
-    [State] private int _step = 1;
+    [StateAttributeBlex] private int _count;
+    [StateAttributeBlex] private int _step = 1;
 
-    [Computed]
+    [ComputedAttributeBlex]
     private int ComputeDoubleCount() => Count * 2;
 
-    [Computed]
+    [ComputedAttributeBlex]
     private bool ComputeIsEven() => Count % 2 == 0;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnIncrement() => Count += Step;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnDecrement() => Count -= Step;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnSetStep(int step) => Step = step;
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnReset()
     {
         Count = 0;

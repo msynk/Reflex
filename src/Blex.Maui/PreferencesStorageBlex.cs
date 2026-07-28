@@ -3,22 +3,22 @@ using Microsoft.Maui.Storage;
 namespace Blex.Maui;
 
 /// <summary>
-/// <see cref="IBlexStorage"/> backed by .NET MAUI <see cref="IPreferences"/>, so persisted store
+/// <see cref="IStorageBlex"/> backed by .NET MAUI <see cref="IPreferences"/>, so persisted store
 /// state lives in the OS-native app preferences (SharedPreferences on Android, NSUserDefaults on
 /// iOS/Mac Catalyst, the local settings store on Windows). All operations complete synchronously.
 /// </summary>
-public sealed class PreferencesBlexStorage : IBlexStorage
+public sealed class PreferencesStorageBlex : IStorageBlex
 {
     private readonly IPreferences _preferences;
 
     /// <summary>Creates a storage over <see cref="Preferences.Default"/>.</summary>
-    public PreferencesBlexStorage()
+    public PreferencesStorageBlex()
         : this(Preferences.Default)
     {
     }
 
     /// <summary>Creates a storage over the supplied preferences implementation.</summary>
-    public PreferencesBlexStorage(IPreferences preferences)
+    public PreferencesStorageBlex(IPreferences preferences)
     {
         ArgumentNullException.ThrowIfNull(preferences);
         _preferences = preferences;

@@ -8,18 +8,18 @@ namespace Blex.Generators;
 /// <summary>
 /// Immutable array wrapper with structural equality so generator pipeline models cache correctly.
 /// </summary>
-internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnumerable<T>
+internal readonly struct EquatableArrayBlex<T> : IEquatable<EquatableArrayBlex<T>>, IEnumerable<T>
     where T : IEquatable<T>
 {
     private readonly T[] _items;
 
-    public EquatableArray(T[] items) => _items = items;
+    public EquatableArrayBlex(T[] items) => _items = items;
 
     public int Count => _items?.Length ?? 0;
 
     public T this[int index] => _items[index];
 
-    public bool Equals(EquatableArray<T> other)
+    public bool Equals(EquatableArrayBlex<T> other)
     {
         if (Count != other.Count)
             return false;
@@ -32,7 +32,7 @@ internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IEnu
         return true;
     }
 
-    public override bool Equals(object? obj) => obj is EquatableArray<T> other && Equals(other);
+    public override bool Equals(object? obj) => obj is EquatableArrayBlex<T> other && Equals(other);
 
     public override int GetHashCode()
     {

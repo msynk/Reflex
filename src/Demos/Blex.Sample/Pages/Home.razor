@@ -11,17 +11,17 @@
 
 <p>This is the entire <code>CounterStore</code>. Everything else is generated:</p>
 
-<pre class="p-3 bg-light border rounded"><code>[Store(Name = "counter")]
+<pre class="p-3 bg-light border rounded"><code>[StoreAttributeBlex(Name = "counter")]
 public partial class CounterStore
 {
-    [State] private int _count;
-    [State] private int _step = 1;
+    [StateAttributeBlex] private int _count;
+    [StateAttributeBlex] private int _step = 1;
 
-    [Computed] private int ComputeDoubleCount() =&gt; Count * 2;
-    [Computed] private bool ComputeIsEven() =&gt; Count % 2 == 0;
+    [ComputedAttributeBlex] private int ComputeDoubleCount() =&gt; Count * 2;
+    [ComputedAttributeBlex] private bool ComputeIsEven() =&gt; Count % 2 == 0;
 
-    [Action] private void OnIncrement() =&gt; Count += Step;
-    [Action] private void OnReset() { Count = 0; Step = 1; }
+    [ActionAttributeBlex] private void OnIncrement() =&gt; Count += Step;
+    [ActionAttributeBlex] private void OnReset() { Count = 0; Step = 1; }
 }</code></pre>
 
 <h3>Try time-travel</h3>

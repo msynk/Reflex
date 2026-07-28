@@ -1,11 +1,11 @@
 namespace Blex;
 
 /// <summary>
-/// Selector-based subscription helpers. Where <see cref="IStore.StateChanged"/> fires on every
+/// Selector-based subscription helpers. Where <see cref="IStoreBlex.StateChanged"/> fires on every
 /// change, these fire a callback only when a projected value actually changes, so consumers
 /// (e.g. components) can avoid re-rendering for unrelated state mutations.
 /// </summary>
-public static class StoreSubscriptionExtensions
+public static class StoreSubscriptionExtensionsBlex
 {
     /// <summary>
     /// Observes a projection of the store and invokes <paramref name="onChanged"/> only when the
@@ -18,7 +18,7 @@ public static class StoreSubscriptionExtensions
     /// <param name="comparer">Custom equality; defaults to <see cref="EqualityComparer{T}.Default"/>.</param>
     /// <param name="fireImmediately">When <c>true</c>, invokes the callback once with the current value on subscription (like MobX's <c>fireImmediately</c>).</param>
     public static IDisposable Subscribe<T>(
-        this IStore store,
+        this IStoreBlex store,
         Func<T> selector,
         Action<T> onChanged,
         IEqualityComparer<T>? comparer = null,
@@ -27,7 +27,7 @@ public static class StoreSubscriptionExtensions
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(selector);
         ArgumentNullException.ThrowIfNull(onChanged);
-        return new SelectorSubscription<T>(store, selector, (_, current) => onChanged(current), comparer ?? EqualityComparer<T>.Default, fireImmediately);
+        return new SelectorSubscriptionBlex<T>(store, selector, (_, current) => onChanged(current), comparer ?? EqualityComparer<T>.Default, fireImmediately);
     }
 
     /// <summary>
@@ -41,7 +41,7 @@ public static class StoreSubscriptionExtensions
     /// <param name="comparer">Custom equality; defaults to <see cref="EqualityComparer{T}.Default"/>.</param>
     /// <param name="fireImmediately">When <c>true</c>, invokes the callback once on subscription; previous and current are both the value at subscription time.</param>
     public static IDisposable Subscribe<T>(
-        this IStore store,
+        this IStoreBlex store,
         Func<T> selector,
         Action<T, T> onChanged,
         IEqualityComparer<T>? comparer = null,
@@ -50,19 +50,19 @@ public static class StoreSubscriptionExtensions
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(selector);
         ArgumentNullException.ThrowIfNull(onChanged);
-        return new SelectorSubscription<T>(store, selector, onChanged, comparer ?? EqualityComparer<T>.Default, fireImmediately);
+        return new SelectorSubscriptionBlex<T>(store, selector, onChanged, comparer ?? EqualityComparer<T>.Default, fireImmediately);
     }
 
-    private sealed class SelectorSubscription<T> : IDisposable
+    private sealed class SelectorSubscriptionBlex<T> : IDisposable
     {
-        private readonly IStore _store;
+        private readonly IStoreBlex _store;
         private readonly Func<T> _selector;
         private readonly Action<T, T> _onChanged;
         private readonly IEqualityComparer<T> _comparer;
         private T _last;
         private bool _disposed;
 
-        public SelectorSubscription(IStore store, Func<T> selector, Action<T, T> onChanged, IEqualityComparer<T> comparer, bool fireImmediately)
+        public SelectorSubscriptionBlex(IStoreBlex store, Func<T> selector, Action<T, T> onChanged, IEqualityComparer<T> comparer, bool fireImmediately)
         {
             _store = store;
             _selector = selector;

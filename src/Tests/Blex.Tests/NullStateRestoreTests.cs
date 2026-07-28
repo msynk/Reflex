@@ -35,7 +35,7 @@ public class NullStateRestoreTests
     public void TimeTravel_RoundTripsNullValues_AcrossManager()
     {
         var store = new ProfileStore();
-        var manager = new BlexManager();
+        var manager = new ManagerBlex();
         manager.Register(store);
 
         store.SignOut();

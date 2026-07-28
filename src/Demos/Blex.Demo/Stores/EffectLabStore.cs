@@ -8,11 +8,11 @@ namespace Blex.Demo.Stores;
 public sealed record JobEvent(string Mode, int Run, string Phase, long At);
 
 /// <summary>
-/// Runs the same simulated 1.2s job under all four <see cref="EffectConcurrency"/> modes so the
+/// Runs the same simulated 1.2s job under all four <see cref="EffectConcurrencyBlex"/> modes so the
 /// difference is observable: <c>Parallel</c> overlaps, <c>Latest</c> cancels the previous run,
 /// <c>Drop</c> ignores clicks while busy, and <c>Queue</c> serializes in arrival order.
 /// </summary>
-[Store(Name = "effectLab")]
+[StoreAttributeBlex(Name = "effectLab")]
 public partial class EffectLabStore
 {
     private static readonly TimeSpan JobDuration = TimeSpan.FromMilliseconds(1200);
@@ -23,12 +23,12 @@ public partial class EffectLabStore
     private int _dropRuns;
     private int _queueRuns;
 
-    [State] private IReadOnlyList<JobEvent> _events = [];
+    [StateAttributeBlex] private IReadOnlyList<JobEvent> _events = [];
 
-    [Computed] private int ComputeEventCount() => Events.Count;
+    [ComputedAttributeBlex] private int ComputeEventCount() => Events.Count;
 
     /// <summary>mergeMap: every invocation runs to completion, overlapping freely.</summary>
-    [Effect]
+    [EffectAttributeBlex]
     private async Task OnRunParallel(CancellationToken ct)
     {
         var run = ++_parallelRuns;
@@ -47,7 +47,7 @@ public partial class EffectLabStore
     }
 
     /// <summary>switchMap: starting a new run cancels the one before it.</summary>
-    [Effect(Concurrency = EffectConcurrency.Latest)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]
     private async Task OnRunLatest(CancellationToken ct)
     {
         var run = ++_latestRuns;
@@ -66,7 +66,7 @@ public partial class EffectLabStore
     }
 
     /// <summary>exhaustMap: invocations arriving while a run is in flight are ignored.</summary>
-    [Effect(Concurrency = EffectConcurrency.Drop)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Drop)]
     private async Task OnRunDrop()
     {
         var run = ++_dropRuns;
@@ -76,7 +76,7 @@ public partial class EffectLabStore
     }
 
     /// <summary>concatMap: runs wait their turn and execute in arrival order.</summary>
-    [Effect(Concurrency = EffectConcurrency.Queue)]
+    [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Queue)]
     private async Task OnRunQueue()
     {
         var run = ++_queueRuns;
@@ -86,10 +86,10 @@ public partial class EffectLabStore
     }
 
     /// <summary>Records a click that <c>Drop</c> mode swallowed (the wrapper returns without running).</summary>
-    [Action]
+    [ActionAttributeBlex]
     private void OnNoteDropped() => Log("Drop", _dropRuns, "dropped");
 
-    [Action]
+    [ActionAttributeBlex]
     private void OnClear()
     {
         Events = [];

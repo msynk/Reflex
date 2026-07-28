@@ -17,11 +17,11 @@ namespace Blex.Maui;
 /// <para>
 /// Blazor Hybrid is the other way round: the <c>BlazorWebView</c> creates a scope, so those apps use
 /// the core <c>AddBlex</c>/<c>AddBlexStore</c> and the <see cref="IServiceCollection"/> overload of
-/// <see cref="AddBlexPreferencesPersistence(IServiceCollection, Action{BlexPersistenceOptions}, ServiceLifetime)"/>,
+/// <see cref="AddBlexPreferencesPersistence(IServiceCollection, Action{PersistenceOptionsBlex}, ServiceLifetime)"/>,
 /// all of which stay scoped by default.
 /// </para>
 /// </remarks>
-public static class MauiServiceCollectionExtensions
+public static class MauiServiceCollectionExtensionsBlex
 {
     /// <summary>
     /// Registers the Blex manager and middleware (like <c>AddBlex</c>, but as singletons) plus the
@@ -35,7 +35,7 @@ public static class MauiServiceCollectionExtensions
     /// builder.AddBlexStore&lt;CounterStore&gt;();
     /// builder.AddBlexPreferencesPersistence();
     /// </code></example>
-    public static MauiAppBuilder UseBlex(this MauiAppBuilder builder, Action<BlexOptions>? configure = null)
+    public static MauiAppBuilder UseBlex(this MauiAppBuilder builder, Action<OptionsBlex>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.Services.AddBlex(configure, ServiceLifetime.Singleton);
@@ -48,7 +48,7 @@ public static class MauiServiceCollectionExtensions
     /// <see cref="UseBlex"/>.
     /// </summary>
     public static MauiAppBuilder AddBlexStore<TStore>(this MauiAppBuilder builder)
-        where TStore : StoreBase
+        where TStore : StoreBaseBlex
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.Services.AddBlexStore<TStore>(ServiceLifetime.Singleton);
@@ -64,12 +64,12 @@ public static class MauiServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Persists stores marked <c>[Store(Persist = true)]</c> to MAUI <c>Preferences</c> as a
+    /// Persists stores marked <c>[StoreAttributeBlex(Persist = true)]</c> to MAUI <c>Preferences</c> as a
     /// singleton. Pairs with <see cref="UseBlex"/>.
     /// </summary>
     public static MauiAppBuilder AddBlexPreferencesPersistence(
         this MauiAppBuilder builder,
-        Action<BlexPersistenceOptions>? configure = null)
+        Action<PersistenceOptionsBlex>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.Services.AddBlexPreferencesPersistence(configure, ServiceLifetime.Singleton);
@@ -77,28 +77,28 @@ public static class MauiServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Persists stores marked <c>[Store(Persist = true)]</c> to .NET MAUI
+    /// Persists stores marked <c>[StoreAttributeBlex(Persist = true)]</c> to .NET MAUI
     /// <c>Preferences</c> (OS-native app settings). State is rehydrated automatically when
     /// <c>MauiApp.Build()</c> runs. Call after <c>UseBlex</c>/<c>AddBlex</c> and the store
     /// registrations.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configure">Configures <see cref="BlexPersistenceOptions"/>.</param>
+    /// <param name="configure">Configures <see cref="PersistenceOptionsBlex"/>.</param>
     /// <param name="lifetime">
     /// Lifetime of the persistor and the <c>Preferences</c> storage. Defaults to
     /// <see cref="ServiceLifetime.Scoped"/> so Blazor Hybrid keeps matching the rest of its
     /// (scoped) Blex registrations; the <see cref="MauiAppBuilder"/> overload passes
     /// <see cref="ServiceLifetime.Singleton"/> for native MAUI. Register your own
-    /// <see cref="IBlexStorage"/> beforehand to override the storage -- the first registration
+    /// <see cref="IStorageBlex"/> beforehand to override the storage -- the first registration
     /// wins, so give it the same lifetime.
     /// </param>
     public static IServiceCollection AddBlexPreferencesPersistence(
         this IServiceCollection services,
-        Action<BlexPersistenceOptions>? configure = null,
+        Action<PersistenceOptionsBlex>? configure = null,
         ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.TryAdd(new ServiceDescriptor(typeof(IBlexStorage), typeof(PreferencesBlexStorage), lifetime));
+        services.TryAdd(new ServiceDescriptor(typeof(IStorageBlex), typeof(PreferencesStorageBlex), lifetime));
         services.AddBlexPersistence(configure, lifetime);
         services.AddBlexMauiInitializer();
         return services;
@@ -113,7 +113,7 @@ public static class MauiServiceCollectionExtensions
     public static IServiceCollection AddBlexMauiInitializer(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMauiInitializeService, BlexMauiInitializer>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IMauiInitializeService, MauiInitializerBlex>());
         return services;
     }
 }

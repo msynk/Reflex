@@ -3,17 +3,17 @@ using System.Text.Json.Nodes;
 namespace Blex.Testing;
 
 /// <summary>Convenience extensions for testing Blex stores and managers.</summary>
-public static class BlexTestExtensions
+public static class TestExtensionsBlex
 {
     /// <summary>Starts recording dispatched actions on the manager. Dispose the result to stop.</summary>
-    public static ActionLog RecordActions(this BlexManager manager)
+    public static ActionLogBlex RecordActions(this ManagerBlex manager)
     {
         ArgumentNullException.ThrowIfNull(manager);
-        return new ActionLog(manager);
+        return new ActionLogBlex(manager);
     }
 
     /// <summary>Returns the store's current state as a JSON snapshot (alias for SerializeState).</summary>
-    public static JsonObject Snapshot(this IStore store)
+    public static JsonObject Snapshot(this IStoreBlex store)
     {
         ArgumentNullException.ThrowIfNull(store);
         return store.SerializeState();
@@ -26,7 +26,7 @@ public static class BlexTestExtensions
     /// asserting on effects without arbitrary <c>Task.Delay</c> calls.
     /// </summary>
     /// <example><code>await store.WaitForAsync(() => !store.LoadIsLoading);</code></example>
-    public static async Task WaitForAsync(this IStore store, Func<bool> condition, TimeSpan? timeout = null)
+    public static async Task WaitForAsync(this IStoreBlex store, Func<bool> condition, TimeSpan? timeout = null)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(condition);
@@ -67,10 +67,10 @@ public static class BlexTestExtensions
     }
 
     /// <summary>
-    /// Counts how many times the store notifies <see cref="IStore.StateChanged"/> while running
+    /// Counts how many times the store notifies <see cref="IStoreBlex.StateChanged"/> while running
     /// <paramref name="act"/>. Useful for asserting batching (e.g. one notification per action).
     /// </summary>
-    public static int CountNotifications(this IStore store, Action act)
+    public static int CountNotifications(this IStoreBlex store, Action act)
     {
         ArgumentNullException.ThrowIfNull(store);
         ArgumentNullException.ThrowIfNull(act);

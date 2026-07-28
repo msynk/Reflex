@@ -49,7 +49,7 @@ builder.Services.AddBlexStore<SettingsStore>();
 builder.Services.AddBlexStore<OrdersStore>();
 builder.Services.AddBlexStore<NotificationsStore>();
 
-// Durable persistence for [Store(Persist = true)] stores, with debounced writes and a
+// Durable persistence for [StoreAttributeBlex(Persist = true)] stores, with debounced writes and a
 // versioned envelope so the shape can evolve without stranding visitors on old payloads.
 builder.Services.AddBlexLocalStoragePersistence(options =>
 {
@@ -68,7 +68,7 @@ builder.Services.AddBlexLocalStoragePersistence(options =>
     };
 });
 
-// In-app undo/redo across every store. <BlexProvider> calls Start() once rehydration finishes.
+// In-app undo/redo across every store. <ProviderBlex> calls Start() once rehydration finishes.
 builder.Services.AddBlexHistory(maxEntries: 50);
 
 await builder.Build().RunAsync();

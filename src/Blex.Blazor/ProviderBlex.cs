@@ -6,22 +6,22 @@ using Microsoft.JSInterop;
 namespace Blex.Blazor;
 
 /// <summary>
-/// Root component that wires every registered <see cref="IStore"/> into the <see cref="BlexManager"/>
+/// Root component that wires every registered <see cref="IStoreBlex"/> into the <see cref="ManagerBlex"/>
 /// manager and (on first render) connects the Redux DevTools bridge. Place it once near the root of
 /// your app, wrapping your routes:
-/// <code>&lt;BlexProvider&gt;&lt;Router ... /&gt;&lt;/BlexProvider&gt;</code>
+/// <code>&lt;ProviderBlex&gt;&lt;Router ... /&gt;&lt;/ProviderBlex&gt;</code>
 /// </summary>
-public sealed class BlexProvider : ComponentBase, IAsyncDisposable
+public sealed class ProviderBlex : ComponentBase, IAsyncDisposable
 {
-    private ReduxDevToolsConnector? _connector;
-    private ComponentStatePersistence? _componentState;
+    private ReduxDevToolsConnectorBlex? _connector;
+    private ComponentStatePersistenceBlex? _componentState;
     private Task? _durableStartTask;
     private bool _durableStateReady;
 
-    [Inject] private BlexManager Manager { get; set; } = default!;
-    [Inject] private IEnumerable<IStore> Stores { get; set; } = default!;
+    [Inject] private ManagerBlex Manager { get; set; } = default!;
+    [Inject] private IEnumerable<IStoreBlex> Stores { get; set; } = default!;
     [Inject] private IJSRuntime Js { get; set; } = default!;
-    [Inject] private BlexOptions Options { get; set; } = default!;
+    [Inject] private OptionsBlex Options { get; set; } = default!;
     [Inject] private IServiceProvider Services { get; set; } = default!;
 
     /// <summary>
@@ -57,7 +57,7 @@ public sealed class BlexProvider : ComponentBase, IAsyncDisposable
             var pcs = Services.GetService<PersistentComponentState>();
             if (pcs is not null)
             {
-                _componentState = new ComponentStatePersistence(pcs, Stores);
+                _componentState = new ComponentStatePersistenceBlex(pcs, Stores);
                 _componentState.TryRestore();
             }
         }
@@ -85,7 +85,7 @@ public sealed class BlexProvider : ComponentBase, IAsyncDisposable
 
         if (EnableDevTools)
         {
-            _connector = new ReduxDevToolsConnector(Js);
+            _connector = new ReduxDevToolsConnectorBlex(Js);
             await _connector.ConnectAsync(Manager, Options.DevToolsName);
         }
     }
@@ -94,7 +94,7 @@ public sealed class BlexProvider : ComponentBase, IAsyncDisposable
     {
         try
         {
-            var persistor = Services.GetService<StatePersistor>();
+            var persistor = Services.GetService<StatePersistorBlex>();
             if (persistor is not null)
                 await persistor.StartAsync();
         }
@@ -113,7 +113,7 @@ public sealed class BlexProvider : ComponentBase, IAsyncDisposable
 
         // Start recording history only after rehydration so the baseline (the state Undo
         // ultimately returns to) is the hydrated state, not the pre-hydration defaults.
-        Services.GetService<BlexHistory>()?.Start();
+        Services.GetService<HistoryBlex>()?.Start();
     }
 
     /// <inheritdoc />

@@ -12,16 +12,16 @@ namespace Blex.Generators;
 /// Generates the reactive plumbing for classes annotated with <c>[Blex.Store]</c>:
 /// reactive properties, memoized computed accessors, named action wrappers, effect wrappers
 /// (loading/error lifecycle, cancellation, concurrency modes), JSON snapshot support and the
-/// <c>StoreBase</c> base type.
+/// <c>StoreBaseBlex</c> base type.
 /// </summary>
 [Generator(LanguageNames.CSharp)]
-public sealed class BlexGenerator : IIncrementalGenerator
+public sealed class GeneratorBlex : IIncrementalGenerator
 {
-    private const string StoreAttribute = "Blex.StoreAttribute";
-    private const string StateAttribute = "Blex.StateAttribute";
-    private const string ComputedAttribute = "Blex.ComputedAttribute";
-    private const string ActionAttribute = "Blex.ActionAttribute";
-    private const string EffectAttribute = "Blex.EffectAttribute";
+    private const string StoreAttributeBlex = "Blex.StoreAttributeBlex";
+    private const string StateAttributeBlex = "Blex.StateAttributeBlex";
+    private const string ComputedAttributeBlex = "Blex.ComputedAttributeBlex";
+    private const string ActionAttributeBlex = "Blex.ActionAttributeBlex";
+    private const string EffectAttributeBlex = "Blex.EffectAttributeBlex";
     private const string CancellationTokenType = "System.Threading.CancellationToken";
 
     /// <summary>Fully-qualified display that keeps nullable reference annotations (e.g. <c>string?</c>).</summary>
@@ -30,7 +30,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
     /// <summary>
-    /// Member names the generator itself emits or inherits from <c>StoreBase</c>; a state,
+    /// Member names the generator itself emits or inherits from <c>StoreBaseBlex</c>; a state,
     /// computed, action or effect must not generate one of these.
     /// </summary>
     private static readonly string[] ReservedNames =
@@ -53,7 +53,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor BadActionName = new(
         "BLEX002",
         "Cannot derive action name",
-        "Action method '{0}' must start with 'On' or specify [Action(Name = \"...\")] to derive a public action name",
+        "Action method '{0}' must start with 'On' or specify [ActionAttributeBlex(Name = \"...\")] to derive a public action name",
         "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -93,7 +93,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor EffectMustBeAsync = new(
         "BLEX007",
         "Effect method must return Task or ValueTask",
-        "Effect method '{0}' must return Task or ValueTask (non-generic). Use [Action] for value-returning or synchronous methods.",
+        "Effect method '{0}' must return Task or ValueTask (non-generic). Use [ActionAttributeBlex] for value-returning or synchronous methods.",
         "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -101,7 +101,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor MustBeInstanceMember = new(
         "BLEX008",
         "Blex member must be a writable instance member",
-        "'{0}' cannot be static, const or readonly; [State]/[Computed]/[Action]/[Effect] members must be writable instance members",
+        "'{0}' cannot be static, const or readonly; [StateAttributeBlex]/[ComputedAttributeBlex]/[ActionAttributeBlex]/[EffectAttributeBlex] members must be writable instance members",
         "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -109,7 +109,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor LatestWithoutToken = new(
         "BLEX009",
         "Latest effect cannot cancel without a CancellationToken",
-        "Effect '{0}' uses EffectConcurrency.Latest but has no CancellationToken parameter; superseded runs will keep executing, so add a trailing CancellationToken parameter to make cancellation effective",
+        "Effect '{0}' uses EffectConcurrencyBlex.Latest but has no CancellationToken parameter; superseded runs will keep executing, so add a trailing CancellationToken parameter to make cancellation effective",
         "Blex",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -125,7 +125,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ActionReturnsValue = new(
         "BLEX011",
         "Action return value is discarded",
-        "Action method '{0}' returns a value that the generated wrapper discards; use void, Task or ValueTask (store results in [State] fields instead)",
+        "Action method '{0}' returns a value that the generated wrapper discards; use void, Task or ValueTask (store results in [StateAttributeBlex] fields instead)",
         "Blex",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
@@ -173,7 +173,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     private static readonly DiagnosticDescriptor ConflictingBaseType = new(
         "BLEX016",
         "Store cannot have another base class",
-        "Blex store '{0}' derives from '{1}', but the generator needs to make it derive from Blex.StoreBase; remove the base class or compose it instead",
+        "Blex store '{0}' derives from '{1}', but the generator needs to make it derive from Blex.StoreBaseBlex; remove the base class or compose it instead",
         "Blex",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
@@ -181,7 +181,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var stores = context.SyntaxProvider.ForAttributeWithMetadataName(
-            StoreAttribute,
+            StoreAttributeBlex,
             // Accept any type declaration so misuse (e.g. records) gets a diagnostic instead of
             // being silently ignored; Transform validates the actual shape.
             predicate: static (node, _) => node is TypeDeclarationSyntax,
@@ -204,16 +204,16 @@ public sealed class BlexGenerator : IIncrementalGenerator
         });
     }
 
-    private static TransformOutput Transform(GeneratorAttributeSyntaxContext ctx)
+    private static TransformOutputBlex Transform(GeneratorAttributeSyntaxContext ctx)
     {
-        var diagnostics = new List<DiagnosticInfo>();
+        var diagnostics = new List<DiagnosticInfoBlex>();
         var symbol = (INamedTypeSymbol)ctx.TargetSymbol;
         var classDecl = (TypeDeclarationSyntax)ctx.TargetNode;
 
         void Report(DiagnosticDescriptor descriptor, Location? location, params string[] args)
-            => diagnostics.Add(new DiagnosticInfo(descriptor, LocationInfo.From(location), new EquatableArray<string>(args)));
+            => diagnostics.Add(new DiagnosticInfoBlex(descriptor, LocationInfoBlex.From(location), new EquatableArrayBlex<string>(args)));
 
-        TransformOutput Fail() => new(null, new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
+        TransformOutputBlex Fail() => new(null, new EquatableArrayBlex<DiagnosticInfoBlex>(diagnostics.ToArray()));
 
         // Records get value-equality members and a synthesized clone that fight the mutable
         // reactive container model; require a plain class.
@@ -238,10 +238,10 @@ public sealed class BlexGenerator : IIncrementalGenerator
             return Fail();
         }
 
-        // The generated partial adds ": Blex.StoreBase"; an existing different base class would
+        // The generated partial adds ": Blex.StoreBaseBlex"; an existing different base class would
         // produce an uncompilable "inherits from two classes" error deep in generated code.
         if (symbol.BaseType is { SpecialType: not SpecialType.System_Object } baseType
-            && baseType.ToDisplayString() != "Blex.StoreBase")
+            && baseType.ToDisplayString() != "Blex.StoreBaseBlex")
         {
             Report(ConflictingBaseType, classDecl.Identifier.GetLocation(), symbol.Name, baseType.Name);
             return Fail();
@@ -265,16 +265,16 @@ public sealed class BlexGenerator : IIncrementalGenerator
                 persist = b;
         }
 
-        var states = new List<StateModel>();
-        var computeds = new List<ComputedModel>();
-        var actions = new List<ActionModel>();
-        var effects = new List<EffectModel>();
+        var states = new List<StateModelBlex>();
+        var computeds = new List<ComputedModelBlex>();
+        var actions = new List<ActionModelBlex>();
+        var effects = new List<EffectModelBlex>();
 
         foreach (var member in symbol.GetMembers())
         {
             switch (member)
             {
-                case IFieldSymbol field when HasAttribute(field, StateAttribute):
+                case IFieldSymbol field when HasAttribute(field, StateAttributeBlex):
                 {
                     if (field.IsStatic || field.IsConst || field.IsReadOnly)
                     {
@@ -289,14 +289,14 @@ public sealed class BlexGenerator : IIncrementalGenerator
                         break;
                     }
 
-                    states.Add(new StateModel(
+                    states.Add(new StateModelBlex(
                         field.Name,
                         propertyName,
                         field.Type.ToDisplayString(TypeFormat)));
                     break;
                 }
 
-                case IMethodSymbol cm when cm.MethodKind == MethodKind.Ordinary && HasAttribute(cm, ComputedAttribute):
+                case IMethodSymbol cm when cm.MethodKind == MethodKind.Ordinary && HasAttribute(cm, ComputedAttributeBlex):
                 {
                     if (cm.IsStatic)
                     {
@@ -325,14 +325,14 @@ public sealed class BlexGenerator : IIncrementalGenerator
                         break;
                     }
 
-                    computeds.Add(new ComputedModel(
+                    computeds.Add(new ComputedModelBlex(
                         cm.Name,
                         propName,
                         cm.ReturnType.ToDisplayString(TypeFormat)));
                     break;
                 }
 
-                case IMethodSymbol am when am.MethodKind == MethodKind.Ordinary && HasAttribute(am, ActionAttribute):
+                case IMethodSymbol am when am.MethodKind == MethodKind.Ordinary && HasAttribute(am, ActionAttributeBlex):
                 {
                     if (am.IsStatic)
                     {
@@ -352,7 +352,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
                         break;
                     }
 
-                    var attr = am.GetAttributes().First(a => a.AttributeClass?.ToDisplayString() == ActionAttribute);
+                    var attr = am.GetAttributes().First(a => a.AttributeClass?.ToDisplayString() == ActionAttributeBlex);
                     var explicitName = attr.NamedArguments
                         .FirstOrDefault(a => a.Key == "Name").Value.Value as string;
 
@@ -376,17 +376,17 @@ public sealed class BlexGenerator : IIncrementalGenerator
                     if (prms is null)
                         break;
 
-                    actions.Add(new ActionModel(
+                    actions.Add(new ActionModelBlex(
                         am.Name,
                         wrapper,
                         label,
                         isAsync,
                         isValueTask,
-                        new EquatableArray<ParamModel>(prms)));
+                        new EquatableArrayBlex<ParamModelBlex>(prms)));
                     break;
                 }
 
-                case IMethodSymbol em when em.MethodKind == MethodKind.Ordinary && HasAttribute(em, EffectAttribute):
+                case IMethodSymbol em when em.MethodKind == MethodKind.Ordinary && HasAttribute(em, EffectAttributeBlex):
                 {
                     if (em.IsStatic)
                     {
@@ -394,7 +394,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
                         break;
                     }
 
-                    var attr = em.GetAttributes().First(a => a.AttributeClass?.ToDisplayString() == EffectAttribute);
+                    var attr = em.GetAttributes().First(a => a.AttributeClass?.ToDisplayString() == EffectAttributeBlex);
                     var explicitName = attr.NamedArguments
                         .FirstOrDefault(a => a.Key == "Name").Value.Value as string;
 
@@ -443,14 +443,14 @@ public sealed class BlexGenerator : IIncrementalGenerator
                     if (prms is null)
                         break;
 
-                    effects.Add(new EffectModel(
+                    effects.Add(new EffectModelBlex(
                         em.Name,
                         wrapper,
                         label,
                         isValueTaskEffect,
                         concurrency,
                         hasToken,
-                        new EquatableArray<ParamModel>(prms)));
+                        new EquatableArrayBlex<ParamModelBlex>(prms)));
                     break;
                 }
             }
@@ -462,29 +462,29 @@ public sealed class BlexGenerator : IIncrementalGenerator
         if (diagnostics.Count > beforeDuplicates)
             return Fail();
 
-        var model = new StoreModel(
+        var model = new StoreModelBlex(
             ns,
             symbol.Name,
             storeName,
             persist,
-            new EquatableArray<StateModel>(states.ToArray()),
-            new EquatableArray<ComputedModel>(computeds.ToArray()),
-            new EquatableArray<ActionModel>(actions.ToArray()),
-            new EquatableArray<EffectModel>(effects.ToArray()));
+            new EquatableArrayBlex<StateModelBlex>(states.ToArray()),
+            new EquatableArrayBlex<ComputedModelBlex>(computeds.ToArray()),
+            new EquatableArrayBlex<ActionModelBlex>(actions.ToArray()),
+            new EquatableArrayBlex<EffectModelBlex>(effects.ToArray()));
 
-        return new TransformOutput(model, new EquatableArray<DiagnosticInfo>(diagnostics.ToArray()));
+        return new TransformOutputBlex(model, new EquatableArrayBlex<DiagnosticInfoBlex>(diagnostics.ToArray()));
     }
 
     /// <summary>
     /// Builds parameter models for a wrapper, propagating default values and <c>params</c>.
     /// Returns null (and reports BLEX013) when a by-ref parameter makes wrapping impossible.
     /// </summary>
-    private static ParamModel[]? BuildParams(
+    private static ParamModelBlex[]? BuildParams(
         IMethodSymbol method,
         System.Collections.Immutable.ImmutableArray<IParameterSymbol> parameters,
         System.Action<DiagnosticDescriptor, Location?, string[]> report)
     {
-        var models = new ParamModel[parameters.Length];
+        var models = new ParamModelBlex[parameters.Length];
         for (var i = 0; i < parameters.Length; i++)
         {
             var p = parameters[i];
@@ -494,7 +494,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
                 return null;
             }
 
-            models[i] = new ParamModel(
+            models[i] = new ParamModelBlex(
                 p.Type.ToDisplayString(TypeFormat),
                 p.Name,
                 FormatDefaultValue(p),
@@ -562,10 +562,10 @@ public sealed class BlexGenerator : IIncrementalGenerator
 
     private static void DetectDuplicates(
         string storeName,
-        List<StateModel> states,
-        List<ComputedModel> computeds,
-        List<ActionModel> actions,
-        List<EffectModel> effects,
+        List<StateModelBlex> states,
+        List<ComputedModelBlex> computeds,
+        List<ActionModelBlex> actions,
+        List<EffectModelBlex> effects,
         INamedTypeSymbol symbol,
         System.Action<DiagnosticDescriptor, Location?, string[]> report)
     {
@@ -730,22 +730,22 @@ public sealed class BlexGenerator : IIncrementalGenerator
         => SyntaxFacts.GetKeywordKind(name) == SyntaxKind.None ? name : "@" + name;
 
     /// <summary>Renders a wrapper's parameter list, preserving params modifiers and default values.</summary>
-    private static string ParamList(EquatableArray<ParamModel> parameters)
+    private static string ParamList(EquatableArrayBlex<ParamModelBlex> parameters)
         => string.Join(", ", parameters.Select(p =>
             $"{(p.IsParams ? "params " : "")}{p.TypeFqn} {Id(p.Name)}{(p.DefaultLiteral is null ? "" : " = " + p.DefaultLiteral)}"));
 
-    /// <summary>Builds the ActionArg[] expression for a wrapper's parameters, or null when parameterless.</summary>
-    private static string? ArgsExpression(EquatableArray<ParamModel> parameters)
+    /// <summary>Builds the ActionArgBlex[] expression for a wrapper's parameters, or null when parameterless.</summary>
+    private static string? ArgsExpression(EquatableArrayBlex<ParamModelBlex> parameters)
     {
         if (parameters.Count == 0)
             return null;
 
         var items = string.Join(", ", parameters.Select(p =>
-            $"new global::Blex.ActionArg(\"{Escape(p.Name)}\", {Id(p.Name)})"));
-        return $"IsObserved ? new global::Blex.ActionArg[] {{ {items} }} : null";
+            $"new global::Blex.ActionArgBlex(\"{Escape(p.Name)}\", {Id(p.Name)})"));
+        return $"IsObserved ? new global::Blex.ActionArgBlex[] {{ {items} }} : null";
     }
 
-    private static string Emit(StoreModel m)
+    private static string Emit(StoreModelBlex m)
     {
         const string JsonObject = "global::System.Text.Json.Nodes.JsonObject";
         const string JsonSerializer = "global::System.Text.Json.JsonSerializer";
@@ -763,7 +763,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
             indent = "    ";
         }
 
-        sb.AppendLine($"{indent}partial class {m.ClassName} : global::Blex.StoreBase");
+        sb.AppendLine($"{indent}partial class {m.ClassName} : global::Blex.StoreBaseBlex");
         sb.AppendLine($"{indent}{{");
 
         var body = indent + "    ";
@@ -901,7 +901,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
             // counter, the cleared error, the cancelled predecessor (Latest) and the queue slot
             // (Queue). The body then runs through DispatchApprovedAsync so the pipeline is not
             // consulted a second time.
-            sb.AppendLine($"{body}    global::Blex.ActionArg[]? __blexArgs = {argsExpr ?? "null"};");
+            sb.AppendLine($"{body}    global::Blex.ActionArgBlex[]? __blexArgs = {argsExpr ?? "null"};");
             sb.AppendLine($"{body}    if (!BeginAction(\"{label}\", __blexArgs))");
             sb.AppendLine($"{body}        return;");
 
@@ -997,7 +997,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
         sb.AppendLine($"{body}{{");
         sb.AppendLine($"{body}    var __o = new {JsonObject}();");
         foreach (var s in m.States)
-            sb.AppendLine($"{body}    __o[\"{Escape(s.PropertyName)}\"] = {JsonSerializer}.SerializeToNode(this.{Id(s.FieldName)}, global::Blex.BlexJson.Options);");
+            sb.AppendLine($"{body}    __o[\"{Escape(s.PropertyName)}\"] = {JsonSerializer}.SerializeToNode(this.{Id(s.FieldName)}, global::Blex.JsonBlex.Options);");
         sb.AppendLine($"{body}    return __o;");
         sb.AppendLine($"{body}}}");
         sb.AppendLine();
@@ -1013,7 +1013,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
             // only a *missing* property leaves the current value untouched.
             var node = $"__n{idx++}";
             sb.AppendLine($"{body}    if (state.TryGetPropertyValue(\"{Escape(s.PropertyName)}\", out var {node}))");
-            sb.AppendLine($"{body}        this.{Id(s.FieldName)} = {node} is null ? default! : {JsonSerializer}.Deserialize<{s.TypeFqn}>({node}, global::Blex.BlexJson.Options)!;");
+            sb.AppendLine($"{body}        this.{Id(s.FieldName)} = {node} is null ? default! : {JsonSerializer}.Deserialize<{s.TypeFqn}>({node}, global::Blex.JsonBlex.Options)!;");
         }
 
         sb.AppendLine($"{body}}}");

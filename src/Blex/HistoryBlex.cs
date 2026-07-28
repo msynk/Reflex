@@ -11,20 +11,20 @@ namespace Blex;
 /// Call <see cref="Start"/> once after all stores are registered to capture the baseline snapshot.
 /// Single-threaded dispatch is assumed (Blazor's model).
 /// </remarks>
-public sealed class BlexHistory : IDisposable
+public sealed class HistoryBlex : IDisposable
 {
-    private readonly record struct Entry(JsonObject State, string? Label);
+    private readonly record struct EntryBlex(JsonObject State, string? Label);
 
-    private readonly BlexManager _manager;
-    private readonly List<Entry> _undo = [];
-    private readonly List<Entry> _redo = [];
+    private readonly ManagerBlex _manager;
+    private readonly List<EntryBlex> _undo = [];
+    private readonly List<EntryBlex> _redo = [];
     private JsonObject? _present;
     private string? _presentLabel;
     private bool _started;
     private bool _restoring;
 
     /// <summary>Creates a history bound to a manager. Set <paramref name="maxEntries"/> to cap memory.</summary>
-    public BlexHistory(BlexManager manager, int maxEntries = 100)
+    public HistoryBlex(ManagerBlex manager, int maxEntries = 100)
     {
         ArgumentNullException.ThrowIfNull(manager);
         if (maxEntries < 1)
@@ -39,7 +39,7 @@ public sealed class BlexHistory : IDisposable
     /// <summary>Raised whenever undo/redo availability changes (handy for binding button state).</summary>
     /// <remarks>
     /// Handlers are invoked one at a time with their exceptions isolated and reported through
-    /// <see cref="BlexManager.OnError"/>: this event fires from inside the dispatch pipeline, where
+    /// <see cref="ManagerBlex.OnError"/>: this event fires from inside the dispatch pipeline, where
     /// a throwing UI handler would otherwise starve the observers behind it (persistence included).
     /// </remarks>
     public event Action? Changed;
@@ -104,7 +104,7 @@ public sealed class BlexHistory : IDisposable
         }
     }
 
-    private void OnAction(BlexActionContext context)
+    private void OnAction(ActionContextBlex context)
     {
         if (_restoring)
             return;
@@ -113,7 +113,7 @@ public sealed class BlexHistory : IDisposable
         {
             if (_present is not null)
             {
-                _undo.Add(new Entry(_present, _presentLabel));
+                _undo.Add(new EntryBlex(_present, _presentLabel));
                 if (_undo.Count > MaxEntries)
                     _undo.RemoveAt(0);
             }
@@ -138,7 +138,7 @@ public sealed class BlexHistory : IDisposable
             return;
 
         if (_present is not null)
-            _redo.Add(new Entry(_present, _presentLabel));
+            _redo.Add(new EntryBlex(_present, _presentLabel));
 
         var entry = _undo[^1];
         _undo.RemoveAt(_undo.Count - 1);
@@ -155,7 +155,7 @@ public sealed class BlexHistory : IDisposable
             return;
 
         if (_present is not null)
-            _undo.Add(new Entry(_present, _presentLabel));
+            _undo.Add(new EntryBlex(_present, _presentLabel));
 
         var entry = _redo[^1];
         _redo.RemoveAt(_redo.Count - 1);

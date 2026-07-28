@@ -12,21 +12,21 @@ public class EmissionTests
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
 
-            [Store(Name = "counter", Persist = true)]
+            [StoreAttributeBlex(Name = "counter", Persist = true)]
             public partial class CounterStore
             {
-                [State] private int _count;
-                [State] private string? _label;
+                [StateAttributeBlex] private int _count;
+                [StateAttributeBlex] private string? _label;
 
-                [Computed] private int ComputeDouble() => Count * 2;
+                [ComputedAttributeBlex] private int ComputeDouble() => Count * 2;
 
-                [Action] private void OnIncrement() => Count++;
-                [Action] private void OnAdd(int amount, string? note = null) => Count += amount;
+                [ActionAttributeBlex] private void OnIncrement() => Count++;
+                [ActionAttributeBlex] private void OnAdd(int amount, string? note = null) => Count += amount;
 
-                [Effect(Concurrency = EffectConcurrency.Latest)]
+                [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]
                 private async Task OnLoad(int id, CancellationToken ct) => await Task.Delay(1, ct);
 
-                [Effect(Concurrency = EffectConcurrency.Queue)]
+                [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Queue)]
                 private async Task OnSave() => await Task.Yield();
             }
             """);
@@ -40,7 +40,7 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S { [State] private string? _userName; }
+            [StoreAttributeBlex] public partial class S { [StateAttributeBlex] private string? _userName; }
             """);
 
         Assert.Contains("public string? UserName", result.SingleGenerated);
@@ -52,10 +52,10 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _x;
-                [Action] private void OnSet(int value, bool log = true, string tag = "none") => X = value;
+                [StateAttributeBlex] private int _x;
+                [ActionAttributeBlex] private void OnSet(int value, bool log = true, string tag = "none") => X = value;
             }
             """);
 
@@ -70,9 +70,9 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [Effect] private async Task OnLoad(int id, CancellationToken ct) => await Task.Delay(1, ct);
+                [EffectAttributeBlex] private async Task OnLoad(int id, CancellationToken ct) => await Task.Delay(1, ct);
             }
             """);
 
@@ -87,8 +87,8 @@ public class EmissionTests
     public void SameClassName_InDifferentNamespaces_GetsDistinctHintNames()
     {
         var result = GeneratorTestHelper.Run(Usings + """
-            namespace A { [Store] public partial class CartStore { [State] private int _n; } }
-            namespace B { [Store] public partial class CartStore { [State] private int _n; } }
+            namespace A { [StoreAttributeBlex] public partial class CartStore { [StateAttributeBlex] private int _n; } }
+            namespace B { [StoreAttributeBlex] public partial class CartStore { [StateAttributeBlex] private int _n; } }
             """);
 
         Assert.Equal(2, result.GeneratedSources.Count);
@@ -100,11 +100,11 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store(Name = "the \"weird\" store")]
+            [StoreAttributeBlex(Name = "the \"weird\" store")]
             public partial class S
             {
-                [State] private int _x;
-                [Action(Name = "say \"hi\"")] private void OnGreet() => X++;
+                [StateAttributeBlex] private int _x;
+                [ActionAttributeBlex(Name = "say \"hi\"")] private void OnGreet() => X++;
             }
             """);
 
@@ -115,7 +115,7 @@ public class EmissionTests
     public void GlobalNamespaceStore_Compiles()
     {
         var result = GeneratorTestHelper.Run(Usings + """
-            [Store] public partial class GlobalStore { [State] private int _x; }
+            [StoreAttributeBlex] public partial class GlobalStore { [StateAttributeBlex] private int _x; }
             """);
 
         Assert.Empty(result.CompileErrors());
@@ -126,7 +126,7 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S { [State] private string? _text; }
+            [StoreAttributeBlex] public partial class S { [StateAttributeBlex] private string? _text; }
             """);
 
         // Present-but-null must restore to default!, only a missing property is skipped.
@@ -139,10 +139,10 @@ public class EmissionTests
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
             public enum Mode { A = 0, B = 1 }
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _x;
-                [Action] private void OnSet(Mode? mode = Mode.B, int? count = 5, bool? flag = null) => X++;
+                [StateAttributeBlex] private int _x;
+                [ActionAttributeBlex] private void OnSet(Mode? mode = Mode.B, int? count = 5, bool? flag = null) => X++;
             }
             """);
 
@@ -156,10 +156,10 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _x;
-                [Action(Name = "lock")] private void OnLock() => X++;
+                [StateAttributeBlex] private int _x;
+                [ActionAttributeBlex(Name = "lock")] private void OnLock() => X++;
             }
             """);
 
@@ -174,11 +174,11 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store(Name = "line\nbreak\ttab")]
+            [StoreAttributeBlex(Name = "line\nbreak\ttab")]
             public partial class S
             {
-                [State] private int _x;
-                [Action(Name = "do\nthing")] private void OnGo() => X++;
+                [StateAttributeBlex] private int _x;
+                [ActionAttributeBlex(Name = "do\nthing")] private void OnGo() => X++;
             }
             """);
 
@@ -190,10 +190,10 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _value;
-                [Computed] private int ComputeValue() => 1;
+                [StateAttributeBlex] private int _value;
+                [ComputedAttributeBlex] private int ComputeValue() => 1;
             }
             """);
 
@@ -207,10 +207,10 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _x;
-                [Computed] private int ComputeFoo() => X;
+                [StateAttributeBlex] private int _x;
+                [ComputedAttributeBlex] private int ComputeFoo() => X;
                 private bool __FooValid; // collides with the memoization backing field
             }
             """);
@@ -224,11 +224,11 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _x;
-                [Action] private void OnDoThing(int @lock, string @class) => X = @lock + @class.Length;
-                [Effect] private async Task OnLoad(int @event, CancellationToken ct) { await Task.Delay(1, ct); X = @event; }
+                [StateAttributeBlex] private int _x;
+                [ActionAttributeBlex] private void OnDoThing(int @lock, string @class) => X = @lock + @class.Length;
+                [EffectAttributeBlex] private async Task OnLoad(int @event, CancellationToken ct) { await Task.Delay(1, ct); X = @event; }
             }
             """);
 
@@ -241,10 +241,10 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private string? state;   // collides with DeserializeState's parameter
-                [State] private int value;       // collides with the setter's implicit parameter
+                [StateAttributeBlex] private string? state;   // collides with DeserializeState's parameter
+                [StateAttributeBlex] private int value;       // collides with the setter's implicit parameter
             }
             """);
 
@@ -259,10 +259,10 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _x;
-                [Effect(Concurrency = EffectConcurrency.Latest)]
+                [StateAttributeBlex] private int _x;
+                [EffectAttributeBlex(Concurrency = EffectConcurrencyBlex.Latest)]
                 private async Task OnLoad(int __ct, CancellationToken ct) { await Task.Delay(1, ct); X = __ct; }
             }
             """);
@@ -275,10 +275,10 @@ public class EmissionTests
     {
         var result = GeneratorTestHelper.Run(Usings + """
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _total;
-                [Action] private void OnAddAll(params int[] values) { foreach (var v in values) Total += v; }
+                [StateAttributeBlex] private int _total;
+                [ActionAttributeBlex] private void OnAddAll(params int[] values) { foreach (var v in values) Total += v; }
             }
             """);
 
@@ -288,17 +288,17 @@ public class EmissionTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("Concurrency = EffectConcurrency.Latest")]
-    [InlineData("Concurrency = EffectConcurrency.Drop")]
-    [InlineData("Concurrency = EffectConcurrency.Queue")]
+    [InlineData("Concurrency = EffectConcurrencyBlex.Latest")]
+    [InlineData("Concurrency = EffectConcurrencyBlex.Drop")]
+    [InlineData("Concurrency = EffectConcurrencyBlex.Queue")]
     public void EffectWrapper_TakesTheVetoDecisionBeforeTouchingAnyLifecycleState(string concurrency)
     {
-        var attribute = concurrency.Length == 0 ? "[Effect]" : $"[Effect({concurrency})]";
+        var attribute = concurrency.Length == 0 ? "[EffectAttributeBlex]" : $"[EffectAttributeBlex({concurrency})]";
         var result = GeneratorTestHelper.Run(Usings + $$"""
             namespace App;
-            [Store] public partial class S
+            [StoreAttributeBlex] public partial class S
             {
-                [State] private int _x;
+                [StateAttributeBlex] private int _x;
                 {{attribute}}
                 private async Task OnLoad(int id, CancellationToken ct) { await Task.Delay(1, ct); X = id; }
             }

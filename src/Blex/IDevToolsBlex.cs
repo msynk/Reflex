@@ -6,7 +6,7 @@ namespace Blex;
 /// Abstraction over a DevTools sink. The core library depends only on this interface; the concrete
 /// Redux DevTools bridge lives in <c>Blex.Blazor</c> so the core has no JS dependency.
 /// </summary>
-public interface IBlexDevTools
+public interface IDevToolsBlex
 {
     /// <summary>Sends the initial application state when the DevTools session connects.</summary>
     void Init(JsonObject globalState);

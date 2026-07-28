@@ -3,15 +3,15 @@ using System.Text.Json.Nodes;
 namespace Blex;
 
 /// <summary>
-/// A reactive state container. Implemented by <see cref="StoreBase"/> and the generated stores.
+/// A reactive state container. Implemented by <see cref="StoreBaseBlex"/> and the generated stores.
 /// </summary>
-public interface IStore
+public interface IStoreBlex
 {
     /// <summary>Display name of the store (used as the slice key in DevTools state).</summary>
     string Name { get; }
 
     /// <summary>
-    /// Whether this store opts in to automatic persistence (set via <c>[Store(Persist = true)]</c>).
+    /// Whether this store opts in to automatic persistence (set via <c>[StoreAttributeBlex(Persist = true)]</c>).
     /// Consumed by the persistence coordinator; ignored when no persistence provider is configured.
     /// </summary>
     bool Persist { get; }

@@ -11,13 +11,13 @@ namespace Blex;
 /// for you). Resolving a scoped service from the root provider works today but fails as soon as the
 /// container is built with <c>ValidateScopes</c> enabled.
 /// </remarks>
-public static class ServiceCollectionExtensions
+public static class ServiceCollectionExtensionsBlex
 {
     /// <summary>
     /// Registers the Blex manager and middleware. Call <see cref="AddBlexStore{TStore}"/> for each store.
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configure">Configures <see cref="BlexOptions"/>.</param>
+    /// <param name="configure">Configures <see cref="OptionsBlex"/>.</param>
     /// <param name="lifetime">
     /// Lifetime of the manager and DI-resolved middleware. Defaults to
     /// <see cref="ServiceLifetime.Scoped"/> (Blazor); use <see cref="ServiceLifetime.Singleton"/>
@@ -25,23 +25,23 @@ public static class ServiceCollectionExtensions
     /// </param>
     public static IServiceCollection AddBlex(
         this IServiceCollection services,
-        Action<BlexOptions>? configure = null,
+        Action<OptionsBlex>? configure = null,
         ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         ArgumentNullException.ThrowIfNull(services);
-        var options = new BlexOptions();
+        var options = new OptionsBlex();
         configure?.Invoke(options);
         services.AddSingleton(options);
 
         foreach (var type in options.MiddlewareTypes)
-            services.Add(new ServiceDescriptor(typeof(IBlexMiddleware), type, lifetime));
+            services.Add(new ServiceDescriptor(typeof(IMiddlewareBlex), type, lifetime));
 
-        services.Add(new ServiceDescriptor(typeof(BlexManager), sp =>
+        services.Add(new ServiceDescriptor(typeof(ManagerBlex), sp =>
         {
-            var opts = sp.GetRequiredService<BlexOptions>();
-            var resolved = sp.GetServices<IBlexMiddleware>().ToList();
+            var opts = sp.GetRequiredService<OptionsBlex>();
+            var resolved = sp.GetServices<IMiddlewareBlex>().ToList();
             resolved.AddRange(opts.MiddlewareInstances);
-            return new BlexManager(resolved)
+            return new ManagerBlex(resolved)
             {
                 DevToolsStateSanitizer = opts.DevToolsStateSanitizer,
                 DevToolsActionSanitizer = opts.DevToolsActionSanitizer,
@@ -53,9 +53,9 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Registers a store exposed both as its concrete type and as <see cref="IStore"/>.
-    /// The store is attached to the <see cref="BlexManager"/> on first resolution, so actions are
-    /// observed even in hosts without a <c>&lt;BlexProvider&gt;</c> (console apps, workers, tests).
+    /// Registers a store exposed both as its concrete type and as <see cref="IStoreBlex"/>.
+    /// The store is attached to the <see cref="ManagerBlex"/> on first resolution, so actions are
+    /// observed even in hosts without a <c>&lt;ProviderBlex&gt;</c> (console apps, workers, tests).
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="lifetime">
@@ -66,50 +66,50 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddBlexStore<TStore>(
         this IServiceCollection services,
         ServiceLifetime lifetime = ServiceLifetime.Scoped)
-        where TStore : StoreBase
+        where TStore : StoreBaseBlex
     {
         ArgumentNullException.ThrowIfNull(services);
         services.Add(new ServiceDescriptor(typeof(TStore), sp =>
         {
             var store = ActivatorUtilities.CreateInstance<TStore>(sp);
-            sp.GetRequiredService<BlexManager>().Register(store);
+            sp.GetRequiredService<ManagerBlex>().Register(store);
             return store;
         }, lifetime));
 
-        services.Add(new ServiceDescriptor(typeof(IStore), sp => sp.GetRequiredService<TStore>(), lifetime));
+        services.Add(new ServiceDescriptor(typeof(IStoreBlex), sp => sp.GetRequiredService<TStore>(), lifetime));
         return services;
     }
 
     /// <summary>
-    /// Enables automatic persistence for stores marked <c>[Store(Persist = true)]</c>. Requires an
-    /// <see cref="IBlexStorage"/> to be registered (for Blazor use <c>AddBlexLocalStoragePersistence</c>
+    /// Enables automatic persistence for stores marked <c>[StoreAttributeBlex(Persist = true)]</c>. Requires an
+    /// <see cref="IStorageBlex"/> to be registered (for Blazor use <c>AddBlexLocalStoragePersistence</c>
     /// or <c>AddBlexSessionStoragePersistence</c> from <c>Blex.Blazor</c>).
     /// </summary>
     /// <param name="services">The service collection.</param>
-    /// <param name="configure">Configures <see cref="BlexPersistenceOptions"/>.</param>
+    /// <param name="configure">Configures <see cref="PersistenceOptionsBlex"/>.</param>
     /// <param name="lifetime">
     /// Defaults to <see cref="ServiceLifetime.Scoped"/>; must match the lifetime passed to
     /// <see cref="AddBlex"/>.
     /// </param>
     public static IServiceCollection AddBlexPersistence(
         this IServiceCollection services,
-        Action<BlexPersistenceOptions>? configure = null,
+        Action<PersistenceOptionsBlex>? configure = null,
         ServiceLifetime lifetime = ServiceLifetime.Scoped)
     {
         ArgumentNullException.ThrowIfNull(services);
-        var options = new BlexPersistenceOptions();
+        var options = new PersistenceOptionsBlex();
         configure?.Invoke(options);
         services.AddSingleton(options);
-        services.Add(new ServiceDescriptor(typeof(StatePersistor), sp => new StatePersistor(
-            sp.GetRequiredService<BlexManager>(),
-            sp.GetRequiredService<IBlexStorage>(),
-            sp.GetRequiredService<BlexPersistenceOptions>()), lifetime));
+        services.Add(new ServiceDescriptor(typeof(StatePersistorBlex), sp => new StatePersistorBlex(
+            sp.GetRequiredService<ManagerBlex>(),
+            sp.GetRequiredService<IStorageBlex>(),
+            sp.GetRequiredService<PersistenceOptionsBlex>()), lifetime));
         return services;
     }
 
     /// <summary>
-    /// Registers in-app undo/redo (<see cref="BlexHistory"/>). Resolve <see cref="BlexHistory"/>
-    /// to call <c>Undo()</c>/<c>Redo()</c>; <c>&lt;BlexProvider&gt;</c> starts recording automatically.
+    /// Registers in-app undo/redo (<see cref="HistoryBlex"/>). Resolve <see cref="HistoryBlex"/>
+    /// to call <c>Undo()</c>/<c>Redo()</c>; <c>&lt;ProviderBlex&gt;</c> starts recording automatically.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="maxEntries">Maximum number of undo entries retained.</param>
@@ -124,8 +124,8 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         services.Add(new ServiceDescriptor(
-            typeof(BlexHistory),
-            sp => new BlexHistory(sp.GetRequiredService<BlexManager>(), maxEntries),
+            typeof(HistoryBlex),
+            sp => new HistoryBlex(sp.GetRequiredService<ManagerBlex>(), maxEntries),
             lifetime));
         return services;
     }
