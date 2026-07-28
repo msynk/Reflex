@@ -4,6 +4,24 @@ All notable changes to Blex are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **XAML data binding**: every store now implements `INotifyPropertyChanged`. `PropertyChanged`
+  is raised together with `StateChanged`, always with an empty property name ("all properties
+  changed") because memoized `[Computed]` values can change whenever any state field changes -
+  so bindings to computed properties stay fresh too. A throwing `StateChanged` subscriber cannot
+  starve the raise. `PropertyChanged` joins the reserved member names checked by BLEX005.
+- **`Blex.Maui` package**: .NET MAUI integration for native (non-Blazor) apps.
+  `builder.UseBlex(...)` registers the manager plus a `IMauiInitializeService` startup
+  initializer that mirrors `<BlexProvider>`: it attaches every `AddBlexStore` store to the
+  manager, rehydrates persisted state and starts `BlexHistory` recording when `MauiApp.Build()`
+  runs. `AddBlexPreferencesPersistence()` persists `[Store(Persist = true)]` stores to OS-native
+  MAUI `Preferences` (with the usual debounce/versioning/migration options), and hydration
+  failures are contained and reported through `OnError` instead of crashing startup. The package
+  targets plain net8.0/net9.0/net10.0 against the neutral MAUI assemblies, so it builds without
+  MAUI workloads and resolves from every MAUI platform TFM. Blazor Hybrid apps can also use
+  `AddBlexPreferencesPersistence()` to store state outside the WebView profile.
+
 ## [0.1.0] - 2026-07-27
 
 First release published to NuGet.

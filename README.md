@@ -4,11 +4,12 @@
 
 [![NuGet](https://img.shields.io/nuget/v/Blex.svg?label=Blex)](https://www.nuget.org/packages/Blex)
 [![NuGet](https://img.shields.io/nuget/v/Blex.Blazor.svg?label=Blex.Blazor)](https://www.nuget.org/packages/Blex.Blazor)
+[![NuGet](https://img.shields.io/nuget/v/Blex.Maui.svg?label=Blex.Maui)](https://www.nuget.org/packages/Blex.Maui)
 [![NuGet](https://img.shields.io/nuget/v/Blex.Testing.svg?label=Blex.Testing)](https://www.nuget.org/packages/Blex.Testing)
 [![CI](https://github.com/msynk/Blex/actions/workflows/ci.yml/badge.svg)](https://github.com/msynk/Blex/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/msynk/Blex/blob/main/LICENSE)
 
-Lightweight, source-generator-powered **reactive state management for Blazor** - with **Redux DevTools time-travel** built in.
+Lightweight, source-generator-powered **reactive state management for Blazor and .NET MAUI** - with **Redux DevTools time-travel** built in.
 
 Blex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux library but is widely criticized for boilerplate (separate Action / Reducer / Effect / Feature classes per operation) and for having no first-class DevTools time-travel. Blex keeps the good parts of the Flux model - a single observable state tree, named actions, middleware - while a Roslyn source generator removes the ceremony and a tiny JS bridge wires you straight into the Redux DevTools browser extension.
 
@@ -39,6 +40,7 @@ Blex fills a real gap in the Blazor ecosystem. Fluxor is the de-facto Redux libr
 ```bash
 dotnet add package Blex          # runtime + source generator
 dotnet add package Blex.Blazor   # Blazor integration (BlexProvider, DevTools bridge)
+dotnet add package Blex.Maui     # .NET MAUI integration (XAML binding, Preferences persistence)
 dotnet add package Blex.Testing  # optional, for unit tests
 ```
 
@@ -365,52 +367,71 @@ builder.Services.AddBlex(options =>
 });
 ```
 
-## .NET MAUI Blazor Hybrid
+## .NET MAUI
 
-Blex works in MAUI Blazor Hybrid apps out of the box - there is no separate MAUI package. The
-packages' plain `net8.0`/`net9.0`/`net10.0` builds resolve from `net8.0-android`, `net8.0-ios`,
-`net8.0-maccatalyst` and `net8.0-windows` targets, and setup is the same as any Blazor app:
-`AddBlex(...)` + store registrations in `MauiProgram.cs`, and `<BlexProvider>` wrapping the root
-component inside the `BlazorWebView`.
+All packages ship plain `net8.0`/`net9.0`/`net10.0` builds that resolve from every MAUI platform
+target (`net8.0-android`, `net8.0-ios`, `net8.0-maccatalyst`, `net8.0-windows`) - no workloads
+involved on the library side.
 
-Two platform notes:
+### Blazor Hybrid
 
-- **DevTools** - there is no browser extension inside a `BlazorWebView`, so the bridge detects its
-  absence and disables itself (time-travel is simply off). Set `<BlexProvider
-  EnableDevTools="false">` to skip loading the bridge module entirely.
-- **Persistence** - `AddBlexLocalStoragePersistence()` works (the WebView provides
-  `localStorage`), but the data then lives in the WebView's profile storage. To persist to
-  OS-native app preferences instead, implement `IBlexStorage` over MAUI's `Preferences`:
+MAUI Blazor Hybrid apps use `Blex` + `Blex.Blazor` exactly like any Blazor app: `AddBlex(...)` in
+`MauiProgram.cs` and `<BlexProvider>` wrapping the root component inside the `BlazorWebView`.
+There is no browser extension inside a WebView, so the DevTools bridge detects its absence and
+disables itself; set `<BlexProvider EnableDevTools="false">` to skip loading it entirely.
+`AddBlexLocalStoragePersistence()` works (the WebView provides `localStorage`), or add
+`Blex.Maui` and call `AddBlexPreferencesPersistence()` to persist to OS-native app preferences
+instead of the WebView profile.
 
-```csharp
-public sealed class PreferencesBlexStorage : IBlexStorage
-{
-    public ValueTask<string?> GetAsync(string key, CancellationToken cancellationToken = default)
-        => ValueTask.FromResult(Preferences.Default.Get<string?>(key, null));
+### Native (XAML)
 
-    public ValueTask SetAsync(string key, string value, CancellationToken cancellationToken = default)
-    {
-        Preferences.Default.Set(key, value);
-        return ValueTask.CompletedTask;
-    }
-
-    public ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default)
-    {
-        Preferences.Default.Remove(key);
-        return ValueTask.CompletedTask;
-    }
-}
-```
+`Blex.Maui` makes stores first-class XAML citizens. Every store implements
+`INotifyPropertyChanged` - raised with an empty property name ("all properties changed"), so
+bindings to `[Computed]` properties stay fresh too - which means XAML can bind directly to
+generated state, computed and effect-lifecycle properties:
 
 ```csharp
 // MauiProgram.cs
-builder.Services.AddScoped<IBlexStorage, PreferencesBlexStorage>();
-builder.Services.AddBlexPersistence();   // debounce/versioning options work as usual
+builder.UseBlex();                                  // manager + startup initializer
+builder.Services.AddBlexStore<CounterStore>();
+builder.Services.AddBlexPreferencesPersistence();   // OS-native Preferences storage
 ```
 
-Native (XAML) MAUI apps can use the core `Blex` package as a plain state container via
-`store.Subscribe(...)`, but generated properties do not raise `INotifyPropertyChanged`, so XAML
-bindings will not observe changes on their own.
+```xml
+<ContentPage ... x:DataType="stores:CounterStore">
+    <VerticalStackLayout>
+        <Label Text="{Binding Count}" />
+        <Label Text="{Binding DoubleCount}" />
+    </VerticalStackLayout>
+</ContentPage>
+```
+
+```csharp
+public partial class MainPage : ContentPage
+{
+    private readonly CounterStore _store;
+
+    public MainPage(CounterStore store)
+    {
+        InitializeComponent();
+        BindingContext = _store = store;
+    }
+
+    private void OnIncrementClicked(object? sender, EventArgs e) => _store.Increment();
+}
+```
+
+`UseBlex()` registers a startup initializer that mirrors what `<BlexProvider>` does in Blazor:
+when `MauiApp.Build()` runs it attaches every `AddBlexStore` store to the manager, rehydrates
+persisted state from `Preferences`, and starts `BlexHistory` recording (when registered) - all
+before the first page appears. `AddBlexPreferencesPersistence()` supports the same
+debounce/versioning/migration options as the browser-storage providers, and an unreadable
+payload is reported through `options.OnError` and discarded rather than crashing startup.
+
+To persist somewhere else (files, SQLite), register your own `IBlexStorage` before calling
+`AddBlexPreferencesPersistence()` - the first registration wins. An `IBlexStorage` that
+completes asynchronously should be hydrated from app code (`await persistor.StartAsync()`)
+instead of relying on the synchronous startup initializer.
 
 ## Projects
 
@@ -419,6 +440,7 @@ bindings will not observe changes on their own.
 | `src/Blex` | Core runtime (no JS dependency): `StoreBase`, attributes, dispatch, middleware, persistence, entity adapter, undo/redo, `BlexManager` manager. |
 | `src/Blex.Generators` | Roslyn incremental source generator. |
 | `src/Blex.Blazor` | Blazor integration: `BlexComponentBase`, `<BlexProvider>`, browser-storage persistence, Redux DevTools bridge. |
+| `src/Blex.Maui` | .NET MAUI integration: `UseBlex()` startup initializer, `Preferences`-backed persistence, XAML-bindable stores. |
 | `src/Blex.Testing` | Test harness and assertions (`BlexTestHarness`, `ActionLog`). |
 | `src/Demos/Blex.Demo` | Documentation website: every feature explained with a live, runnable demo. |
 | `src/Demos/Blex.Sample` | Blazor WebAssembly demo (Counter, Todos, Weather). |

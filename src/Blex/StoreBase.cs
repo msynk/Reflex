@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Text.Json.Nodes;
 
 namespace Blex;
@@ -15,8 +16,13 @@ namespace Blex;
 /// recorded as its own action. Avoid mutating a store from outside while one of its async
 /// actions is in progress.
 /// </remarks>
-public abstract class StoreBase : IStore
+public abstract class StoreBase : IStore, INotifyPropertyChanged
 {
+    // XAML binding engines (MAUI, WPF, WinUI) treat an empty property name as "every property
+    // changed". That is the honest granularity here: memoized computed properties can change
+    // whenever any state field changes, so a per-field raise would leave computed bindings stale.
+    private static readonly PropertyChangedEventArgs AllPropertiesChanged = new(string.Empty);
+
     private int _recordDepth;
     private int _notifyDepth;
     private bool _dirty;
@@ -31,6 +37,13 @@ public abstract class StoreBase : IStore
 
     /// <inheritdoc />
     public event Action? StateChanged;
+
+    /// <summary>
+    /// Raised together with <see cref="StateChanged"/>, always with an empty property name
+    /// ("all properties changed"), so XAML bindings (.NET MAUI, WPF, WinUI) can bind directly to
+    /// generated state and computed properties. Blazor hosts can ignore this event.
+    /// </summary>
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     /// <inheritdoc />
     public abstract JsonObject SerializeState();
@@ -53,13 +66,32 @@ public abstract class StoreBase : IStore
     }
 
     /// <summary>
+    /// Raises <see cref="StateChanged"/> followed by <see cref="PropertyChanged"/> (with an empty
+    /// property name, meaning "all properties changed"). Every notification funnels through here
+    /// so both eventing models always stay in sync.
+    /// </summary>
+    private void NotifyStateChanged()
+    {
+        try
+        {
+            StateChanged?.Invoke();
+        }
+        finally
+        {
+            // A throwing StateChanged subscriber must not starve XAML bindings of the raise:
+            // the mutation was applied either way.
+            PropertyChanged?.Invoke(this, AllPropertiesChanged);
+        }
+    }
+
+    /// <summary>
     /// Invalidates computed values and raises <see cref="StateChanged"/>. Useful for manual
     /// (non-generated) store implementations after restoring state out-of-band.
     /// </summary>
     protected void NotifyRestored()
     {
         InvalidateComputed();
-        StateChanged?.Invoke();
+        NotifyStateChanged();
     }
 
     internal void Attach(BlexManager manager)
@@ -96,7 +128,7 @@ public abstract class StoreBase : IStore
             InvalidateComputed();
             try
             {
-                StateChanged?.Invoke();
+                NotifyStateChanged();
             }
             finally
             {
@@ -119,7 +151,7 @@ public abstract class StoreBase : IStore
         if (_notifyDepth == 0)
         {
             InvalidateComputed();
-            StateChanged?.Invoke();
+            NotifyStateChanged();
         }
     }
 
@@ -134,7 +166,7 @@ public abstract class StoreBase : IStore
 
         field = value;
         InvalidateComputed();
-        StateChanged?.Invoke();
+        NotifyStateChanged();
     }
 
     /// <summary>
@@ -147,7 +179,7 @@ public abstract class StoreBase : IStore
         if (pending == 1)
         {
             InvalidateComputed();
-            StateChanged?.Invoke();
+            NotifyStateChanged();
         }
     }
 
@@ -158,7 +190,7 @@ public abstract class StoreBase : IStore
         if (pending == 0)
         {
             InvalidateComputed();
-            StateChanged?.Invoke();
+            NotifyStateChanged();
         }
     }
 
@@ -204,7 +236,7 @@ public abstract class StoreBase : IStore
 
                 try
                 {
-                    StateChanged?.Invoke();
+                    NotifyStateChanged();
                 }
                 finally
                 {
@@ -310,6 +342,6 @@ public abstract class StoreBase : IStore
         }
 
         InvalidateComputed();
-        StateChanged?.Invoke();
+        NotifyStateChanged();
     }
 }

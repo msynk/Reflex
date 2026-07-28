@@ -35,7 +35,7 @@ public sealed class BlexGenerator : IIncrementalGenerator
     /// </summary>
     private static readonly string[] ReservedNames =
     [
-        "Name", "Persist", "StateChanged", "SerializeState", "DeserializeState",
+        "Name", "Persist", "StateChanged", "PropertyChanged", "SerializeState", "DeserializeState",
         "InvalidateComputed", "NotifyRestored", "SetState", "SetEffectState",
         "BeginEffect", "EndEffect", "Dispatch", "DispatchAsync",
         "Batch", "ResetState", "RestoreState", "IsRestoring", "IsObserved",

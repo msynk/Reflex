@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>$(BlexTargetFrameworks)</TargetFrameworks>
+    <IsPackable>true</IsPackable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <PackageId>Blex.Maui</PackageId>
+    <Title>Blex.Maui</Title>
+    <Description>.NET MAUI integration for Blex: Preferences-backed persistence, automatic startup hydration, and XAML-bindable stores for native (non-Blazor) MAUI apps.</Description>
+  </PropertyGroup>
+
+  <!-- Match each TFM's own MAUI band; consumers still resolve their own newer patches. -->
+  <PropertyGroup>
+    <MauiVersion Condition="'$(TargetFramework)' == 'net8.0'">8.0.100</MauiVersion>
+    <MauiVersion Condition="'$(TargetFramework)' == 'net9.0'">9.0.0</MauiVersion>
+    <MauiVersion Condition="'$(TargetFramework)' == 'net10.0'">10.0.0</MauiVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Plain-TFM references to the MAUI NuGet packages: their neutral net8.0+ builds are enough
+      to compile against (MauiAppBuilder, IMauiInitializeService, IPreferences), and the
+      consuming app's platform TFM (net8.0-android, net8.0-ios, ...) resolves the real platform
+      implementations at runtime. This keeps the repo buildable without MAUI workloads.
+    -->
+    <PackageReference Include="Microsoft.Maui.Core" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Maui.Essentials" Version="$(MauiVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      PrivateAssets="none" keeps NuGet from stamping exclude="Build,Analyzers" on the Blex
+      dependency, so the bundled source generator still reaches a project that references only
+      Blex.Maui. Without it those consumers get the runtime but no codegen.
+    -->
+    <ProjectReference Include="..\Blex\Blex.csproj" PrivateAssets="none" />
+  </ItemGroup>
+
+</Project>

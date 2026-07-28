@@ -1,6 +1,6 @@
 name: Release
 
-# Publishes Blex, Blex.Blazor and Blex.Testing to nuget.org.
+# Publishes Blex, Blex.Blazor, Blex.Maui and Blex.Testing to nuget.org.
 #
 # One-time setup, in order:
 #   1. Make sure the GitHub repository is named `Blex` (Settings -> General -> Repository name).

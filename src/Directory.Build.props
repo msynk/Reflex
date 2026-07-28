@@ -25,7 +25,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageTags>blazor;state-management;state;store;redux;flux;devtools;source-generator;reactive;fluxor</PackageTags>
+    <PackageTags>blazor;maui;state-management;state;store;redux;flux;devtools;source-generator;reactive;fluxor</PackageTags>
     <PackageReleaseNotes>https://github.com/msynk/Blex/blob/main/CHANGELOG.md</PackageReleaseNotes>
     <PackageOutputPath>$(MSBuildThisFileDirectory)..\artifacts\packages</PackageOutputPath>
   </PropertyGroup>

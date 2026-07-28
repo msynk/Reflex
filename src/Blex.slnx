@@ -6,6 +6,7 @@
   <Folder Name="/src/">
     <Project Path="Blex.Blazor/Blex.Blazor.csproj" />
     <Project Path="Blex.Generators/Blex.Generators.csproj" />
+    <Project Path="Blex.Maui/Blex.Maui.csproj" />
     <Project Path="Blex.Testing/Blex.Testing.csproj" />
     <Project Path="Blex/Blex.csproj" />
   </Folder>
